@@ -54,16 +54,21 @@ export function Studio() {
       const node = captureRefs.current[i];
       if (node) out.push(await exportNodeToPng(node));
     }
+    if (out.length !== cardCount) {
+      throw new Error("일부 카드 캡처에 실패했습니다. 다시 시도해주세요.");
+    }
     return out;
   }
 
   async function downloadAll() {
     if (!spec) return;
-    setBusy(true);
+    setBusy(true); setError(null);
     try {
       const blobs = await collectPngs();
       const slug = slugify(keyword) || "card";
       blobs.forEach((b, i) => downloadBlob(b, `${slug}-${i + 1}.png`));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "다운로드 오류");
     } finally { setBusy(false); }
   }
 
