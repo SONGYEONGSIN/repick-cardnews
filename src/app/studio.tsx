@@ -96,65 +96,66 @@ export function Studio() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "#faf9f7", color: "#1c1917" }}>
-      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "48px 24px", display: "grid", gridTemplateColumns: "360px 1fr", gap: 40 }}>
+    <main className="min-h-screen bg-stone-50 text-stone-900">
+      <div className="mx-auto grid max-w-[1120px] grid-cols-[360px_1fr] gap-10 px-6 py-12">
         {/* 좌측: 컨트롤 (도구 = 차갑게) */}
         <section>
-          <p style={{ letterSpacing: "0.28em", fontSize: 12, textTransform: "uppercase", color: "#78716c" }}>RE:PICK STUDIO</p>
-          <h1 style={{ fontSize: 34, fontWeight: 800, margin: "8px 0 28px" }}>카드 스튜디오</h1>
+          <p className="text-xs uppercase tracking-[0.28em] text-stone-500">RE:PICK STUDIO</p>
+          <h1 className="my-2 mb-7 text-[34px] font-extrabold">카드 스튜디오</h1>
 
-          <label style={{ fontSize: 13, color: "#57534e" }}>키워드</label>
+          <label className="text-sm text-stone-600">키워드</label>
           <input
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder="예: 에어컨 전기세 절약"
-            style={{ width: "100%", marginTop: 6, marginBottom: 20, padding: "12px 14px", borderRadius: 10, border: "1px solid #e7e5e4", fontSize: 15 }}
+            className="mt-1.5 mb-5 w-full rounded-[10px] border border-stone-200 px-3.5 py-3 text-[15px]"
           />
 
-          <div style={{ fontSize: 13, color: "#57534e", marginBottom: 6 }}>유형</div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          <div className="mb-1.5 text-sm text-stone-600">유형</div>
+          <div className="mb-5 flex gap-2">
             {(["informationsend", "cardnews"] as GenType[]).map((t) => (
               <button key={t} onClick={() => setType(t)}
-                style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e7e5e4", background: type === t ? "#1c1917" : "#fff", color: type === t ? "#fff" : "#1c1917", cursor: "pointer" }}>
+                className={`flex-1 cursor-pointer rounded-[10px] border border-stone-200 py-2.5 ${type === t ? "bg-stone-900 text-white" : "bg-white text-stone-900"}`}>
                 {t === "informationsend" ? "정보전달" : "카드뉴스"}
               </button>
             ))}
           </div>
 
-          <div style={{ fontSize: 13, color: "#57534e", marginBottom: 6 }}>테마</div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+          <div className="mb-1.5 text-sm text-stone-600">테마</div>
+          <div className="mb-6 flex gap-2">
             {THEME_IDS.map((id) => (
               <button key={id} onClick={() => setThemeId(id)}
-                style={{ flex: 1, padding: "8px 0", borderRadius: 10, border: themeId === id ? "2px solid #c2410c" : "1px solid #e7e5e4", background: THEMES[id].bg, color: THEMES[id].fg, fontSize: 12, cursor: "pointer" }}>
+                className={`flex-1 cursor-pointer rounded-[10px] py-2 text-xs ${themeId === id ? "border-2 border-orange-700" : "border border-stone-200"}`}
+                style={{ background: THEMES[id].bg, color: THEMES[id].fg }}>
                 {THEMES[id].label}
               </button>
             ))}
           </div>
 
           <button onClick={generate} disabled={busy || !keyword.trim()}
-            style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "#c2410c", color: "#fff", fontSize: 16, fontWeight: 700, cursor: busy ? "wait" : "pointer", opacity: !keyword.trim() ? 0.5 : 1 }}>
+            className={`w-full rounded-xl border-none bg-orange-700 py-3.5 text-base font-bold text-white ${busy ? "cursor-wait" : "cursor-pointer"} ${!keyword.trim() ? "opacity-50" : "opacity-100"}`}>
             {busy ? "생성 중…" : "생성하기"}
           </button>
 
           {spec && (
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button onClick={downloadAll} disabled={busy} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "1px solid #1c1917", background: "#fff", cursor: "pointer" }}>PNG 다운로드</button>
-              <button onClick={saveToFolder} disabled={busy} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: "#1c1917", color: "#fff", cursor: "pointer" }}>폴더에 저장</button>
+            <div className="mt-4 flex gap-2">
+              <button onClick={downloadAll} disabled={busy} className="flex-1 cursor-pointer rounded-[10px] border border-stone-900 bg-white py-3">PNG 다운로드</button>
+              <button onClick={saveToFolder} disabled={busy} className="flex-1 cursor-pointer rounded-[10px] border-none bg-stone-900 py-3 text-white">폴더에 저장</button>
             </div>
           )}
-          {error && <p style={{ color: "#dc2626", marginTop: 14, fontSize: 14 }}>⚠ {error}</p>}
+          {error && <p className="mt-3.5 text-sm text-red-600">⚠ {error}</p>}
         </section>
 
         {/* 우측: 미리보기 캐러셀 (산출물 = 뜨겁게) */}
         <section>
-          {!spec && <div style={{ height: 480, borderRadius: 16, border: "1px dashed #d6d3d1", display: "flex", alignItems: "center", justifyContent: "center", color: "#a8a29e" }}>키워드를 입력하고 생성하기를 누르세요</div>}
+          {!spec && <div className="flex h-[480px] items-center justify-center rounded-2xl border border-dashed border-stone-300 text-stone-400">키워드를 입력하고 생성하기를 누르세요</div>}
           {spec && (
-            <div style={{ display: "flex", gap: 24, overflowX: "auto", paddingBottom: 12 }}>
+            <div className="flex gap-6 overflow-x-auto pb-3">
               {Array.from({ length: cardCount }).map((_, i) => (
-                <div key={i} style={{ flex: "0 0 auto" }}>
-                  <div style={{ fontSize: 12, color: "#78716c", marginBottom: 6 }}>{i + 1} / {cardCount}</div>
+                <div key={i} className="flex-none">
+                  <div className="mb-1.5 text-xs text-stone-500">{i + 1} / {cardCount}</div>
                   {/* 화면용 축소 렌더 (표시 전용). PNG 캡처는 화면 밖 원본 노드(captureRefs)에서 수행한다. */}
-                  <div ref={(el) => { cardRefs.current[i] = el; }} style={{ width: 324, height: 405, overflow: "hidden", borderRadius: 12, border: "1px solid #e7e5e4" }}>
+                  <div ref={(el) => { cardRefs.current[i] = el; }} className="overflow-hidden rounded-xl border border-stone-200" style={{ width: 324, height: 405 }}>
                     <div style={{ transform: "scale(0.3)", transformOrigin: "top left" }}>
                       <CardRenderer spec={spec} themeId={themeId} index={i} />
                     </div>
