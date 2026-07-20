@@ -1,7 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { z } from "zod";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { z } from "zod/v4";
 import { InfographicSpec, CardnewsSpec, type ContentSpec } from "@/lib/schema";
 import { readVault, buildSystemPrompt } from "@/lib/prompt";
 
@@ -14,21 +13,6 @@ const BodySchema = z.object({
 
 export function parseBody(raw: unknown): z.infer<typeof BodySchema> {
   return BodySchema.parse(raw);
-}
-
-// 설치된 @anthropic-ai/sdk@0.69.0의 helpers/beta/zod는 zod v4 네이티브 toJSONSchema를
-// 요구하지만 이 프로젝트는 zod v3(^3.24.1)를 사용한다. 동일한 구조(type/schema/parse)를
-// zod-to-json-schema(v3 호환) + SDK 내장 strict-schema 변환기로 직접 구성해 대체한다.
-function outputFormat<T>(schema: z.ZodType<T>): {
-  type: "json_schema";
-  schema: Record<string, unknown>;
-  parse: (content: string) => T;
-} {
-  return {
-    type: "json_schema",
-    schema: transformJSONSchema(zodToJsonSchema(schema)),
-    parse: (content: string) => schema.parse(JSON.parse(content)),
-  };
 }
 
 export async function POST(req: Request) {
@@ -46,16 +30,16 @@ export async function POST(req: Request) {
   try {
     const vault = await readVault();
     const system = buildSystemPrompt(body.type, vault);
-    const format: z.ZodType<ContentSpec> =
-      body.type === "informationsend" ? InfographicSpec : CardnewsSpec;
 
     const client = new Anthropic();
-    const response = await client.beta.messages.parse({
+    const response = await client.messages.parse({
       model: MODEL,
       max_tokens: 16000,
       system,
       messages: [{ role: "user", content: `키워드: "${body.keyword}"\n위 키워드로 콘텐츠 카피를 생성하세요.` }],
-      output_format: outputFormat(format),
+      output_config: {
+        format: zodOutputFormat(body.type === "informationsend" ? InfographicSpec : CardnewsSpec),
+      },
     });
 
     const spec = response.parsed_output as ContentSpec | null;
