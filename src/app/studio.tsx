@@ -14,6 +14,7 @@ export function Studio() {
   const [type, setType] = useState<GenType>("informationsend");
   const [themeId, setThemeId] = useState<ThemeId>("mint-clean");
   const [spec, setSpec] = useState<ContentSpec | null>(null);
+  const [genKeyword, setGenKeyword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // 화면용 축소 미리보기 노드 (표시 전용, 캡처에는 사용하지 않음)
@@ -36,6 +37,7 @@ export function Studio() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "생성 실패");
       setSpec(data.spec);
+      setGenKeyword(keyword);
     } catch (e) {
       setError(e instanceof Error ? e.message : "오류");
     } finally {
@@ -65,7 +67,7 @@ export function Studio() {
     setBusy(true); setError(null);
     try {
       const blobs = await collectPngs();
-      const slug = slugify(keyword) || "card";
+      const slug = slugify(genKeyword) || "card";
       blobs.forEach((b, i) => downloadBlob(b, `${slug}-${i + 1}.png`));
     } catch (e) {
       setError(e instanceof Error ? e.message : "다운로드 오류");
@@ -83,7 +85,7 @@ export function Studio() {
       const res = await fetch("/api/save", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ type, keyword, mmdd: mmdd(), images, templateIds }),
+        body: JSON.stringify({ type: spec.type, keyword: genKeyword, mmdd: mmdd(), images, templateIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "저장 실패");
