@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import { InfographicSpec, CardnewsSpec, type ContentSpec } from "@/lib/schema";
 import { readVault, buildSystemPrompt } from "@/lib/prompt";
+import { resolveAuthMode, oauthToken } from "@/lib/auth";
 
 const MODEL = "claude-opus-4-8";
 
@@ -23,15 +24,28 @@ export async function POST(req: Request) {
     return Response.json({ error: e instanceof Error ? e.message : "잘못된 요청" }, { status: 400 });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return Response.json({ error: "서버에 ANTHROPIC_API_KEY가 설정되지 않았습니다" }, { status: 500 });
+  const mode = resolveAuthMode(process.env);
+  if (mode === "none") {
+    return Response.json(
+      {
+        error:
+          "Claude 인증이 필요합니다. API 키(ANTHROPIC_API_KEY) 또는 OAuth 토큰(ANTHROPIC_AUTH_TOKEN)을 .env.local에 설정하세요. Claude Pro/Max면 `claude setup-token`으로 토큰을 발급할 수 있습니다.",
+      },
+      { status: 500 },
+    );
   }
 
   try {
     const vault = await readVault();
     const system = buildSystemPrompt(body.type, vault);
 
-    const client = new Anthropic();
+    const client =
+      mode === "oauth"
+        ? new Anthropic({
+            authToken: oauthToken(process.env),
+            defaultHeaders: { "anthropic-beta": "oauth-2025-04-20" },
+          })
+        : new Anthropic();
     const response = await client.messages.parse({
       model: MODEL,
       max_tokens: 16000,
