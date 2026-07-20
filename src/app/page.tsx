@@ -1,3 +1,12 @@
+import { CardRenderer } from "@/templates/CardRenderer";
+import { infographicFixture } from "@/lib/fixtures";
+
 export default function Home() {
-  return <main className="p-10 text-2xl font-[var(--font-display)]">RE:픽 카드 스튜디오</main>;
+  return (
+    <main style={{ padding: 40 }}>
+      <div style={{ transform: "scale(0.4)", transformOrigin: "top left" }}>
+        <CardRenderer spec={infographicFixture} themeId="mint-clean" index={0} />
+      </div>
+    </main>
+  );
 }
