@@ -5,7 +5,7 @@
 ## 실행
 1. `npm install`
 2. `cp .env.local.example .env.local` 후 `ANTHROPIC_API_KEY` 입력
-3. `npm run dev` → http://localhost:3200
+3. `npm run dev` → http://localhost:3500
 
 ## 산출물 폴더
 - `informationsend/<키워드슬러그>-<MMDD>/1.png`
