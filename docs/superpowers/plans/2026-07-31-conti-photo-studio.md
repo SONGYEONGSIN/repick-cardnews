@@ -979,7 +979,7 @@ export function scrimGradient(strength: number): string {
 - [ ] **Step 4: 테스트 통과 확인**
 
 Run: `npx vitest run src/templates/layout-utils.test.ts`
-Expected: PASS — 10 tests
+Expected: PASS — 9 tests
 
 - [ ] **Step 5: 커밋**
 
