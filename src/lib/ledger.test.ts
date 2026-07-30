@@ -54,4 +54,15 @@ describe("readRecent", () => {
     const file = await fixture([entry("하나"), "", entry("둘")]);
     expect(await readRecent(5, { file })).toHaveLength(2);
   });
+
+  it("0건을 요청하면 빈 배열이다", async () => {
+    const file = await fixture([entry("하나"), entry("둘")]);
+    expect(await readRecent(0, { file })).toEqual([]);
+  });
+
+  it("ENOENT 가 아닌 에러는 삼키지 않고 다시 던진다", async () => {
+    // 파일 자리에 디렉터리를 두면 readFile 이 EISDIR 로 실패한다 — 빈 상태가 아니라 진짜 고장이다.
+    const dir = await mkdtemp(path.join(tmpdir(), "ledger-"));
+    await expect(readRecent(5, { file: dir })).rejects.toThrow();
+  });
 });
