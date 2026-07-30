@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import { InfographicSpec, CardnewsSpec, type ContentSpec } from "@/lib/schema";
-import { readVault, buildSystemPrompt } from "@/lib/prompt";
+import { readVault, buildSystemPrompt, buildUserContent } from "@/lib/prompt";
 import { resolveAuthMode, oauthToken } from "@/lib/auth";
 
 const MODEL = "claude-opus-4-8";
@@ -10,6 +10,10 @@ const MODEL = "claude-opus-4-8";
 const BodySchema = z.object({
   keyword: z.string().trim().min(1, "키워드를 입력하세요").max(60),
   type: z.enum(["informationsend", "cardnews"]),
+  photos: z
+    .array(z.string().regex(/^data:image\/[a-z+]+;base64,/, "사진은 base64 dataURL이어야 합니다"))
+    .max(6)
+    .default([]),
 });
 
 export function parseBody(raw: unknown): z.infer<typeof BodySchema> {
@@ -37,7 +41,7 @@ export async function POST(req: Request) {
 
   try {
     const vault = await readVault();
-    const system = buildSystemPrompt(body.type, vault);
+    const system = buildSystemPrompt(body.type, vault, body.photos.length > 0);
 
     const client =
       mode === "oauth"
@@ -50,7 +54,7 @@ export async function POST(req: Request) {
       model: MODEL,
       max_tokens: 16000,
       system,
-      messages: [{ role: "user", content: `키워드: "${body.keyword}"\n위 키워드로 콘텐츠 카피를 생성하세요.` }],
+      messages: [{ role: "user", content: buildUserContent(body.keyword, body.photos) }],
       output_config: {
         format: zodOutputFormat(body.type === "informationsend" ? InfographicSpec : CardnewsSpec),
       },
