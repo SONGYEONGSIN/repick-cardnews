@@ -2249,8 +2249,9 @@ git commit -m "feat: 두 플로우 진입과 최근 이력을 보여주는 허�
 - Consumes: `Photo`·`downscaleSize`·`isFourFive`·`compareFileNames`·`THUMB_MAX` (Task 2) · `Badge`·`Button` (Task 12)
 - Produces:
   - `filesToPhotos(files: FileList | File[]): Promise<Photo[]>` — 파일명 순 정렬 후 변환
-  - `<Dropzone onPhotos={(photos: Photo[]) => void} busy={boolean} hint={string} />`
-  - `<PhotoGrid photos={Photo[]} selectedIds={string[]} onToggle?={(id:string)=>void} mode="multi"|"single" />`
+  - `<Dropzone onPhotos={(photos: Photo[]) => void} onError={(msg: string) => void} hint={string} />`
+  - `<PhotoGrid photos={Photo[]} selectedIds={string[]} onToggle={(id: string) => void} />` — 그리드는
+    `onToggle` 의 의미를 모른다(카드뉴스=빼기, 정보전달=대표 고르기). `mode` prop 을 두지 않는다.
 
 - [ ] **Step 1: File → Photo 변환**
 
@@ -2389,6 +2390,9 @@ export function Dropzone({
         multiple
         // 폴더 통째 선택 — React 타입에 없는 비표준 속성이라 문자열로 넘긴다
         {...{ webkitdirectory: "" }}
+        // sr-only 라 포커스 링을 보여 줄 수 없으므로 탭 순서에서 뺀다.
+        // 같은 동작은 위의 "폴더 선택" 버튼이 접근 가능하게 제공한다.
+        tabIndex={-1}
         className="sr-only"
         onChange={(e) => {
           if (e.target.files) void ingest(e.target.files);
