@@ -7,7 +7,8 @@ export type Theme = {
   accent: string;
   highlight: string;
   displayFont: string;
-  watermark: string;
+  /** 사진 위 스크림에 얹는 텍스트 색 */
+  onPhoto: string;
 };
 
 export const THEMES: Record<ThemeId, Theme> = {
@@ -18,7 +19,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     accent: "#6E56CF",
     highlight: "#e9defb",
     displayFont: '"Gaegu", cursive',
-    watermark: "@repick",
+    onPhoto: "#ffffff",
   },
   "mint-clean": {
     label: "민트 클린",
@@ -27,7 +28,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     accent: "#0f9d76",
     highlight: "#fff6a8",
     displayFont: '"Do Hyeon", sans-serif',
-    watermark: "@repick",
+    onPhoto: "#ffffff",
   },
   "mono-bold": {
     label: "모노 볼드",
@@ -36,7 +37,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     accent: "#ff5a36",
     highlight: "#3a3a3d",
     displayFont: '"Do Hyeon", sans-serif',
-    watermark: "@repick",
+    onPhoto: "#ffffff",
   },
 };
 

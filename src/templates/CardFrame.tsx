@@ -1,6 +1,15 @@
 import type { Theme } from "@/templates/themes";
 
-export function CardFrame({ theme, children }: { theme: Theme; children: React.ReactNode }) {
+/** 1080×1350 캔버스. 패딩은 레이아웃이 각자 잡는다 (full-bleed는 0이어야 하므로). */
+export function CardFrame({
+  theme,
+  handle,
+  children,
+}: {
+  theme: Theme;
+  handle: string;
+  children: React.ReactNode;
+}) {
   return (
     <div
       style={{
@@ -10,26 +19,28 @@ export function CardFrame({ theme, children }: { theme: Theme; children: React.R
         color: theme.fg,
         position: "relative",
         overflow: "hidden",
-        padding: 72,
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
       }}
     >
       {children}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 32,
-          right: 44,
-          fontSize: 26,
-          color: theme.accent,
-          fontFamily: theme.displayFont,
-          opacity: 0.85,
-        }}
-      >
-        {theme.watermark}
-      </div>
+      {handle.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 32,
+            right: 44,
+            fontSize: 26,
+            color: theme.accent,
+            fontFamily: theme.displayFont,
+            opacity: 0.85,
+            zIndex: 2,
+          }}
+        >
+          {handle}
+        </div>
+      )}
     </div>
   );
 }
