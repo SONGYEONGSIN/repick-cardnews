@@ -23,7 +23,13 @@ describe("카탈로그", () => {
   it("레이아웃은 3종이다", () => {
     expect(CARD_LAYOUTS).toEqual(["full-bleed", "split", "text-only"]);
   });
-  it("모든 레이아웃에 한국어 라벨이 있다", () => {
-    for (const id of CARD_LAYOUTS) expect(LAYOUT_LABELS[id].length).toBeGreaterThan(0);
+  // 라벨은 편집 화면 세그먼트 컨트롤에 그대로 노출되는 사용자 대면 문자열이다.
+  // 길이만 재면 전부 "x" 여도 통과하므로 리터럴로 대조한다.
+  it("사용자에게 보이는 한국어 라벨이 정확하다", () => {
+    expect(LAYOUT_LABELS).toEqual({
+      "full-bleed": "사진 전면",
+      split: "사진 + 글",
+      "text-only": "글만",
+    });
   });
 });
