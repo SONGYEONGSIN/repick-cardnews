@@ -932,8 +932,8 @@ describe("기본값", () => {
   it("스크림 기본값은 대비를 확보하는 0.72다", () => {
     expect(DEFAULT_SCRIM).toBe(0.72);
   });
-  it("밴드 기본값은 카드뉴스 0.6 · 정보전달 0.35다", () => {
-    expect(DEFAULT_BAND_CARDNEWS).toBe(0.6);
+  it("밴드 기본값은 카드뉴스 0.45 · 정보전달 0.35다", () => {
+    expect(DEFAULT_BAND_CARDNEWS).toBe(0.45);
     expect(DEFAULT_BAND_INFO).toBe(0.35);
   });
 });
@@ -954,7 +954,11 @@ export type Focal = { x: number; y: number };
 export const DEFAULT_FOCAL: Focal = { x: 0.5, y: 0.5 };
 /** 흰 텍스트가 사진 위에서 대비 4.5:1을 확보하는 하한 */
 export const DEFAULT_SCRIM = 0.72;
-export const DEFAULT_BAND_CARDNEWS = 0.6;
+/**
+ * 사진 45% / 글 55%. 0.6 이면 글 영역이 372px 로 줄어 steps 를 가진 solution 카드(~935px 소요)가
+ * CardFrame 의 overflow:hidden 에 잘려 나간다 — 에러 없이 PNG 만 깨지는 종류라 기본값으로 둘 수 없다.
+ */
+export const DEFAULT_BAND_CARDNEWS = 0.45;
 export const DEFAULT_BAND_INFO = 0.35;
 
 function clamp01(n: number): number {
@@ -1336,6 +1340,15 @@ git commit -m "refactor: 카피 본문을 프레임에서 분리해 bodies/로 �
 ```
 
 ---
+
+> **리뷰 반영 (2026-07-31)** — 아래 Task 10·11 코드 블록은 초안이다. 리뷰가 찾은 Important 4건을
+> 반영해 실제 구현은 다음이 추가됐다(정본은 git):
+> ① `FullBleedCard` 의 스크림을 `photoUrl` 가드 안으로 넣고 배지를 `SplitPhotoCard` 와 같은
+>    반투명 검정 칩으로 — 사진 없는 full-bleed 에서 대비 1.6:1 이 나오던 것과, 스크림이 닿지 않는
+>    상단 432px 에 흰 배지가 놓이던 것을 막는다.
+> ② `CardnewsBody` 에 `compact` prop 추가 — `split` 에서만 타이포를 줄인다.
+> ③ `InfographicBody` 에 `onPhoto` prop 추가 — `CardnewsBody` 와 같은 사진 위 색 경로.
+> ④ `CardRenderer` 가 `compact={card.layout === "split"}` 와 `onPhoto` 를 두 본문에 전달.
 
 ## Task 11: 레이아웃 3종 + CardRenderer
 
@@ -2698,6 +2711,16 @@ export function canLeaveOrder(state: CardnewsState): boolean {
   return state.order.length >= CARDNEWS_MIN && state.order.length <= CARDNEWS_MAX;
 }
 
+/**
+ * 단계가 많은 solution 카드는 글이 길어 기본 밴드(0.45)로도 글 영역이 모자란다.
+ * 스키마 상한(헤드라인 40자·본문 120자·단계 5개)에 word-break:keep-all 이 겹치면 784px 이 필요한데
+ * 0.45 의 가용 높이는 574px 이라 잘린다. 사진을 줄여 자리를 만든다 — 0.3 이면 가용 777px.
+ */
+export function bandFor(copy: CardnewsCard): number {
+  const steps = "steps" in copy ? (copy.steps?.length ?? 0) : 0;
+  return steps >= 4 ? 0.3 : DEFAULT_BAND_CARDNEWS;
+}
+
 export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): CardnewsState {
   switch (action.type) {
     case "ADD_PHOTOS": {
@@ -2737,7 +2760,7 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
         layout: layouts[i],
         focal: DEFAULT_FOCAL,
         scrim: DEFAULT_SCRIM,
-        band: DEFAULT_BAND_CARDNEWS,
+        band: bandFor(copy),
         copy,
       }));
       return { ...state, cards, error: null };
