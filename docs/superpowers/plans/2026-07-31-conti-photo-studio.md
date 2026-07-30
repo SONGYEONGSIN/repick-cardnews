@@ -14,9 +14,9 @@
 
 - **테스트 환경 제약**: `vitest.config.ts`는 `environment: "node"`, `include: ["src/**/*.test.ts"]`. 테스트 파일은 반드시 `.ts`(`.tsx` 아님)이고 DOM API를 쓸 수 없다. DOM·canvas·FileReader를 만지는 코드는 별도 파일로 분리하고 브라우저로 검증한다.
 - **TDD**: 순수 로직은 RED(실패 확인) → GREEN → REFACTOR. RED를 건너뛴 테스트는 무효다.
-- **디자인 토큰**: 컴포넌트에 하드코딩 색상(`#xxx`, `rgb()`, `oklch()`) 금지. `src/lib/design-tokens.ts` 또는 Tailwind 클래스만 쓴다.
-- **인라인 스타일**: `src/templates/**` 에서만 허용(PNG export용). 그 외 전부 Tailwind.
-- **원시 `<img>`**: `src/templates/**` 와 사진 프리뷰에서만 허용. 해당 라인 위에 사유 주석 필수.
+- **디자인 토큰**: 컴포넌트에 하드코딩 색상(`#xxx`, `rgb()`, `oklch()`) 금지. `src/lib/design-tokens.ts` 또는 Tailwind 클래스만 쓴다. Tailwind arbitrary value(`bg-[#xxx]`)는 **인접 라인에 일회성 사유 주석이 있을 때만** 허용하고, 같은 값이 3회 이상 나오면 토큰으로 올린다.
+- **인라인 스타일**: `src/templates/**` 에서만 허용(PNG export용). 그 외 전부 Tailwind. **예외 하나** — 테마 색(`themes.ts`의 `bg`/`fg`)을 미리보기로 칠하는 자리는 값이 런타임 데이터라 Tailwind 클래스로 표현할 수 없으므로 `style` 을 쓴다. 토큰 하드코딩이 아니라 `themes.ts` 값을 그대로 비추는 것이고, 해당 자리에 사유 주석을 단다.
+- **원시 `<img>`**: `src/templates/**` 와 사진 프리뷰에서만 허용. 해당 라인 위에 **한국어 사유 주석** 한 줄. eslint가 이 프로젝트에 설치돼 있지 않으므로 `eslint-disable` 주석은 절대 달지 않는다.
 - **액센트**: 플럼 `#7A2E6B` 단 1색. 링·활성·진행률에만.
 - **폰트 웨이트**: 400 / 600 / 800 정확히 3종.
 - **숫자**: 카드 번호·해상도·용량·글자수는 `tabular-nums`.
@@ -1346,7 +1346,6 @@ export function FullBleedCard({
     <>
       {photoUrl && (
         // html-to-image가 캡처하려면 dataURL을 문 원시 img여야 한다 (next/image는 dataURL 최적화 불가)
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={photoUrl}
           alt=""
@@ -1385,7 +1384,7 @@ export function FullBleedCard({
 }
 ```
 
-**주의:** `eslint-disable` 은 전역 금지 규칙이지만 여기서는 `next/image` 규칙 하나를 끄는 것이고, 그 사유를 위 주석이 명시한다. 스펙 §4의 의도적 예외 항목에 해당한다. 프로젝트에 `@next/next/no-img-element` 규칙이 설정돼 있지 않다면 `eslint-disable` 줄을 빼고 주석만 남긴다 — 먼저 `npx eslint src/templates` 로 확인한다.
+**주의:** 이 프로젝트에는 eslint가 설치돼 있지 않다(`package.json`에 의존성·스크립트 없음, 설정 파일 없음). 따라서 `eslint-disable` 주석은 달지 않는다 — 아무 일도 하지 않으면서 Global Constraints의 금지 항목만 어긴다. 원시 `<img>`를 쓰는 사유는 위와 같이 **한국어 주석 한 줄**로만 남긴다.
 
 - [ ] **Step 2: 분할 레이아웃**
 
@@ -1415,7 +1414,6 @@ export function SplitPhotoCard({
       <div style={{ position: "relative", height: photoHeight, flex: "0 0 auto", overflow: "hidden" }}>
         {photoUrl && (
           // html-to-image 캡처를 위해 원시 img를 쓴다 (next/image는 dataURL 최적화 불가)
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={photoUrl}
             alt=""
@@ -1674,6 +1672,7 @@ export function Field({
 ```tsx
 const TONES = {
   neutral: "bg-hair-soft text-ink-2",
+  // 일회성: 4:5 아님 경고 배지에만 쓰는 앰버. 액센트(플럼)와 겹치지 않게 따로 둔다
   warn: "bg-[#FDF1E7] text-[#8A4B12]",
   accent: "bg-plum-soft text-plum",
 } as const;
@@ -2370,7 +2369,6 @@ export function PhotoGrid({
             >
               <span className="block aspect-[4/5] w-full">
                 {/* 로컬 dataURL 프리뷰 — next/image는 dataURL을 최적화할 수 없다 */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photo.thumbUrl} alt={photo.name} className="h-full w-full object-cover" />
               </span>
               {on && (
@@ -3237,7 +3235,6 @@ export function SortableSlot({ photo, index, total }: { photo: Photo; index: num
       <div className="overflow-hidden rounded-lg border-2 border-hair bg-hair-soft">
         <span className="block aspect-[4/5] w-full">
           {/* 로컬 dataURL 프리뷰 — next/image는 dataURL을 최적화할 수 없다 */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photo.thumbUrl} alt={photo.name} className="h-full w-full object-cover" />
         </span>
       </div>
@@ -3338,7 +3335,6 @@ export function OrderStep({
                   <div className="overflow-hidden rounded-lg border border-hair bg-hair-soft">
                     <span className="block aspect-[4/5] w-full">
                       {/* 로컬 dataURL 프리뷰 — next/image는 dataURL을 최적화할 수 없다 */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={photo.thumbUrl} alt={photo.name} className="h-full w-full object-cover" />
                     </span>
                   </div>
@@ -3491,7 +3487,11 @@ export function TopicStep({
               className={`flex-1 rounded-lg border-2 px-2 py-3 text-xs font-semibold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum motion-reduce:transition-none ${
                 state.themeId === id ? "border-plum" : "border-hair"
               }`}
-              style={{ background: THEMES[id].bg, color: THEMES[id].fg }}
+              style={{
+                // 테마 색은 런타임 데이터라 Tailwind 클래스로 표현할 수 없다 — themes.ts 값을 그대로 비춘다
+                background: THEMES[id].bg,
+                color: THEMES[id].fg,
+              }}
             >
               {THEMES[id].label}
             </button>
@@ -4155,7 +4155,11 @@ export function TopicStep({
               className={`flex-1 rounded-lg border-2 px-2 py-3 text-xs font-semibold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum motion-reduce:transition-none ${
                 state.themeId === id ? "border-plum" : "border-hair"
               }`}
-              style={{ background: THEMES[id].bg, color: THEMES[id].fg }}
+              style={{
+                // 테마 색은 런타임 데이터라 Tailwind 클래스로 표현할 수 없다 — themes.ts 값을 그대로 비춘다
+                background: THEMES[id].bg,
+                color: THEMES[id].fg,
+              }}
             >
               {THEMES[id].label}
             </button>
