@@ -42,8 +42,8 @@ describe("기본값", () => {
   it("스크림 기본값은 대비를 확보하는 0.72다", () => {
     expect(DEFAULT_SCRIM).toBe(0.72);
   });
-  it("밴드 기본값은 카드뉴스 0.6 · 정보전달 0.35다", () => {
-    expect(DEFAULT_BAND_CARDNEWS).toBe(0.6);
+  it("밴드 기본값은 카드뉴스 0.45 · 정보전달 0.35다", () => {
+    expect(DEFAULT_BAND_CARDNEWS).toBe(0.45);
     expect(DEFAULT_BAND_INFO).toBe(0.35);
   });
 });

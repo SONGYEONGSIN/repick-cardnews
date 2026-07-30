@@ -19,7 +19,7 @@ export function FullBleedCard({
   return (
     <>
       {photoUrl && (
-        // html-to-image가 캡처하려면 dataURL을 문 원시 img여야 한다 (next/image는 dataURL 최적화 불가)
+        // html-to-image가 캡처하려면 dataURL을 품은 원시 img여야 한다 (next/image는 dataURL 최적화 불가)
         <img
           src={photoUrl}
           alt=""
@@ -33,7 +33,7 @@ export function FullBleedCard({
           }}
         />
       )}
-      <div style={{ position: "absolute", inset: 0, background: scrimGradient(scrim) }} />
+      {photoUrl && <div style={{ position: "absolute", inset: 0, background: scrimGradient(scrim) }} />}
       <div
         style={{
           position: "relative",
@@ -47,7 +47,18 @@ export function FullBleedCard({
         }}
       >
         {badge && (
-          <div style={{ position: "absolute", top: 72, right: 72, fontSize: 26, color: theme.onPhoto, opacity: 0.9 }}>
+          <div
+            style={{
+              position: "absolute",
+              top: 72,
+              right: 72,
+              fontSize: 26,
+              color: photoUrl ? theme.onPhoto : theme.fg,
+              background: photoUrl ? "rgba(0,0,0,0.45)" : "transparent",
+              padding: photoUrl ? "6px 18px" : 0,
+              borderRadius: 999,
+            }}
+          >
             {badge}
           </div>
         )}

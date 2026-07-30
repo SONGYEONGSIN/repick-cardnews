@@ -33,9 +33,14 @@ export function CardRenderer({
   const onPhoto = card.layout === "full-bleed" && card.photoUrl !== null;
   const body =
     "type" in card.copy ? (
-      <InfographicBody spec={card.copy} theme={theme} />
+      <InfographicBody spec={card.copy} theme={theme} onPhoto={onPhoto} />
     ) : (
-      <CardnewsBody card={card.copy} theme={theme} onPhoto={onPhoto} />
+      <CardnewsBody
+        card={card.copy}
+        theme={theme}
+        onPhoto={onPhoto}
+        compact={card.layout === "split"}
+      />
     );
 
   return (
