@@ -45,6 +45,12 @@ describe("buildUserContent", () => {
     expect(text.text).toContain("2장");
     expect(text.text).toContain("에어컨 전기세");
   });
+
+  it("지원하지 않는 이미지 형식이면 던진다", () => {
+    expect(() => buildUserContent("k", ["data:image/svg+xml;base64,AAA"])).toThrow(
+      "지원하지 않는 이미지 형식입니다",
+    );
+  });
 });
 
 describe("buildSystemPrompt 사진 규칙", () => {

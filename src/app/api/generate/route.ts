@@ -10,8 +10,17 @@ const MODEL = "claude-opus-4-8";
 const BodySchema = z.object({
   keyword: z.string().trim().min(1, "키워드를 입력하세요").max(60),
   type: z.enum(["informationsend", "cardnews"]),
+  // 허용 형식은 Anthropic이 base64 이미지로 받는 4종과 정확히 같아야 한다.
+  // 더 넓게 열면 zod는 통과시키고 prompt.ts의 media type 가드가 던져서 400이어야 할 것이 500이 된다.
   photos: z
-    .array(z.string().regex(/^data:image\/[a-z+]+;base64,/, "사진은 base64 dataURL이어야 합니다"))
+    .array(
+      z
+        .string()
+        .regex(
+          /^data:image\/(jpeg|png|gif|webp);base64,/,
+          "사진은 jpeg·png·gif·webp 형식의 base64 dataURL이어야 합니다",
+        ),
+    )
     .max(6)
     .default([]),
 });

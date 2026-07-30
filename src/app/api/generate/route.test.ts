@@ -34,4 +34,7 @@ describe("parseBody photos", () => {
   it("dataURL이 아니면 거부한다", () => {
     expect(() => parseBody({ ...base, photos: ["https://example.com/a.jpg"] })).toThrow();
   });
+  it("Anthropic이 지원하지 않는 이미지 형식이면 거부한다", () => {
+    expect(() => parseBody({ ...base, photos: ["data:image/svg+xml;base64,AAA"] })).toThrow();
+  });
 });
