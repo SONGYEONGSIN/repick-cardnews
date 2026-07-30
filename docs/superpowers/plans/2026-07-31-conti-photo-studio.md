@@ -810,6 +810,17 @@ describe("readRecent", () => {
     const file = await fixture([entry("하나"), "", entry("둘")]);
     expect(await readRecent(5, { file })).toHaveLength(2);
   });
+
+  it("0건을 요청하면 빈 배열이다", async () => {
+    const file = await fixture([entry("하나"), entry("둘")]);
+    expect(await readRecent(0, { file })).toEqual([]);
+  });
+
+  it("ENOENT 가 아닌 에러는 삼키지 않고 다시 던진다", async () => {
+    // 파일 자리에 디렉터리를 두면 readFile 이 EISDIR 로 실패한다 — 빈 상태가 아니라 진짜 고장이다.
+    const dir = await mkdtemp(path.join(tmpdir(), "ledger-"));
+    await expect(readRecent(5, { file: dir })).rejects.toThrow();
+  });
 });
 ```
 
@@ -825,6 +836,8 @@ Expected: FAIL — `readRecent is not a function`
 ```ts
 /** 원장이 아직 없는 첫 실행은 실패가 아니라 빈 상태다. */
 export async function readRecent(limit: number, opts?: { file?: string }): Promise<LedgerEntry[]> {
+  // slice(-0) 은 slice(0) 과 같아 전체를 돌려준다 — 0건 요청을 전체 반환으로 뒤집지 않도록 먼저 막는다.
+  if (limit <= 0) return [];
   let raw: string;
   try {
     raw = await readFile(opts?.file ?? DEFAULT_FILE, "utf8");
