@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RE:픽 카드 스튜디오",
-  description: "키워드로 인스타 카드뉴스·정보전달 이미지를 생성합니다.",
+  title: "콘티 — 카드 스튜디오",
+  description: "직접 작업한 사진으로 인스타 카드뉴스·정보전달 이미지를 만듭니다.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
