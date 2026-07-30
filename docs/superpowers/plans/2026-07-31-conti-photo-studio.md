@@ -1191,7 +1191,9 @@ export function InfographicBody({ spec, theme: t }: { spec: InfographicSpec; the
       </div>
       {spec.tip && (
         <div style={{ marginTop: 20, padding: 22, borderRadius: 18, border: `2px solid ${t.accent}` }}>
-          <span style={{ fontFamily: t.displayFont, fontSize: 30, color: t.accent }}>TIP </span>
+          {/* ✅ 는 brand-voice.md 가 TIP 앞자리에 명시 승인한 이모지다. 하네스의 이모지 금지는
+              UI 크롬에 대한 것이고 카드는 산출물이므로 여기서는 유지한다. */}
+          <span style={{ fontFamily: t.displayFont, fontSize: 30, color: t.accent }}>✅ TIP </span>
           <span style={{ fontSize: 27 }}>{spec.tip}</span>
         </div>
       )}
