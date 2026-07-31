@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import type { ContentBlock } from "@/lib/prompt";
 
 /**
@@ -63,4 +64,75 @@ export function readStructuredOutput(stdout: string): unknown {
   if (found.is_error) throw new CliFailed(found.result ?? "CLI 실행 실패");
   if (found.structured_output === undefined) throw new NoStructuredOutput("structured_output 없음");
   return found.structured_output;
+}
+
+/**
+ * `claude -p` 를 한 번 돌려 스키마에 맞는 JSON 을 받는다.
+ *
+ * `--safe-mode` 로 이 프로젝트의 CLAUDE.md·훅·스킬·MCP 가 카피 생성에 새어들지 않게 하고,
+ * `--tools ""` 로 도구 없는 순수 생성만 시킨다. `--bare` 는 쓰지 않는다 — 훅을 걷어내는
+ * 목적에는 맞지만 인증이 ANTHROPIC_API_KEY 로 강제되어 로컬 OAuth 자격증명을 읽지 않는다.
+ */
+export function runClaudeCli(args: {
+  system: string;
+  content: ContentBlock[];
+  jsonSchema: object;
+  model: string;
+  timeoutMs: number;
+  command?: string;
+}): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      args.command ?? "claude",
+      [
+        "-p",
+        "--input-format", "stream-json",
+        "--output-format", "stream-json",
+        "--verbose",
+        "--model", args.model,
+        "--tools", "",
+        "--safe-mode",
+        "--no-session-persistence",
+        "--system-prompt", args.system,
+        "--json-schema", JSON.stringify(stripJsonSchemaMeta(args.jsonSchema)),
+      ],
+      { env: childEnv(process.env) },
+    );
+
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn();
+    };
+
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      finish(() => reject(new CliTimeout("제한 시간 초과")));
+    }, args.timeoutMs);
+
+    child.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
+    child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+
+    child.on("error", (e: NodeJS.ErrnoException) => {
+      finish(() => reject(e.code === "ENOENT" ? new CliNotFound("claude 실행 파일 없음") : new CliFailed(e.message)));
+    });
+
+    child.on("close", () => {
+      finish(() => {
+        try {
+          resolve(readStructuredOutput(stdout));
+        } catch (e) {
+          // stdout 에 result 가 없으면 사유는 stderr 에만 있다 (예: --json-schema 거부).
+          reject(e instanceof CliFailed && stderr.trim() ? new CliFailed(stderr.trim()) : e);
+        }
+      });
+    });
+
+    child.stdin.end(buildStreamJsonLine(args.content));
+  });
 }

@@ -1,5 +1,18 @@
+import { mkdtemp, writeFile, chmod } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it, expect } from "vitest";
-import { stripJsonSchemaMeta, buildStreamJsonLine, childEnv, readStructuredOutput, CliFailed, NoStructuredOutput } from "@/lib/claude-cli";
+import {
+  stripJsonSchemaMeta,
+  buildStreamJsonLine,
+  childEnv,
+  readStructuredOutput,
+  runClaudeCli,
+  CliFailed,
+  NoStructuredOutput,
+  CliNotFound,
+  CliTimeout,
+} from "@/lib/claude-cli";
 
 describe("stripJsonSchemaMeta", () => {
   it("$schema 키를 제거한다", () => {
@@ -97,5 +110,80 @@ describe("readStructuredOutput", () => {
   it("깨진 JSON 줄은 건너뛰고 계속 읽는다", () => {
     const stdout = `깨진 줄\n${resultLine({ is_error: false, structured_output: { ok: true } })}`;
     expect(readStructuredOutput(stdout)).toEqual({ ok: true });
+  });
+});
+
+/** 주어진 node 코드를 본문으로 갖는 실행 가능한 stub 을 만들고 경로를 돌려준다. */
+async function stub(body: string): Promise<string> {
+  const dir = await mkdtemp(path.join(tmpdir(), "claude-stub-"));
+  const file = path.join(dir, "fake-claude");
+  await writeFile(file, `#!/usr/bin/env node\n${body}\n`);
+  await chmod(file, 0o755);
+  return file;
+}
+
+const base = {
+  system: "시스템",
+  content: [{ type: "text" as const, text: "키워드" }],
+  jsonSchema: { $schema: "x", type: "object" },
+  model: "claude-opus-4-8",
+  timeoutMs: 5000,
+};
+
+describe("runClaudeCli", () => {
+  it("stub 이 낸 structured_output 을 돌려준다", async () => {
+    const command = await stub(
+      `process.stdout.write(JSON.stringify({ type: "result", is_error: false, structured_output: { ok: 1 } }) + "\\n")`,
+    );
+    await expect(runClaudeCli({ ...base, command })).resolves.toEqual({ ok: 1 });
+  });
+
+  it("stdin 으로 stream-json 한 줄을 보낸다", async () => {
+    const command = await stub(`
+      let input = "";
+      process.stdin.on("data", (c) => { input += c; });
+      process.stdin.on("end", () => {
+        process.stdout.write(JSON.stringify({ type: "result", is_error: false, structured_output: JSON.parse(input) }) + "\\n");
+      });
+    `);
+    const out = await runClaudeCli({ ...base, command });
+    expect(out).toEqual({ type: "user", message: { role: "user", content: base.content } });
+  });
+
+  it("한도에 걸린 토큰을 자식에게 물려주지 않는다", async () => {
+    const command = await stub(`
+      process.stdout.write(JSON.stringify({
+        type: "result",
+        is_error: false,
+        structured_output: {
+          token: process.env.ANTHROPIC_AUTH_TOKEN ?? null,
+          key: process.env.ANTHROPIC_API_KEY ?? null,
+        },
+      }) + "\\n");
+    `);
+    process.env.ANTHROPIC_AUTH_TOKEN = "leaked-token";
+    process.env.ANTHROPIC_API_KEY = "leaked-key";
+    try {
+      await expect(runClaudeCli({ ...base, command })).resolves.toEqual({ token: null, key: null });
+    } finally {
+      delete process.env.ANTHROPIC_AUTH_TOKEN;
+      delete process.env.ANTHROPIC_API_KEY;
+    }
+  });
+
+  it("실행 파일이 없으면 CliNotFound 를 던진다", async () => {
+    const promise = runClaudeCli({ ...base, command: "/nonexistent/fake-claude-binary" });
+    await expect(promise).rejects.toThrow(CliNotFound);
+    // 제네릭 TypeError("runClaudeCli is not a function")는 이 메시지를 만족할 수 없다 —
+    // ENOENT 분기에서 실제로 준 메시지를 확인해 RED 를 vacuous pass 로부터 지킨다.
+    await expect(promise).rejects.toThrow("claude 실행 파일 없음");
+  });
+
+  it("제한 시간을 넘기면 CliTimeout 을 던진다", async () => {
+    const command = await stub(`setTimeout(() => {}, 60000)`);
+    const promise = runClaudeCli({ ...base, command, timeoutMs: 200 });
+    await expect(promise).rejects.toThrow(CliTimeout);
+    // 제네릭 TypeError 는 이 메시지를 낼 수 없다 — 실제 타임아웃 분기의 메시지를 확인한다.
+    await expect(promise).rejects.toThrow("제한 시간 초과");
   });
 });
