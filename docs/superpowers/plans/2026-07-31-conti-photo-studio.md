@@ -3691,6 +3691,25 @@ export function CardInspector({
         </div>
       )}
 
+      {/* cta 카드는 body 가 없고 action(버튼 문구)이 있다. 스키마가 마지막 카드를 cta 로 강제하므로
+          이 편집기가 없으면 모든 세트에서 버튼 문구를 못 고친다. */}
+      {copy.role === "cta" && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between">
+            <label htmlFor={`action-${index}`} className="text-sm font-semibold text-ink-2">
+              버튼 문구
+            </label>
+            <Counter value={copy.action} max={40} />
+          </div>
+          <input
+            id={`action-${index}`}
+            value={copy.action}
+            onChange={(e) => onPatch({ copy: { ...copy, action: e.target.value } as CardDraft["copy"] })}
+            className={INPUT}
+          />
+        </div>
+      )}
+
       {card.layout !== "text-only" && (
         <>
           <Field label="사진 초점" htmlFor={`focal-${index}`} hint="사진이 4:5가 아닐 때 어디를 남길지 정해요.">
