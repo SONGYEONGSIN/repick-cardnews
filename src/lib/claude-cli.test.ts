@@ -14,6 +14,7 @@ import {
   CliNotFound,
   CliTimeout,
 } from "@/lib/claude-cli";
+import { friendlyGenerateError } from "@/lib/api-errors";
 
 describe("stripJsonSchemaMeta", () => {
   it("$schema 키를 제거한다", () => {
@@ -218,5 +219,53 @@ describe("runClaudeCli", () => {
     const command = await stub(`process.exit(0);`);
     const bigContent: ContentBlock[] = [{ type: "text", text: "가".repeat(5_000_000) }];
     await expect(runClaudeCli({ ...base, content: bigContent, command })).rejects.toThrow(CliFailed);
+  });
+
+  it("stderr 에 잡음이 섞여도 is_error 의 사용량 한도 사유가 살아남는다", async () => {
+    // CLI 가 usage limit 로 is_error 결과를 내면서 동시에 stderr 에 (deprecation
+    // warning 같은) 잡음도 쓰는 경우. stderr 를 사유로 통째로 대체하면 그 사유가
+    // 사라져 사용량 한도 판정이 깨진다.
+    const command = await stub(`
+      process.stderr.write("(node) update available: run npm i -g @anthropic-ai/claude-code\\n");
+      process.stdout.write(JSON.stringify({
+        type: "result",
+        is_error: true,
+        result: "Claude AI usage limit reached. Try again later.",
+      }) + "\\n");
+    `);
+
+    const error: unknown = await runClaudeCli({ ...base, command }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(CliFailed);
+    expect(friendlyGenerateError(error)).toContain("사용량 한도");
+  });
+});
+
+/** 값이 문자열 배열인지 좁힌다 — 타입 단언 없이 argv 를 다루기 위함. */
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+describe("runClaudeCli 격리 인자", () => {
+  it("격리 플래그와 $schema 를 뗀 스키마를 그대로 넘긴다", async () => {
+    const command = await stub(
+      `process.stdout.write(JSON.stringify({ type: "result", is_error: false, structured_output: process.argv.slice(2) }) + "\\n")`,
+    );
+
+    const out = await runClaudeCli({ ...base, command });
+    if (!isStringArray(out)) throw new Error("argv 가 문자열 배열이 아닙니다");
+
+    expect(out).toContain("--safe-mode");
+    expect(out).toContain("--no-session-persistence");
+
+    const toolsIndex = out.indexOf("--tools");
+    expect(out[toolsIndex + 1]).toBe("");
+
+    const modelIndex = out.indexOf("--model");
+    expect(out[modelIndex + 1]).toBe(base.model);
+
+    const schemaIndex = out.indexOf("--json-schema");
+    const schema: unknown = JSON.parse(out[schemaIndex + 1]);
+    expect(schema).not.toHaveProperty("$schema");
   });
 });

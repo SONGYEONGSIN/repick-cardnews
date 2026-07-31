@@ -11,7 +11,7 @@ export async function readVault(dir?: string): Promise<{ brandVoice: string; cop
   return { brandVoice, copyFormulas };
 }
 
-/** Anthropic SDK가 허용하는 base64 이미지 media type (Base64ImageSource.media_type 리터럴 유니온과 동일) */
+/** Anthropic API 의 Messages 엔드포인트가 base64 이미지 source 로 허용하는 media type 4종 */
 type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
 function isImageMediaType(value: string): value is ImageMediaType {

@@ -128,13 +128,22 @@ export function runClaudeCli(args: {
       finish(() => reject(e.code === "ENOENT" ? new CliNotFound("claude 실행 파일 없음") : new CliFailed(e.message)));
     });
 
-    child.on("close", () => {
+    child.on("close", (code, signal) => {
       finish(() => {
         try {
           resolve(readStructuredOutput(stdout));
         } catch (e) {
-          // stdout 에 result 가 없으면 사유는 stderr 에만 있다 (예: --json-schema 거부).
-          reject(e instanceof CliFailed && stderr.trim() ? new CliFailed(stderr.trim()) : e);
+          // NoStructuredOutput 은 그대로 전파한다 — CliFailed 가 아니라 별도 처리 경로가 있다.
+          if (!(e instanceof CliFailed)) {
+            reject(e);
+            return;
+          }
+          // CliFailed 의 message 는 두 갈래에서 온다 — is_error 의 실제 사유(예: usage
+          // limit), 또는 결과 이벤트가 아예 없어 사유가 stderr 에만 있는 경우. 어느
+          // 쪽인지 여기서 구분하지 않고 둘 다 이어붙인다. stderr 로 통째로 대체하면
+          // is_error 사유가 잡음(예: deprecation 경고) 뒤에 묻혀 사라진다.
+          const detail = [e.message, stderr.trim(), `exit=${code ?? signal}`].filter(Boolean).join(" | ");
+          reject(new CliFailed(detail));
         }
       });
     });

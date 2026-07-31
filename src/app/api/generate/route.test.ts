@@ -92,3 +92,53 @@ describe("POST 생성 실패 처리", () => {
     expect(await res.json()).toEqual({ error: friendlyGenerateError(timeoutError) });
   });
 });
+
+describe("POST 생성 성공 처리", () => {
+  function makeRequest(body: unknown): Request {
+    return new Request("http://localhost/api/generate", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  // route.ts:41 의 스키마 선택(informationsend → InfographicSpec, 그 외 → CardnewsSpec)이
+  // 뒤바뀌면 여기 두 테스트가 모두 502(SCHEMA_MISMATCH)로 떨어져 잡아낸다.
+
+  it("cardnews 요청은 CardnewsSpec 을 200으로 돌려준다", async () => {
+    const spec = {
+      type: "cardnews",
+      keyword: "에어컨 전기세",
+      cards: [
+        { role: "hook", heading: "h1" },
+        { role: "problem", heading: "h2", body: "b2" },
+        { role: "evidence", heading: "h3", body: "b3" },
+        { role: "solution", heading: "h4", body: "b4" },
+        { role: "cta", heading: "h5", action: "a5" },
+      ],
+    };
+    vi.mocked(runClaudeCli).mockResolvedValueOnce(spec);
+
+    const res = await POST(makeRequest({ keyword: "에어컨 전기세", type: "cardnews" }));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ spec });
+  });
+
+  it("informationsend 요청은 InfographicSpec 을 200으로 돌려준다", async () => {
+    const spec = {
+      type: "informationsend",
+      title: "에어컨 전기세 아끼는 법",
+      items: [
+        { keyword: "설정온도", desc: "26도로 맞추세요" },
+        { keyword: "필터청소", desc: "2주에 한 번 청소하세요" },
+        { keyword: "제습모드", desc: "습도가 높을 땐 제습모드를 쓰세요" },
+      ],
+    };
+    vi.mocked(runClaudeCli).mockResolvedValueOnce(spec);
+
+    const res = await POST(makeRequest({ keyword: "에어컨 전기세", type: "informationsend" }));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ spec });
+  });
+});

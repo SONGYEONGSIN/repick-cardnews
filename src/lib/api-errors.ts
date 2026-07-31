@@ -28,7 +28,10 @@ export function friendlyGenerateError(e: unknown): string {
       ? "Claude 사용량 한도에 걸렸어요. 같은 계정으로 Claude Code 같은 다른 작업이 돌고 있다면 끝난 뒤 다시 시도해 주세요."
       : "카피 생성에 실패했어요. 잠시 후 다시 시도해 주세요.";
   }
-  // 여기까지 온 오류는 우리 코드가 던진 것이라 메시지가 이미 한국어다.
+  // 여기까지 온 Error 는 대부분 우리 코드가 던진 것이라 메시지가 이미 한국어지만,
+  // route.ts 의 readVault() 가 던지는 파일시스템 오류(ENOENT/EACCES 등 knowledge/
+  // 볼트 파일 문제)는 예외 — 영어 메시지에 절대경로가 그대로 담겨 온다. 로컬
+  // 1인 개발 도구라 그 원문이 일반 한국어 문구보다 디버깅에 더 쓸모 있어 그대로 둔다.
   if (e instanceof Error) return e.message;
   return "생성 중 오류가 났어요. 다시 시도해 주세요.";
 }
