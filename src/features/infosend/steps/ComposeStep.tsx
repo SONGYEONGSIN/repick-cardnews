@@ -133,14 +133,17 @@ export function ComposeStep({
         </Field>
 
         <Field label="사진 높이" htmlFor="band">
+          {/* 하한은 bandForItems 가 항목 6개에 돌려주는 0.15 와 맞춘다.
+              20 으로 두면 브라우저가 표시값을 클램프해 사용자가 0.20 아래로 돌아갈 수 없고,
+              잘림을 막으려 계산한 값이 조용히 버려진다. */}
           <input
             id="band"
             type="range"
-            min={20}
+            min={15}
             max={50}
             value={Math.round(state.band * 100)}
             onChange={(e) => dispatch({ type: "SET_BAND", band: Number(e.target.value) / 100 })}
-            className="w-full accent-plum"
+            className="w-full accent-plum focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum"
           />
         </Field>
 
@@ -156,7 +159,7 @@ export function ComposeStep({
               onChange={(e) =>
                 dispatch({ type: "SET_FOCAL", focal: { ...state.focal, x: Number(e.target.value) / 100 } })
               }
-              className="w-full accent-plum"
+              className="w-full accent-plum focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum"
             />
             <input
               type="range"
@@ -167,7 +170,7 @@ export function ComposeStep({
               onChange={(e) =>
                 dispatch({ type: "SET_FOCAL", focal: { ...state.focal, y: Number(e.target.value) / 100 } })
               }
-              className="w-full accent-plum"
+              className="w-full accent-plum focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum"
             />
           </div>
         </Field>

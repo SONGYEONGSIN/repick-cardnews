@@ -106,7 +106,7 @@ export function CardInspector({
                 value={Math.round(card.focal.x * 100)}
                 aria-label="가로 초점"
                 onChange={(e) => onPatch({ focal: { ...card.focal, x: Number(e.target.value) / 100 } })}
-                className="w-full accent-plum"
+                className="w-full accent-plum focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum"
               />
               <input
                 type="range"
@@ -115,7 +115,7 @@ export function CardInspector({
                 value={Math.round(card.focal.y * 100)}
                 aria-label="세로 초점"
                 onChange={(e) => onPatch({ focal: { ...card.focal, y: Number(e.target.value) / 100 } })}
-                className="w-full accent-plum"
+                className="w-full accent-plum focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum"
               />
             </div>
           </Field>
@@ -129,7 +129,7 @@ export function CardInspector({
                 max={95}
                 value={Math.round(card.scrim * 100)}
                 onChange={(e) => onPatch({ scrim: Number(e.target.value) / 100 })}
-                className="w-full accent-plum"
+                className="w-full accent-plum focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum"
               />
             </Field>
           )}
@@ -143,7 +143,7 @@ export function CardInspector({
                 max={70}
                 value={Math.round(card.band * 100)}
                 onChange={(e) => onPatch({ band: Number(e.target.value) / 100 })}
-                className="w-full accent-plum"
+                className="w-full accent-plum focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum"
               />
             </Field>
           )}
