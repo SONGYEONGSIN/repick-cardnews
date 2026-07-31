@@ -1,12 +1,12 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
-import { InfographicSpec, CardnewsSpec, type ContentSpec } from "@/lib/schema";
+import { InfographicSpec, CardnewsSpec } from "@/lib/schema";
 import { readVault, buildSystemPrompt, buildUserContent } from "@/lib/prompt";
-import { resolveAuthMode, oauthToken } from "@/lib/auth";
-import { friendlyGenerateError } from "@/lib/api-errors";
+import { runClaudeCli, NoStructuredOutput } from "@/lib/claude-cli";
+import { friendlyGenerateError, SCHEMA_MISMATCH } from "@/lib/api-errors";
 
 const MODEL = "claude-opus-4-8";
+/** 실측 24초의 5배. 넘어가면 매달려 있느니 끊고 사용자에게 알린다. */
+const TIMEOUT_MS = 120_000;
 
 const BodySchema = z.object({
   keyword: z.string().trim().min(1, "키워드를 입력하세요").max(60),
@@ -38,46 +38,29 @@ export async function POST(req: Request) {
     return Response.json({ error: e instanceof Error ? e.message : "잘못된 요청" }, { status: 400 });
   }
 
-  const mode = resolveAuthMode(process.env);
-  if (mode === "none") {
-    return Response.json(
-      {
-        error:
-          "Claude 인증이 필요합니다. API 키(ANTHROPIC_API_KEY) 또는 OAuth 토큰(ANTHROPIC_AUTH_TOKEN)을 .env.local에 설정하세요. Claude Pro/Max면 `claude setup-token`으로 토큰을 발급할 수 있습니다.",
-      },
-      { status: 500 },
-    );
-  }
+  const spec = body.type === "informationsend" ? InfographicSpec : CardnewsSpec;
 
   try {
     const vault = await readVault();
-    const system = buildSystemPrompt(body.type, vault, body.photos.length > 0);
-
-    const client =
-      mode === "oauth"
-        ? new Anthropic({
-            authToken: oauthToken(process.env),
-            defaultHeaders: { "anthropic-beta": "oauth-2025-04-20" },
-          })
-        : // SDK 는 apiKey 와 authToken 을 각각 env 에서 기본값으로 채운다.
-          // 둘 다 있으면 x-api-key 와 Authorization 을 함께 보내 401 이 나므로 토큰 쪽을 끈다.
-          new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, authToken: null });
-    const response = await client.messages.parse({
+    const raw = await runClaudeCli({
+      system: buildSystemPrompt(body.type, vault, body.photos.length > 0),
+      content: buildUserContent(body.keyword, body.photos),
+      jsonSchema: z.toJSONSchema(spec),
       model: MODEL,
-      max_tokens: 16000,
-      system,
-      messages: [{ role: "user", content: buildUserContent(body.keyword, body.photos) }],
-      output_config: {
-        format: zodOutputFormat(body.type === "informationsend" ? InfographicSpec : CardnewsSpec),
-      },
+      timeoutMs: TIMEOUT_MS,
     });
 
-    const spec = response.parsed_output as ContentSpec | null;
-    if (!spec) {
-      return Response.json({ error: "카피 생성 결과가 스키마와 맞지 않습니다. 다시 시도해주세요." }, { status: 502 });
+    // JSON Schema 는 모양만 강제한다. `.refine()`(첫 카드 hook / 마지막 cta)은
+    // z.toJSONSchema 에서 탈락하므로 여기서 진짜 스키마로 다시 검증한다.
+    const parsed = spec.safeParse(raw);
+    if (!parsed.success) {
+      return Response.json({ error: SCHEMA_MISMATCH }, { status: 502 });
     }
-    return Response.json({ spec });
+    return Response.json({ spec: parsed.data });
   } catch (e) {
-    return Response.json({ error: friendlyGenerateError(e, mode) }, { status: 500 });
+    if (e instanceof NoStructuredOutput) {
+      return Response.json({ error: SCHEMA_MISMATCH }, { status: 502 });
+    }
+    return Response.json({ error: friendlyGenerateError(e) }, { status: 500 });
   }
 }
