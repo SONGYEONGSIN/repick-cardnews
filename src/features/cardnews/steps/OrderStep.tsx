@@ -11,7 +11,7 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  horizontalListSortingStrategy,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { Panel } from "@/components/ui";
@@ -50,7 +50,8 @@ export function OrderStep({
           <p className="text-xs text-ink-3">손잡이를 끌거나, 포커스 후 Space → 화살표로 옮겨요</p>
         </div>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={state.order} strategy={horizontalListSortingStrategy}>
+          {/* 슬롯은 flex-wrap 으로 접히므로(6장이면 960px > 900px) 단일 행 전략이 아니라 rect 전략이다 */}
+          <SortableContext items={state.order} strategy={rectSortingStrategy}>
             <ul className="flex flex-wrap gap-3">
               {slots.map((photo, i) => (
                 <SortableSlot key={photo.id} photo={photo} index={i} total={slots.length} />
