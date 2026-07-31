@@ -2,6 +2,7 @@ import { mkdtemp, writeFile, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, expect } from "vitest";
+import type { ContentBlock } from "@/lib/prompt";
 import {
   stripJsonSchemaMeta,
   buildStreamJsonLine,
@@ -122,9 +123,9 @@ async function stub(body: string): Promise<string> {
   return file;
 }
 
-const base = {
+const base: { system: string; content: ContentBlock[]; jsonSchema: object; model: string; timeoutMs: number } = {
   system: "시스템",
-  content: [{ type: "text" as const, text: "키워드" }],
+  content: [{ type: "text", text: "키워드" }],
   jsonSchema: { $schema: "x", type: "object" },
   model: "claude-opus-4-8",
   timeoutMs: 5000,
@@ -185,5 +186,27 @@ describe("runClaudeCli", () => {
     await expect(promise).rejects.toThrow(CliTimeout);
     // 제네릭 TypeError 는 이 메시지를 낼 수 없다 — 실제 타임아웃 분기의 메시지를 확인한다.
     await expect(promise).rejects.toThrow("제한 시간 초과");
+  });
+
+  it("여러 청크로 나뉘어 오는 긴 한글 stdout 을 깨지지 않게 이어붙인다", async () => {
+    // 64KB 를 훌쩍 넘겨 stdout 'data' 이벤트가 여러 번 나뉘어 오게 만든다.
+    // per-chunk toString() 이면 멀티바이트 한글 문자가 청크 경계에서 U+FFFD 로 깨진다.
+    const koreanText = "리픽 카드뉴스 카피 테스트 문장입니다. 한글이 청크 경계에서 깨지면 안 됩니다. ".repeat(3000);
+    const command = await stub(`
+      const koreanText = "리픽 카드뉴스 카피 테스트 문장입니다. 한글이 청크 경계에서 깨지면 안 됩니다. ".repeat(3000);
+      process.stdout.write(JSON.stringify({ type: "result", is_error: false, structured_output: { text: koreanText } }) + "\\n");
+    `);
+    const out = await runClaudeCli({ ...base, command });
+    expect(out).toEqual({ text: koreanText });
+    expect(JSON.stringify(out)).not.toContain("�");
+  });
+
+  it("자식이 stdin 을 읽지 않고 먼저 끝나도 EPIPE 로 프로세스를 죽이지 않는다", async () => {
+    // 파이프 버퍼(64KB)를 훌쩍 넘는 stdin 을 자식이 전혀 읽지 않고 즉시 종료하면
+    // stdin.end() 의 남은 쓰기가 EPIPE 로 실패한다. error 리스너가 없으면 Node 가
+    // uncaughtException 으로 승격시켜 vitest 실행 자체가 죽는다 — 그것이 실패 신호다.
+    const command = await stub(`process.exit(0);`);
+    const bigContent: ContentBlock[] = [{ type: "text", text: "가".repeat(5_000_000) }];
+    await expect(runClaudeCli({ ...base, content: bigContent, command })).rejects.toThrow(CliFailed);
   });
 });

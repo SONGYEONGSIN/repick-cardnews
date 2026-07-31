@@ -115,8 +115,13 @@ export function runClaudeCli(args: {
       finish(() => reject(new CliTimeout("제한 시간 초과")));
     }, args.timeoutMs);
 
-    child.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
-    child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    // 청크 단위로 Buffer.toString() 하면 멀티바이트 문자(한글)가 청크 경계에서
+    // U+FFFD 로 깨질 수 있다. setEncoding 을 걸면 Node 의 StringDecoder 가 청크
+    // 경계에 걸친 바이트를 다음 청크까지 들고 있다가 문자 단위로 디코딩한다.
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => { stdout += chunk; });
+    child.stderr.on("data", (chunk: string) => { stderr += chunk; });
 
     child.on("error", (e: NodeJS.ErrnoException) => {
       finish(() => reject(e.code === "ENOENT" ? new CliNotFound("claude 실행 파일 없음") : new CliFailed(e.message)));
@@ -133,6 +138,11 @@ export function runClaudeCli(args: {
       });
     });
 
+    // 자식이 stdin 을 다 읽지 않고 먼저 끝나면(타임아웃 SIGKILL, --json-schema 거부
+    // 등) 남은 쓰기가 EPIPE 로 실패한다. 리스너가 없으면 Node 가 이를
+    // uncaughtException 으로 승격시킨다. 실제 실패 사유는 이미 close/error 경로에서
+    // 보고되므로 여기서는 그냥 삼킨다.
+    child.stdin.on("error", () => {});
     child.stdin.end(buildStreamJsonLine(args.content));
   });
 }
