@@ -607,8 +607,10 @@ export function buildSystemPrompt(
 ): string {
   const rule =
     type === "informationsend"
-      ? "산출물 유형은 informationsend(1장 인포그래픽). title, 선택 subtitle, items 3~6개(각 keyword+desc), 선택 tip을 생성하라."
+      ? "산출물 유형은 informationsend(1장 인포그래픽). title, 선택 subtitle, items 3~4개(각 keyword+desc), 선택 tip을 생성하라."
       : "산출물 유형은 cardnews(5~6장 설득 시퀀스). cards 배열을 생성하라. 첫 카드는 반드시 role=hook, 마지막은 반드시 role=cta. 중간은 problem/evidence/solution 흐름.";
+  // 스키마는 items 3~6 을 허용하지만 5개 이상은 사진 밴드를 최소로 줄여도 카드에 안 들어간다.
+  // 생성 단계에서 3~4개를 요청해 평소엔 큰 글자가 나오게 하고, 사용자가 직접 늘렸을 때만 축소된다.
 
   const lines = [
     "당신은 RE:픽의 인스타그램 콘텐츠 카피라이터입니다.",
@@ -1348,6 +1350,9 @@ git commit -m "refactor: 카피 본문을 프레임에서 분리해 bodies/로 �
 >    상단 432px 에 흰 배지가 놓이던 것을 막는다.
 > ② `CardnewsBody` 에 `compact` prop 추가 — `split` 에서만 타이포를 줄인다.
 > ③ `InfographicBody` 에 `onPhoto` prop 추가 — `CardnewsBody` 와 같은 사진 위 색 경로.
+> ⑤ `InfographicBody` 에 `compact` prop 추가 — 항목 5개 이상일 때만 타이포를 줄인다. 실측 결과
+>    항목 6개는 기본 타이포로 1253px 이 필요한데 밴드 하한(0.15)의 가용은 979px 이라 잘렸다.
+>    `CardRenderer` 가 `compact={card.copy.items.length >= 5}` 로 판단해 넘긴다.
 > ④ `CardRenderer` 가 `compact={card.layout === "split"}` 와 `onPhoto` 를 두 본문에 전달.
 
 ## Task 11: 레이아웃 3종 + CardRenderer
