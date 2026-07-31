@@ -1,43 +1,34 @@
 /**
- * Anthropic SDK 의 오류를 사용자에게 보여 줄 한국어 문장으로 바꾼다.
+ * `claude -p` 호출 실패를 사용자에게 보여 줄 한국어 문장으로 바꾼다.
  *
- * SDK 는 실패 시 응답 본문(JSON)을 그대로 message 에 담는다. 그걸 화면에 흘리면
- * 사용자는 `{"type":"error","error":{...}}` 덩어리를 보게 된다 — Pro/Max 계정에서
- * rate limit 은 정상적으로 마주치는 상황이라 특히 그렇다.
+ * CLI 는 실패 사유를 영어 산문으로 준다. 그대로 흘리면 사용자가 읽을 수 없고,
+ * stderr 에는 JSON 이 섞여 나오기도 한다. 한도 판정에만 원문을 쓰고 문구는 고정한다.
  */
-import type { AuthMode } from "@/lib/auth";
+import { CliNotFound, CliFailed, CliTimeout, NoStructuredOutput } from "@/lib/claude-cli";
 
-/** SDK 의 APIError 는 status 를 갖지만 Error 타입에는 없다 — 단언 없이 좁힌다. */
-function statusOf(e: Error): number | null {
-  if ("status" in e && typeof e.status === "number") return e.status;
-  return null;
+export const SCHEMA_MISMATCH = "카피 생성 결과가 스키마와 맞지 않습니다. 다시 시도해주세요.";
+
+/** CLI 가 한도를 알릴 때 쓰는 표현들. */
+function isUsageLimit(message: string): boolean {
+  return /usage limit|rate.?limit/i.test(message);
 }
 
-export function friendlyGenerateError(e: unknown, mode: AuthMode = "none"): string {
-  if (!(e instanceof Error)) return "생성 중 오류가 났어요. 다시 시도해 주세요.";
-
-  const status = statusOf(e);
-
-  if (status === 429) {
-    // OAuth 토큰은 사용자의 Claude 구독 할당량을 쓴다 — 서버 혼잡이 아니라 계정 한도다.
-    // 같은 계정으로 Claude Code 등이 돌고 있으면 그쪽이 할당량을 먹고 있을 가능성이 높다.
-    return mode === "oauth"
+export function friendlyGenerateError(e: unknown): string {
+  if (e instanceof CliNotFound) {
+    return "Claude Code CLI를 찾을 수 없어요. `claude` 설치를 확인해 주세요.";
+  }
+  if (e instanceof CliTimeout) {
+    return "생성이 너무 오래 걸려 중단했어요. 다시 시도해 주세요.";
+  }
+  if (e instanceof NoStructuredOutput) {
+    return SCHEMA_MISMATCH;
+  }
+  if (e instanceof CliFailed) {
+    return isUsageLimit(e.message)
       ? "Claude 사용량 한도에 걸렸어요. 같은 계정으로 Claude Code 같은 다른 작업이 돌고 있다면 끝난 뒤 다시 시도해 주세요."
-      : "API 요청 한도에 걸렸어요. 잠시 후 다시 시도해 주세요.";
+      : "카피 생성에 실패했어요. 잠시 후 다시 시도해 주세요.";
   }
-  if (status === 401 || status === 403) {
-    return "Claude 인증이 만료됐거나 권한이 없어요. .env.local 의 토큰을 다시 확인해 주세요.";
-  }
-  if (status === 529) {
-    return "Claude 가 과부하 상태예요. 잠시 후 다시 시도해 주세요.";
-  }
-  if (status !== null && status >= 500) {
-    return "Claude 쪽에서 오류가 났어요. 잠시 후 다시 시도해 주세요.";
-  }
-  if (status === 400) {
-    return "요청이 올바르지 않아요. 사진 수나 키워드를 확인해 주세요.";
-  }
-
-  // status 가 없으면 네트워크·타임아웃 등 우리 쪽 오류다 — 메시지가 이미 사람이 읽을 만하다.
-  return e.message;
+  // 여기까지 온 오류는 우리 코드가 던진 것이라 메시지가 이미 한국어다.
+  if (e instanceof Error) return e.message;
+  return "생성 중 오류가 났어요. 다시 시도해 주세요.";
 }
