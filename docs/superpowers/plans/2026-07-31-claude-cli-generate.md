@@ -42,7 +42,7 @@
   - `buildStreamJsonLine(content: ContentBlock[]): string`
   - `childEnv(parent: NodeJS.ProcessEnv): NodeJS.ProcessEnv`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `src/lib/claude-cli.test.ts` 를 만들고 아래를 그대로 넣는다.
 
@@ -109,12 +109,12 @@ describe("childEnv", () => {
 });
 ```
 
-- [ ] **Step 2: 실패 확인**
+- [x] **Step 2: 실패 확인**
 
 Run: `npx vitest run src/lib/claude-cli.test.ts`
 Expected: FAIL — `Failed to resolve import "@/lib/claude-cli"` (파일이 아직 없다)
 
-- [ ] **Step 3: 최소 구현**
+- [x] **Step 3: 최소 구현**
 
 `src/lib/claude-cli.ts` 를 만들고 아래를 넣는다.
 
@@ -153,12 +153,12 @@ export function childEnv(parent: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 }
 ```
 
-- [ ] **Step 4: 통과 확인**
+- [x] **Step 4: 통과 확인**
 
 Run: `npx vitest run src/lib/claude-cli.test.ts`
 Expected: PASS — 7 tests
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/lib/claude-cli.ts src/lib/claude-cli.test.ts
@@ -185,7 +185,7 @@ CLI stdout 은 JSONL 스트림이다. 마지막 `type === "result"` 이벤트만
   - `class CliTimeout extends Error`
   - `readStructuredOutput(stdout: string): unknown`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `src/lib/claude-cli.test.ts` 끝에 아래를 덧붙인다. `import` 줄은 파일 맨 위의 기존 import 에 합친다.
 
@@ -231,12 +231,12 @@ describe("readStructuredOutput", () => {
 });
 ```
 
-- [ ] **Step 2: 실패 확인**
+- [x] **Step 2: 실패 확인**
 
 Run: `npx vitest run src/lib/claude-cli.test.ts`
 Expected: FAIL — `readStructuredOutput is not a function` (아직 export 되지 않았다)
 
-- [ ] **Step 3: 최소 구현**
+- [x] **Step 3: 최소 구현**
 
 `src/lib/claude-cli.ts` 에 아래를 덧붙인다.
 
@@ -276,12 +276,12 @@ export function readStructuredOutput(stdout: string): unknown {
 }
 ```
 
-- [ ] **Step 4: 통과 확인**
+- [x] **Step 4: 통과 확인**
 
 Run: `npx vitest run src/lib/claude-cli.test.ts`
 Expected: PASS — 13 tests
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/lib/claude-cli.ts src/lib/claude-cli.test.ts
@@ -312,7 +312,7 @@ git commit -m "feat: CLI 결과 이벤트 파싱과 실패 타입 추가"
   }): Promise<unknown>
   ```
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `src/lib/claude-cli.test.ts` 끝에 아래를 덧붙인다. `import` 줄은 파일 맨 위의 기존 import 에 합친다.
 
@@ -391,12 +391,12 @@ describe("runClaudeCli", () => {
 });
 ```
 
-- [ ] **Step 2: 실패 확인**
+- [x] **Step 2: 실패 확인**
 
 Run: `npx vitest run src/lib/claude-cli.test.ts`
 Expected: FAIL — `runClaudeCli is not a function`
 
-- [ ] **Step 3: 최소 구현**
+- [x] **Step 3: 최소 구현**
 
 > **실행 중 정정 (2026-08-01).** 아래 코드에는 리뷰에서 재현으로 확인된 결함 2개가 있었다. 실제 구현은 커밋 `27174eb` 을 따른다.
 > 1. `stdout += chunk.toString()` 은 청크마다 따로 디코딩해 UTF-8 문자가 경계에 걸리면 U+FFFD 로 깨진다. 180KB 한글 한 줄이 22청크로 도착하는 것을 확인했고, **깨진 채로도 JSON 파싱이 성공**해 조용히 나간다. → 리스너를 붙이기 전에 `child.stdout.setEncoding("utf8")` 과 `child.stderr.setEncoding("utf8")` 을 호출한다 (리스너 인자 타입은 `string` 이 된다).
@@ -477,12 +477,12 @@ export function runClaudeCli(args: {
 }
 ```
 
-- [ ] **Step 4: 통과 확인**
+- [x] **Step 4: 통과 확인**
 
 Run: `npx vitest run src/lib/claude-cli.test.ts`
 Expected: PASS — 18 tests
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/lib/claude-cli.ts src/lib/claude-cli.test.ts
@@ -504,7 +504,7 @@ CLI 원문(영어)과 stderr 는 사용자에게 노출하지 않는다 — 한�
 - Consumes: Task 2 의 `CliNotFound` / `CliFailed` / `CliTimeout` / `NoStructuredOutput`
 - Produces: `friendlyGenerateError(e: unknown): string` — `mode` 인자가 사라진다
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `src/lib/api-errors.test.ts` 전체를 아래로 교체한다.
 
@@ -558,12 +558,12 @@ describe("friendlyGenerateError", () => {
 });
 ```
 
-- [ ] **Step 2: 실패 확인**
+- [x] **Step 2: 실패 확인**
 
 Run: `npx vitest run src/lib/api-errors.test.ts`
 Expected: FAIL — 기존 구현은 `CliNotFound` 를 모르고 `status` 로만 분기하므로 대부분의 케이스가 원본 메시지를 그대로 돌려준다
 
-- [ ] **Step 3: 최소 구현**
+- [x] **Step 3: 최소 구현**
 
 `src/lib/api-errors.ts` 전체를 아래로 교체한다.
 
@@ -604,12 +604,12 @@ export function friendlyGenerateError(e: unknown): string {
 }
 ```
 
-- [ ] **Step 4: 통과 확인**
+- [x] **Step 4: 통과 확인**
 
 Run: `npx vitest run src/lib/api-errors.test.ts`
 Expected: PASS — 9 tests
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/lib/api-errors.ts src/lib/api-errors.test.ts
@@ -632,18 +632,18 @@ git commit -m "refactor: 에러 문구를 CLI 실패 유형 기준으로 재작�
 - Consumes: `runClaudeCli`, `NoStructuredOutput` (Task 2·3), `friendlyGenerateError`, `SCHEMA_MISMATCH` (Task 4)
 - Produces: 응답 계약 변화 없음 — 성공 `{ spec }`, 실패 `{ error }`
 
-- [ ] **Step 1: auth 모듈 삭제**
+- [x] **Step 1: auth 모듈 삭제**
 
 ```bash
 git rm src/lib/auth.ts src/lib/auth.test.ts
 ```
 
-- [ ] **Step 2: 타입 검사로 깨진 곳 확인 (RED)**
+- [x] **Step 2: 타입 검사로 깨진 곳 확인 (RED)**
 
 Run: `npx tsc --noEmit > /tmp/tsc-red.log 2>&1; cat /tmp/tsc-red.log`
 Expected: FAIL — `src/app/api/generate/route.ts` 가 `@/lib/auth` 를 찾지 못한다
 
-- [ ] **Step 3: 라우트 구현**
+- [x] **Step 3: 라우트 구현**
 
 `src/app/api/generate/route.ts` 의 import 블록(1~7행)과 `POST` 의 `mode` 관련 부분·`try` 블록을 아래로 교체한다. `BodySchema` 와 `parseBody` 는 그대로 둔다.
 
@@ -691,12 +691,12 @@ const TIMEOUT_MS = 120_000;
 
 `mode === "none"` 가드 블록과 `resolveAuthMode` / `oauthToken` / `Anthropic` / `zodOutputFormat` / `ContentSpec` import 는 전부 지운다.
 
-- [ ] **Step 4: 타입 검사 통과 확인 (GREEN)**
+- [x] **Step 4: 타입 검사 통과 확인 (GREEN)**
 
 Run: `npx tsc --noEmit > /tmp/tsc-green.log 2>&1; cat /tmp/tsc-green.log`
 Expected: 출력 없음
 
-- [ ] **Step 5: SDK 의존성 제거**
+- [x] **Step 5: SDK 의존성 제거**
 
 ```bash
 npm uninstall @anthropic-ai/sdk
@@ -704,12 +704,12 @@ npm uninstall @anthropic-ai/sdk
 
 `.env.local.example` 에서 `ANTHROPIC_AUTH_TOKEN` 줄과 그 설명을 지운다. 남은 내용이 없으면 파일 자체를 지운다.
 
-- [ ] **Step 6: 전체 테스트**
+- [x] **Step 6: 전체 테스트**
 
 Run: `npx vitest run > /tmp/vitest.log 2>&1; tail -20 /tmp/vitest.log`
 Expected: 전부 PASS
 
-- [ ] **Step 7: 커밋**
+- [x] **Step 7: 커밋**
 
 ```bash
 git add -A
@@ -724,7 +724,7 @@ git commit -m "feat: 생성 경로를 claude -p 로 교체하고 SDK 제거"
 
 **Files:** 없음 (검증 전용)
 
-- [ ] **Step 1: 전체 검증 실행**
+- [x] **Step 1: 전체 검증 실행**
 
 ```bash
 npx vitest run > /tmp/verify-test.log 2>&1; tail -20 /tmp/verify-test.log
@@ -732,7 +732,7 @@ npx tsc --noEmit > /tmp/verify-tsc.log 2>&1; cat /tmp/verify-tsc.log
 ```
 Expected: 테스트 전부 PASS, 타입 오류 없음
 
-- [ ] **Step 2: `.env.local` 정리 여부를 사용자에게 확인**
+- [x] **Step 2: `.env.local` 정리 여부를 사용자에게 확인**
 
 `.env.local` 은 git 에 없다. `ANTHROPIC_AUTH_TOKEN` 을 지울지 사용자에게 묻고, 지우기로 하면 그 줄만 제거한다. **남겨두어도 `childEnv` 가 자식에게 넘기지 않으므로 동작에는 영향이 없다.**
 
@@ -750,14 +750,14 @@ npm run dev > /tmp/dev.log 2>&1 &
 같은 화면에서 사진을 2장 이상 올려 생성해 달라고 요청한다.
 확인 항목: 카피가 **사진에 실제로 보이는 것**을 근거로 쓰였는가 (stream-json 이미지 전달이 살아 있다는 증거).
 
-- [ ] **Step 5: 서버 로그 확인**
+- [x] **Step 5: 서버 로그 확인**
 
 ```bash
 grep "POST /api/generate" /tmp/dev.log
 ```
 Expected: `200` (기존의 `500` 이 아님)
 
-- [ ] **Step 6: 계획 문서의 체크박스를 채우고 커밋**
+- [x] **Step 6: 계획 문서의 체크박스를 채우고 커밋**
 
 ```bash
 git add docs/superpowers/plans/2026-07-31-claude-cli-generate.md
