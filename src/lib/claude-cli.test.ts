@@ -46,14 +46,14 @@ describe("buildStreamJsonLine", () => {
 
 describe("childEnv", () => {
   it("한도에 걸린 토큰이 자식에게 새지 않게 지운다", () => {
-    const env = childEnv({ ANTHROPIC_AUTH_TOKEN: "t", ANTHROPIC_API_KEY: "k", PATH: "/usr/bin" });
+    const env = childEnv({ NODE_ENV: "test" as const, ANTHROPIC_AUTH_TOKEN: "t", ANTHROPIC_API_KEY: "k", PATH: "/usr/bin" });
     expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
     expect(env.ANTHROPIC_API_KEY).toBeUndefined();
     expect(env.PATH).toBe("/usr/bin");
   });
 
   it("원본 env 를 수정하지 않는다", () => {
-    const parent = { ANTHROPIC_AUTH_TOKEN: "t" };
+    const parent = { NODE_ENV: "test" as const, ANTHROPIC_AUTH_TOKEN: "t" };
     childEnv(parent);
     expect(parent.ANTHROPIC_AUTH_TOKEN).toBe("t");
   });
@@ -81,14 +81,17 @@ describe("readStructuredOutput", () => {
   it("subtype 이 success 라도 is_error 를 우선한다", () => {
     const stdout = resultLine({ is_error: true, subtype: "success", result: "model not found" });
     expect(() => readStructuredOutput(stdout)).toThrow(CliFailed);
+    expect(() => readStructuredOutput(stdout)).toThrow(/model not found/);
   });
 
   it("structured_output 이 없으면 NoStructuredOutput 을 던진다", () => {
     expect(() => readStructuredOutput(resultLine({ is_error: false }))).toThrow(NoStructuredOutput);
+    expect(() => readStructuredOutput(resultLine({ is_error: false }))).toThrow(/structured_output/);
   });
 
   it("result 이벤트가 아예 없으면 CliFailed 를 던진다", () => {
     expect(() => readStructuredOutput(noise)).toThrow(CliFailed);
+    expect(() => readStructuredOutput(noise)).toThrow(/결과를 내지 않았습니다/);
   });
 
   it("깨진 JSON 줄은 건너뛰고 계속 읽는다", () => {
