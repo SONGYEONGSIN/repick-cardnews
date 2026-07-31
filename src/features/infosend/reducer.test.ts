@@ -31,6 +31,21 @@ const spec = {
   ],
 };
 
+// bandForItems(3)이 DEFAULT_BAND_INFO와 우연히 같아 3개짜리 spec으로는 SET_SPEC의 밴드 갱신을
+// 검증하지 못한다(...nextBand(...)를 통째로 지워도 초기값이 그대로 상속돼 테스트가 통과함).
+// 항목 5개(bandForItems(5)=0.25, 초기값 0.35와 다름)로 실제 갱신 여부를 구분한다.
+const spec5 = {
+  type: "informationsend" as const,
+  title: "에어컨 전기세",
+  items: [
+    { keyword: "온도", desc: "24~26도" },
+    { keyword: "필터", desc: "2주마다" },
+    { keyword: "선풍기", desc: "함께 켜기" },
+    { keyword: "커튼", desc: "낮에 치기" },
+    { keyword: "타이머", desc: "취침 예약" },
+  ],
+};
+
 describe("ADD_PHOTOS", () => {
   it("첫 사진을 대표로 자동 선택한다", () => {
     expect(withPhotos(3).selectedPhotoId).toBe("p1");
@@ -110,8 +125,14 @@ describe("bandForItems", () => {
 
 describe("밴드 자동 갱신", () => {
   it("SET_SPEC이 항목 수에 맞춰 밴드를 갱신한다", () => {
-    const s = infoReducer(withPhotos(1), { type: "SET_SPEC", spec });
-    expect(s.band).toBe(bandForItems(3));
+    const s = infoReducer(withPhotos(1), { type: "SET_SPEC", spec: spec5 });
+    expect(s.band).toBe(bandForItems(5));
+  });
+
+  it("SET_BAND으로 직접 조정한 뒤에는 SET_SPEC도 밴드를 덮어쓰지 않는다", () => {
+    const touched = infoReducer(withPhotos(1), { type: "SET_BAND", band: 0.2 });
+    const s = infoReducer(touched, { type: "SET_SPEC", spec: spec5 });
+    expect(s.band).toBe(0.2);
   });
 
   it("ADD_ITEM이 늘어난 항목 수에 맞춰 밴드를 다시 계산한다", () => {
@@ -140,5 +161,16 @@ describe("밴드 자동 갱신", () => {
     const touched = infoReducer(withFour, { type: "SET_BAND", band: 0.3 });
     const s = infoReducer(touched, { type: "REMOVE_ITEM", index: 0 });
     expect(s.band).toBe(0.3);
+  });
+});
+
+describe("카피 생성 전(spec === null)", () => {
+  it("항목 편집 액션들이 크래시 없이 무동작이다", () => {
+    const base = initialInfoState;
+    expect(infoReducer(base, { type: "ADD_ITEM" })).toBe(base);
+    expect(infoReducer(base, { type: "REMOVE_ITEM", index: 0 })).toBe(base);
+    expect(infoReducer(base, { type: "REORDER_ITEM", from: 0, to: 1 })).toBe(base);
+    expect(infoReducer(base, { type: "UPDATE_ITEM", index: 0, patch: { desc: "x" } })).toBe(base);
+    expect(infoReducer(base, { type: "UPDATE_SPEC", patch: { title: "x" } })).toBe(base);
   });
 });
