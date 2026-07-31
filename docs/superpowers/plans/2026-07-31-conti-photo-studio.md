@@ -3090,7 +3090,8 @@ git commit -m "feat: 정보전달 상태 reducer (대표 사진·항목 3~6 편�
 - Produces:
   - `requestSpec<T>(args: { type: "cardnews" | "informationsend"; keyword: string; photos: string[] }): Promise<T>` — 실패 시 `Error` 던짐
   - `mmdd(): string`
-  - `useExport()` → `{ capture: (nodes: HTMLElement[]) => Promise<Blob[]>, download, saveToFolder }`
+  - `useExport()` → `{ registerRef, download, saveToFolder }` — `capture` 는 내부 헬퍼로만 두고
+    노출하지 않는다. 스텝 화면은 `download`/`saveToFolder` 만 부르면 된다.
   - `<CaptureStage cards={RenderCard[]} themeId handle registerRef />` — 화면 밖 1080×1350 원본 렌더
 
 - [ ] **Step 1: 생성 호출 래퍼**
