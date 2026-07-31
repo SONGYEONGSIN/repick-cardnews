@@ -46,14 +46,14 @@ describe("buildStreamJsonLine", () => {
 
 describe("childEnv", () => {
   it("한도에 걸린 토큰이 자식에게 새지 않게 지운다", () => {
-    const env = childEnv({ NODE_ENV: "test" as const, ANTHROPIC_AUTH_TOKEN: "t", ANTHROPIC_API_KEY: "k", PATH: "/usr/bin" });
+    const env = childEnv({ NODE_ENV: "test", ANTHROPIC_AUTH_TOKEN: "t", ANTHROPIC_API_KEY: "k", PATH: "/usr/bin" });
     expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
     expect(env.ANTHROPIC_API_KEY).toBeUndefined();
     expect(env.PATH).toBe("/usr/bin");
   });
 
   it("원본 env 를 수정하지 않는다", () => {
-    const parent = { NODE_ENV: "test" as const, ANTHROPIC_AUTH_TOKEN: "t" };
+    const parent: NodeJS.ProcessEnv = { NODE_ENV: "test", ANTHROPIC_AUTH_TOKEN: "t" };
     childEnv(parent);
     expect(parent.ANTHROPIC_AUTH_TOKEN).toBe("t");
   });
