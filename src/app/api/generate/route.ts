@@ -78,6 +78,6 @@ export async function POST(req: Request) {
     }
     return Response.json({ spec });
   } catch (e) {
-    return Response.json({ error: friendlyGenerateError(e) }, { status: 500 });
+    return Response.json({ error: friendlyGenerateError(e, mode) }, { status: 500 });
   }
 }

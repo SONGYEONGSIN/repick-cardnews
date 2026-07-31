@@ -7,11 +7,19 @@ function apiError(status: number, message: string): Error {
 }
 
 describe("friendlyGenerateError", () => {
-  it("429 는 잠시 후 다시 시도하라고 안내한다", () => {
-    const msg = friendlyGenerateError(apiError(429, '429 {"type":"error","error":{"type":"rate_limit_error"}}'));
-    expect(msg).toContain("잠시 후");
+  it("OAuth 의 429 는 서버 혼잡이 아니라 계정 사용량 한도임을 알린다", () => {
+    const msg = friendlyGenerateError(apiError(429, '429 {"type":"error","error":{"type":"rate_limit_error"}}'), "oauth");
+    expect(msg).toContain("사용량 한도");
+    expect(msg).toContain("Claude Code");
+    expect(msg).not.toContain("몰려");
     expect(msg).not.toContain("rate_limit_error");
     expect(msg).not.toContain("{");
+  });
+
+  it("API 키의 429 는 요청 한도로 안내한다", () => {
+    const msg = friendlyGenerateError(apiError(429, "429 rate limited"), "api_key");
+    expect(msg).toContain("요청 한도");
+    expect(msg).not.toContain("Claude Code");
   });
 
   it("401 은 인증을 다시 확인하라고 안내한다", () => {
