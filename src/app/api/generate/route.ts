@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { InfographicSpec, CardnewsSpec, type ContentSpec } from "@/lib/schema";
 import { readVault, buildSystemPrompt, buildUserContent } from "@/lib/prompt";
 import { resolveAuthMode, oauthToken } from "@/lib/auth";
+import { friendlyGenerateError } from "@/lib/api-errors";
 
 const MODEL = "claude-opus-4-8";
 
@@ -77,6 +78,6 @@ export async function POST(req: Request) {
     }
     return Response.json({ spec });
   } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : "생성 중 오류" }, { status: 500 });
+    return Response.json({ error: friendlyGenerateError(e) }, { status: 500 });
   }
 }
