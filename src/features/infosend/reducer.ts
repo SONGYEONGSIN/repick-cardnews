@@ -70,16 +70,22 @@ export function canLeavePhoto(state: InfoState): boolean {
 }
 
 /**
- * 항목 수에 맞춰 사진 밴드를 정한다. InfographicBody 실측값(제목 66px·부제 32px·키워드 34px·
- * 설명 27px/줄간격1.45·팁 27px, SplitPhotoCard 세로 패딩 72+96=168px)으로 계산한 "현실적 보수치"
- * 기준: 고정 오버헤드(제목 2줄+부제 1줄+팁 1줄 ≈ 317px) + 항목당(키워드 1줄+설명 2줄 ≈ 133px)일 때
- * 3개 789px(밴드 0.25의 가용 844px 안에 들어감) / 4개 944px(밴드 0.15의 가용 979px에 근소하게
- * 들어감) / 5개 1099px·6개 1254px 는 밴드를 하한(0.15)까지 낮춰도 모자란다 — 그 이상은 밴드만으로
- * 못 고치고 타이포 축소가 별도로 필요하다(task-17-report.md 참조). 사진이 의미 있게 보이는 하한은
- * 0.15로 잡는다 — 그 아래면 사진이 아니라 띠 수준이라 넣는 의미가 없다.
+ * 항목 수에 맞춰 사진 밴드를 정한다. InfographicBody가 항목 5개부터 compact 타이포(CardRenderer가
+ * `items.length >= 5`로 켠다)로 줄어드는 것까지 반영한 재계산이다(task-17-report.md 수정 보고 참조).
+ * 판정 기준은 하드 클리핑(프레임 밖 잘림) 유무 — SplitPhotoCard의 justifyContent:center가 콘텐츠를
+ * 패딩(72+96=168px) 쪽으로 먼저 밀어내므로, 텍스트 영역 전체 높이 `1350*(1-band)`(패딩 포함)까지가
+ * 실질 여유다. 그 값을 넘겨야 비로소 CardFrame의 overflow:hidden에 실제로 잘린다.
+ * 항목당(키워드 1줄+설명 2줄) + 고정 오버헤드(제목 2줄+부제 1줄+팁 1줄)로 계산하면:
+ * 3개 789px(밴드 0.35=기본값의 878px 안에 여유 89px로 들어감, 별도 축소 불필요) /
+ * 4개(기본 타이포) 944px(밴드 0.25의 1013px 안에 여유 69px) /
+ * 5개(compact 타이포) 916px(밴드 0.25의 1013px 안에 여유 96px) /
+ * 6개(compact 타이포) 1047px(밴드 하한 0.15의 1148px 안에 여유 101px).
+ * 사진이 의미 있게 보이는 하한은 0.15로 잡는다 — 그 아래면 사진이 아니라 띠 수준이라 넣는 의미가 없다.
  */
 export function bandForItems(count: number): number {
-  return count <= ITEMS_MIN ? 0.25 : 0.15;
+  if (count <= ITEMS_MIN) return DEFAULT_BAND_INFO;
+  if (count <= 5) return 0.25;
+  return 0.15;
 }
 
 function withItems(state: InfoState, next: Item[]): InfoState {

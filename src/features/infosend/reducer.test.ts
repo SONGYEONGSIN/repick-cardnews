@@ -10,6 +10,7 @@ import {
   type InfoState,
 } from "@/features/infosend/reducer";
 import type { Photo } from "@/lib/photos";
+import { DEFAULT_BAND_INFO } from "@/templates/layout-utils";
 
 function photo(id: string): Photo {
   return { id, name: `${id}.jpg`, dataUrl: "data:image/jpeg;base64,AAA", thumbUrl: "data:image/jpeg;base64,AAA", width: 1080, height: 1350, bytes: 1000 };
@@ -93,14 +94,14 @@ describe("items 편집", () => {
 });
 
 describe("bandForItems", () => {
-  it("항목 3개(최소)는 0.25", () => {
-    expect(bandForItems(3)).toBe(0.25);
+  it("항목 3개(최소)는 기본 밴드 그대로", () => {
+    expect(bandForItems(3)).toBe(DEFAULT_BAND_INFO);
   });
-  it("항목 4개는 하한 0.15", () => {
-    expect(bandForItems(4)).toBe(0.15);
+  it("항목 4개는 0.25로 줄인다", () => {
+    expect(bandForItems(4)).toBe(0.25);
   });
-  it("항목 5개는 하한 0.15", () => {
-    expect(bandForItems(5)).toBe(0.15);
+  it("항목 5개는 compact 타이포 덕에 0.25로 들어간다", () => {
+    expect(bandForItems(5)).toBe(0.25);
   });
   it("항목 6개(최대)는 하한 0.15", () => {
     expect(bandForItems(6)).toBe(0.15);

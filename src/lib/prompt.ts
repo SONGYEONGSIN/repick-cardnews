@@ -36,9 +36,11 @@ export function buildSystemPrompt(
   vault: { brandVoice: string; copyFormulas: string },
   hasPhotos: boolean,
 ): string {
+  // 스키마는 items 3~6 을 허용하지만 5개 이상은 사진 밴드를 최소로 줄여도 카드에 안 들어간다.
+  // 생성 단계에서 3~4개를 요청해 평소엔 큰 글자가 나오게 하고, 사용자가 직접 늘렸을 때만 축소된다.
   const rule =
     type === "informationsend"
-      ? "산출물 유형은 informationsend(1장 인포그래픽). title, 선택 subtitle, items 3~6개(각 keyword+desc), 선택 tip을 생성하라."
+      ? "산출물 유형은 informationsend(1장 인포그래픽). title, 선택 subtitle, items 3~4개(각 keyword+desc), 선택 tip을 생성하라."
       : "산출물 유형은 cardnews(5~6장 설득 시퀀스). cards 배열을 생성하라. 첫 카드는 반드시 role=hook, 마지막은 반드시 role=cta. 중간은 problem/evidence/solution 흐름.";
 
   const lines = [

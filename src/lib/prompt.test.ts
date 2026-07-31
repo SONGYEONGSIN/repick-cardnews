@@ -13,6 +13,9 @@ describe("buildSystemPrompt", () => {
     expect(buildSystemPrompt("informationsend", vault, false)).toContain("informationsend");
     expect(buildSystemPrompt("cardnews", vault, false)).toContain("cardnews");
   });
+  it("정보전달은 항목을 3~4개로 요청한다", () => {
+    expect(buildSystemPrompt("informationsend", vault, false)).toContain("items 3~4개");
+  });
 });
 
 describe("buildUserContent", () => {
