@@ -30,3 +30,37 @@ export function childEnv(parent: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   delete env.ANTHROPIC_API_KEY;
   return env;
 }
+
+/** `claude` 실행 파일을 찾지 못했다. */
+export class CliNotFound extends Error {}
+/** CLI 가 실패를 보고했거나 결과 이벤트를 내지 않았다. */
+export class CliFailed extends Error {}
+/** CLI 는 성공했지만 스키마에 맞는 출력이 없다. */
+export class NoStructuredOutput extends Error {}
+/** 제한 시간 안에 끝나지 않아 강제 종료했다. */
+export class CliTimeout extends Error {}
+
+type ResultEvent = { is_error?: boolean; result?: string; structured_output?: unknown };
+
+function isResultEvent(value: unknown): value is ResultEvent & { type: "result" } {
+  return typeof value === "object" && value !== null && "type" in value && value.type === "result";
+}
+
+/** stdout(JSONL)에서 result 이벤트를 찾아 structured_output 을 꺼낸다. */
+export function readStructuredOutput(stdout: string): unknown {
+  let found: ResultEvent | null = null;
+  for (const line of stdout.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const event: unknown = JSON.parse(line);
+      if (isResultEvent(event)) found = event;
+    } catch {
+      // 스트림 중간의 깨진 줄은 무시한다 — 뒤에 온전한 result 가 올 수 있다.
+    }
+  }
+
+  if (!found) throw new CliFailed("CLI 가 결과를 내지 않았습니다");
+  if (found.is_error) throw new CliFailed(found.result ?? "CLI 실행 실패");
+  if (found.structured_output === undefined) throw new NoStructuredOutput("structured_output 없음");
+  return found.structured_output;
+}

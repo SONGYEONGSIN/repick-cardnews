@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stripJsonSchemaMeta, buildStreamJsonLine, childEnv } from "@/lib/claude-cli";
+import { stripJsonSchemaMeta, buildStreamJsonLine, childEnv, readStructuredOutput, CliFailed, NoStructuredOutput } from "@/lib/claude-cli";
 
 describe("stripJsonSchemaMeta", () => {
   it("$schema 키를 제거한다", () => {
@@ -56,5 +56,43 @@ describe("childEnv", () => {
     const parent = { ANTHROPIC_AUTH_TOKEN: "t" };
     childEnv(parent);
     expect(parent.ANTHROPIC_AUTH_TOKEN).toBe("t");
+  });
+});
+
+/** CLI 가 실제로 뱉는 stream-json 이벤트 모양. */
+function resultLine(fields: Record<string, unknown>): string {
+  return `${JSON.stringify({ type: "result", ...fields })}\n`;
+}
+
+describe("readStructuredOutput", () => {
+  const noise = `${JSON.stringify({ type: "system", subtype: "init" })}\n`;
+
+  it("result 이벤트의 structured_output 을 돌려준다", () => {
+    const stdout = noise + resultLine({ is_error: false, structured_output: { type: "cardnews" } });
+    expect(readStructuredOutput(stdout)).toEqual({ type: "cardnews" });
+  });
+
+  it("is_error 면 CLI 가 준 사유를 담아 CliFailed 를 던진다", () => {
+    const stdout = resultLine({ is_error: true, result: "usage limit reached" });
+    expect(() => readStructuredOutput(stdout)).toThrow(CliFailed);
+    expect(() => readStructuredOutput(stdout)).toThrow(/usage limit reached/);
+  });
+
+  it("subtype 이 success 라도 is_error 를 우선한다", () => {
+    const stdout = resultLine({ is_error: true, subtype: "success", result: "model not found" });
+    expect(() => readStructuredOutput(stdout)).toThrow(CliFailed);
+  });
+
+  it("structured_output 이 없으면 NoStructuredOutput 을 던진다", () => {
+    expect(() => readStructuredOutput(resultLine({ is_error: false }))).toThrow(NoStructuredOutput);
+  });
+
+  it("result 이벤트가 아예 없으면 CliFailed 를 던진다", () => {
+    expect(() => readStructuredOutput(noise)).toThrow(CliFailed);
+  });
+
+  it("깨진 JSON 줄은 건너뛰고 계속 읽는다", () => {
+    const stdout = `깨진 줄\n${resultLine({ is_error: false, structured_output: { ok: true } })}`;
+    expect(readStructuredOutput(stdout)).toEqual({ ok: true });
   });
 });
