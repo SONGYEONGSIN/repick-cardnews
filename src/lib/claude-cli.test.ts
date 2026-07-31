@@ -60,9 +60,16 @@ describe("buildStreamJsonLine", () => {
 
 describe("childEnv", () => {
   it("한도에 걸린 토큰이 자식에게 새지 않게 지운다", () => {
-    const env = childEnv({ NODE_ENV: "test", ANTHROPIC_AUTH_TOKEN: "t", ANTHROPIC_API_KEY: "k", PATH: "/usr/bin" });
+    const env = childEnv({
+      NODE_ENV: "test",
+      ANTHROPIC_AUTH_TOKEN: "t",
+      ANTHROPIC_API_KEY: "k",
+      CLAUDE_CODE_OAUTH_TOKEN: "o",
+      PATH: "/usr/bin",
+    });
     expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
     expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
     expect(env.PATH).toBe("/usr/bin");
   });
 
@@ -159,16 +166,19 @@ describe("runClaudeCli", () => {
         structured_output: {
           token: process.env.ANTHROPIC_AUTH_TOKEN ?? null,
           key: process.env.ANTHROPIC_API_KEY ?? null,
+          oauth: process.env.CLAUDE_CODE_OAUTH_TOKEN ?? null,
         },
       }) + "\\n");
     `);
     process.env.ANTHROPIC_AUTH_TOKEN = "leaked-token";
     process.env.ANTHROPIC_API_KEY = "leaked-key";
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = "leaked-oauth";
     try {
-      await expect(runClaudeCli({ ...base, command })).resolves.toEqual({ token: null, key: null });
+      await expect(runClaudeCli({ ...base, command })).resolves.toEqual({ token: null, key: null, oauth: null });
     } finally {
       delete process.env.ANTHROPIC_AUTH_TOKEN;
       delete process.env.ANTHROPIC_API_KEY;
+      delete process.env.CLAUDE_CODE_OAUTH_TOKEN;
     }
   });
 

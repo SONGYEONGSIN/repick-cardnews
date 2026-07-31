@@ -1,5 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { parseBody } from "@/app/api/generate/route";
+import { describe, it, expect, vi } from "vitest";
+import { parseBody, POST } from "@/app/api/generate/route";
+import { runClaudeCli, NoStructuredOutput, CliTimeout } from "@/lib/claude-cli";
+import { SCHEMA_MISMATCH, friendlyGenerateError } from "@/lib/api-errors";
+
+vi.mock("@/lib/claude-cli", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/claude-cli")>();
+  return { ...actual, runClaudeCli: vi.fn() };
+});
 
 describe("parseBody", () => {
   it("유효한 입력을 파싱한다", () => {
@@ -36,5 +43,52 @@ describe("parseBody photos", () => {
   });
   it("Anthropic이 지원하지 않는 이미지 형식이면 거부한다", () => {
     expect(() => parseBody({ ...base, photos: ["data:image/svg+xml;base64,AAA"] })).toThrow();
+  });
+});
+
+describe("POST 생성 실패 처리", () => {
+  function makeRequest(): Request {
+    return new Request("http://localhost/api/generate", {
+      method: "POST",
+      body: JSON.stringify({ keyword: "에어컨 전기세", type: "cardnews" }),
+    });
+  }
+
+  it("모양은 맞지만 첫 카드가 hook이 아니면 502와 스키마 불일치 오류를 돌려준다", async () => {
+    vi.mocked(runClaudeCli).mockResolvedValueOnce({
+      type: "cardnews",
+      keyword: "에어컨 전기세",
+      cards: [
+        { role: "problem", heading: "h1", body: "b1" },
+        { role: "problem", heading: "h2", body: "b2" },
+        { role: "evidence", heading: "h3", body: "b3" },
+        { role: "solution", heading: "h4", body: "b4" },
+        { role: "cta", heading: "h5", action: "a5" },
+      ],
+    });
+
+    const res = await POST(makeRequest());
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: SCHEMA_MISMATCH });
+  });
+
+  it("NoStructuredOutput 이면 502와 스키마 불일치 오류를 돌려준다", async () => {
+    vi.mocked(runClaudeCli).mockRejectedValueOnce(new NoStructuredOutput("structured_output 없음"));
+
+    const res = await POST(makeRequest());
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: SCHEMA_MISMATCH });
+  });
+
+  it("CliTimeout 이면 500과 타임아웃 안내 오류를 돌려준다", async () => {
+    const timeoutError = new CliTimeout("제한 시간 초과");
+    vi.mocked(runClaudeCli).mockRejectedValueOnce(timeoutError);
+
+    const res = await POST(makeRequest());
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: friendlyGenerateError(timeoutError) });
   });
 });

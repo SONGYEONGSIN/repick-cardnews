@@ -48,4 +48,3 @@ export const CardnewsSpec = z
 export type InfographicSpec = z.infer<typeof InfographicSpec>;
 export type CardnewsSpec = z.infer<typeof CardnewsSpec>;
 export type CardnewsCard = z.infer<typeof CardnewsCard>;
-export type ContentSpec = InfographicSpec | CardnewsSpec;
