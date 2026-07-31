@@ -119,7 +119,9 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
       const layouts = assignLayouts(action.spec.cards.length);
       const cards: CardDraft[] = action.spec.cards.map((copy, i) => ({
         id: `card-${i + 1}`,
-        photoId: state.order[i] ?? state.order[state.order.length - 1] ?? "",
+        // 사진보다 카드가 많으면(사진 5장 + 카드 6장은 스키마상 가능) 남는 카드는 사진 없이 둔다.
+        // 마지막 사진을 재사용하면 같은 사진이 두 카드에 나온다 — 마지막 카드는 어차피 text-only 다.
+        photoId: state.order[i] ?? "",
         layout: layouts[i],
         focal: DEFAULT_FOCAL,
         scrim: DEFAULT_SCRIM,

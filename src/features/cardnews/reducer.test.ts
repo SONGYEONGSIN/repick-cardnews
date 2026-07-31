@@ -107,6 +107,23 @@ describe("SET_SPEC", () => {
     const solutionCard = s.cards.find((c) => c.copy.role === "solution");
     expect(solutionCard?.band).toBe(0.3);
   });
+  it("사진보다 카드가 많으면 남는 카드는 사진 없이 둔다", () => {
+    const sixCardSpec = {
+      type: "cardnews" as const,
+      keyword: "에어컨",
+      cards: [
+        { role: "hook" as const, heading: "표지" },
+        { role: "problem" as const, heading: "문제", body: "본문" },
+        { role: "evidence" as const, heading: "근거", body: "본문" },
+        { role: "solution" as const, heading: "해결", body: "본문" },
+        { role: "evidence" as const, heading: "근거2", body: "본문" },
+        { role: "cta" as const, heading: "마무리", action: "저장하기" },
+      ],
+    };
+    // 사진은 5장만 슬롯에 있다
+    const s = cardnewsReducer(withPhotos(5), { type: "SET_SPEC", spec: sixCardSpec });
+    expect(s.cards.map((c) => c.photoId)).toEqual(["p1", "p2", "p3", "p4", "p5", ""]);
+  });
 });
 
 describe("UPDATE_CARD", () => {
