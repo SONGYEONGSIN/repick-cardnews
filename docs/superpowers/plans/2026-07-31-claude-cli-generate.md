@@ -398,6 +398,10 @@ Expected: FAIL — `runClaudeCli is not a function`
 
 - [ ] **Step 3: 최소 구현**
 
+> **실행 중 정정 (2026-08-01).** 아래 코드에는 리뷰에서 재현으로 확인된 결함 2개가 있었다. 실제 구현은 커밋 `27174eb` 을 따른다.
+> 1. `stdout += chunk.toString()` 은 청크마다 따로 디코딩해 UTF-8 문자가 경계에 걸리면 U+FFFD 로 깨진다. 180KB 한글 한 줄이 22청크로 도착하는 것을 확인했고, **깨진 채로도 JSON 파싱이 성공**해 조용히 나간다. → 리스너를 붙이기 전에 `child.stdout.setEncoding("utf8")` 과 `child.stderr.setEncoding("utf8")` 을 호출한다 (리스너 인자 타입은 `string` 이 된다).
+> 2. `child.stdin` 에 `error` 리스너가 없어 자식이 먼저 종료하면 EPIPE 가 `uncaughtException` 으로 올라간다. 사진 base64 는 MB 단위라 64KB 파이프 버퍼를 넘겨 실사용에서 발동한다. → `child.stdin.on("error", () => {});` 를 `.end()` 전에 붙인다. 실제 결과는 `close`/`error` 경로가 이미 보고하므로 여기서 삼키는 것이 맞다.
+
 `src/lib/claude-cli.ts` 상단에 `import { spawn } from "node:child_process";` 를 추가하고, 파일 끝에 아래를 넣는다.
 
 ```ts
