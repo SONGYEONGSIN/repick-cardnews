@@ -47,6 +47,9 @@ export function CardnewsBody({
     <span
       style={{
         display: "inline-block",
+        // 레이아웃의 flex column 안에서 flex item 은 blockify 되어 stretch 된다 —
+        // 이걸 막지 않으면 알약이 936px 통짜 띠가 된다.
+        alignSelf: "flex-start",
         fontFamily: t.displayFont,
         fontSize: compact ? 26 : 30,
         color: tagFg,

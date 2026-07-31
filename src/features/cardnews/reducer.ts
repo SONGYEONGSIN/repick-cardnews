@@ -94,12 +94,16 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
       const order = [...state.order, ...added.slice(0, Math.max(0, room)).map((p) => p.id)];
       return { ...state, photos, order, error: null };
     }
-    case "REMOVE_PHOTO":
-      return {
-        ...state,
-        photos: state.photos.filter((p) => p.id !== action.photoId),
-        order: state.order.filter((id) => id !== action.photoId),
-      };
+    case "REMOVE_PHOTO": {
+      const photos = state.photos.filter((p) => p.id !== action.photoId);
+      const kept = state.order.filter((id) => id !== action.photoId);
+      // 슬롯에서 뺀 자리는 트레이의 첫 사진으로 메운다.
+      // 사용자는 이 사진을 빼 달라고 했을 뿐 최소 장수에 못 미쳐 갇히겠다고 한 게 아니다 —
+      // order 는 이 액션 말고는 줄어들 길이 없고(SWAP_IN 은 1:1, ADD_PHOTOS 는 기존 id 를 건너뜀),
+      // 트레이는 바로 이런 보충을 위해 존재한다.
+      const backfill = kept.length < state.order.length ? photos.find((p) => !kept.includes(p.id)) : undefined;
+      return { ...state, photos, order: backfill ? [...kept, backfill.id] : kept };
+    }
     case "REORDER":
       return { ...state, order: move(state.order, action.from, action.to) };
     case "SWAP_IN": {

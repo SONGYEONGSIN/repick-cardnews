@@ -27,6 +27,9 @@ const INFO_PREVIEW = (
   </svg>
 );
 
+// 최근 목록은 요청 시점의 원장을 읽어야 한다 — 정적 프리렌더면 빌드 때 값에 그대로 멈춘다.
+export const dynamic = "force-dynamic";
+
 export default async function HubPage() {
   const recent = await readRecent(5);
 

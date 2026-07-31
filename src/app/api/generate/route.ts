@@ -58,7 +58,9 @@ export async function POST(req: Request) {
             authToken: oauthToken(process.env),
             defaultHeaders: { "anthropic-beta": "oauth-2025-04-20" },
           })
-        : new Anthropic();
+        : // SDK 는 apiKey 와 authToken 을 각각 env 에서 기본값으로 채운다.
+          // 둘 다 있으면 x-api-key 와 Authorization 을 함께 보내 401 이 나므로 토큰 쪽을 끈다.
+          new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, authToken: null });
     const response = await client.messages.parse({
       model: MODEL,
       max_tokens: 16000,

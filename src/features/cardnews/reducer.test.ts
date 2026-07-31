@@ -69,11 +69,24 @@ describe("SWAP_IN", () => {
 });
 
 describe("REMOVE_PHOTO", () => {
-  it("슬롯에서 빼면 트레이의 다음 사진이 자동으로 들어오지 않는다", () => {
+  it("슬롯에서 빼면 트레이의 첫 사진이 그 자리를 메운다", () => {
     const s = cardnewsReducer(withPhotos(8), { type: "REMOVE_PHOTO", photoId: "p1" });
     expect(s.order).not.toContain("p1");
-    expect(s.order).toHaveLength(CARDNEWS_MAX - 1);
+    expect(s.order).toHaveLength(CARDNEWS_MAX);
+    expect(s.order).toEqual(["p2", "p3", "p4", "p5", "p6", "p7"]);
     expect(s.photos.map((p) => p.id)).not.toContain("p1");
+    expect(trayPhotos(s).map((p) => p.id)).toEqual(["p8"]);
+  });
+  it("트레이가 비어 있으면 순서가 한 칸 줄어든다", () => {
+    const s = cardnewsReducer(withPhotos(5), { type: "REMOVE_PHOTO", photoId: "p1" });
+    expect(s.order).toEqual(["p2", "p3", "p4", "p5"]);
+    expect(trayPhotos(s)).toHaveLength(0);
+  });
+  it("트레이 사진을 빼면 슬롯은 그대로다", () => {
+    const before = withPhotos(8);
+    const after = cardnewsReducer(before, { type: "REMOVE_PHOTO", photoId: "p7" });
+    expect(after.order).toEqual(before.order);
+    expect(trayPhotos(after).map((p) => p.id)).toEqual(["p8"]);
   });
 });
 

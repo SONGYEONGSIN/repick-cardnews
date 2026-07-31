@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { FolderOpen, ImageUp } from "lucide-react";
 import { Button } from "@/components/ui";
-import { filesToPhotos } from "@/lib/photos-client";
+import { entriesToFiles, filesToPhotos } from "@/lib/photos-client";
 import type { Photo } from "@/lib/photos";
 
 export function Dropzone({
@@ -19,10 +19,10 @@ export function Dropzone({
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function ingest(files: FileList | File[]) {
+  async function ingest(source: FileList | File[] | Promise<File[]>) {
     setBusy(true);
     try {
-      const photos = await filesToPhotos(files);
+      const photos = await filesToPhotos(await source);
       if (photos.length === 0) {
         onError("이미지 파일(jpg·png·webp)이 없어요.");
         return;
@@ -45,7 +45,11 @@ export function Dropzone({
       onDrop={(e) => {
         e.preventDefault();
         setOver(false);
-        void ingest(e.dataTransfer.files);
+        // DataTransfer 는 핸들러가 반환되면 무효화된다 — 폴더 순회와 파일 목록 확보를 여기서 동기적으로 시작한다.
+        const walked = entriesToFiles(e.dataTransfer.items);
+        const dropped = Array.from(e.dataTransfer.files);
+        // 폴더까지 펼친 목록을 쓰고, entry API 를 못 쓰는 브라우저면 드롭된 파일 목록으로 되돌아간다.
+        void ingest(walked.then((files) => (files.length > 0 ? files : dropped)));
       }}
       className={`flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed px-6 py-14 transition-colors duration-200 motion-reduce:transition-none ${
         over ? "border-plum bg-plum-soft" : "border-hair bg-surface"
