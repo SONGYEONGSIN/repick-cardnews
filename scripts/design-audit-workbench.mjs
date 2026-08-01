@@ -21,23 +21,25 @@
  *
  * dev 서버가 떠 있어야 한다: npm run dev
  * 실행: node scripts/design-audit-workbench.mjs
+ * 스크린샷 위치는 AUDIT_SHOTS_DIR 로 지정할 수 있다. 없으면 OS 임시 폴더 아래 새로 만든다
+ * (design-audit.mjs 의 mkdtempSync 관례를 그대로 따른다 — 세션 전용 경로를 하드코딩하지 않는다).
  */
-import { mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { chromium } from "playwright";
 
 const BASE = "http://localhost:3500";
 const WIDTHS = [390, 768, 1024, 1280, 1440, 1920];
 const KEYWORD = "에어컨 전기세";
-const SCRATCH =
-  "/private/tmp/claude-501/-Users-yss----build-repick-cardnews/9506aee2-6ed0-4c18-8d97-c98fc82fa321/scratchpad";
-const SHOTS_DIR = path.join(SCRATCH, "shots");
+const SHOTS_DIR = process.env.AUDIT_SHOTS_DIR ?? mkdtempSync(path.join(tmpdir(), "workbench-audit-"));
 const PHOTOS_DIR = path.join(process.cwd(), "knowledge/references/cardnews");
 const PHOTO_PATHS = ["cardnew1.jpeg", "cardnew2.jpeg", "cardnew3.jpeg", "cardnew4.jpeg", "cardnew5.jpeg"].map((n) =>
   path.join(PHOTOS_DIR, n)
 );
 
 mkdirSync(SHOTS_DIR, { recursive: true });
+console.log(`스크린샷 저장 위치: ${SHOTS_DIR}`);
 
 /** 임시 input 으로 실제 File 을 얻어 Dropzone 루트에 합성 drop 이벤트로 흘려보낸다. */
 async function dropPhotos(page) {
