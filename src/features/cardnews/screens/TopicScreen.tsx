@@ -1,6 +1,7 @@
 "use client";
 
 import type { Dispatch } from "react";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { StudioFrame, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
@@ -69,7 +70,7 @@ export function TopicScreen({
               </span>
             </div>
 
-            <a
+            <Link
               href="/info"
               className={`flex flex-col gap-2.5 rounded-xl border-2 border-hair p-5 text-left transition-colors duration-200 hover:border-ink-3 sm:p-6 ${FOCUS_RING} motion-reduce:transition-none`}
             >
@@ -78,7 +79,7 @@ export function TopicScreen({
               <span className="text-[14px] leading-relaxed text-ink-2">
                 제목과 항목 3~4개, 마지막에 팁 한 줄이 들어가요.
               </span>
-            </a>
+            </Link>
           </div>
         </div>
 
