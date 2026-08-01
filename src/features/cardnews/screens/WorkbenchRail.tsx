@@ -66,6 +66,7 @@ function SlotChip({
   on,
   canBack,
   canForward,
+  locked,
   onPick,
   onMove,
   onRemove,
@@ -75,6 +76,8 @@ function SlotChip({
   on: boolean;
   canBack: boolean;
   canForward: boolean;
+  /** 카피 생성 중 — 사진을 바꾸면 응답이 다른 사진에 붙는다 */
+  locked: boolean;
   onPick: () => void;
   onMove: (to: number) => void;
   onRemove: (photoId: string) => void;
@@ -120,21 +123,21 @@ function SlotChip({
           <div className="flex items-center gap-1.5">
             <ChipAction
               label={`${index + 1}번 사진을 ${card ? "앞 카드로" : "앞 자리로"} 옮기기`}
-              disabled={!canBack}
+              disabled={locked || !canBack}
               onClick={() => onMove(index - 1)}
             >
               <ChevronLeft size={16} aria-hidden="true" />
             </ChipAction>
             <ChipAction
               label={`${index + 1}번 사진을 ${card ? "뒤 카드로" : "뒤 자리로"} 옮기기`}
-              disabled={!canForward}
+              disabled={locked || !canForward}
               onClick={() => onMove(index + 1)}
             >
               <ChevronRight size={16} aria-hidden="true" />
             </ChipAction>
           </div>
           {/* 삭제는 화살표와 같은 줄에 두지 않는다 — 되돌릴 수 없는 동작이라 오폭이 곧 손실이다 */}
-          {photo && <RemoveButton name={photo.name} onClick={() => onRemove(photo.id)} />}
+          {photo && <RemoveButton name={photo.name} disabled={locked} onClick={() => onRemove(photo.id)} />}
         </div>
       )}
     </div>
@@ -145,13 +148,22 @@ function SlotChip({
  * 사진 빼기. 되돌리기가 없으므로(조각 2) 화살표 **옆이 아니라 아래 줄에** 떼어 두고,
  * 아이콘만 두지 않고 "빼기"라고 쓴다 — 잘못 눌렀을 때 되돌릴 방법이 없다.
  */
-function RemoveButton({ name, onClick }: { name: string; onClick: () => void }) {
+function RemoveButton({
+  name,
+  disabled = false,
+  onClick,
+}: {
+  name: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={`${name} 빼기`}
-      className={`flex h-8 items-center justify-center gap-1.5 rounded-lg border border-hair text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+      className={`flex h-8 items-center justify-center gap-1.5 rounded-lg border border-hair text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink disabled:text-ink-disabled disabled:hover:border-hair ${FOCUS_RING} motion-reduce:transition-none`}
     >
       <Trash2 size={14} aria-hidden="true" />
       빼기
@@ -164,12 +176,14 @@ function TrayItem({
   photo,
   slotLabel,
   canSwap,
+  locked,
   onSwapIn,
   onRemove,
 }: {
   photo: Photo;
   slotLabel: string;
   canSwap: boolean;
+  locked: boolean;
   onSwapIn: () => void;
   onRemove: () => void;
 }) {
@@ -178,7 +192,7 @@ function TrayItem({
       <button
         type="button"
         onClick={onSwapIn}
-        disabled={!canSwap}
+        disabled={locked || !canSwap}
         aria-label={`${photo.name} 을 ${slotLabel} 자리에 넣기`}
         className={`flex flex-col gap-2 rounded-lg text-left transition-opacity duration-200 hover:opacity-80 disabled:opacity-50 ${FOCUS_RING} motion-reduce:transition-none`}
       >
@@ -188,7 +202,7 @@ function TrayItem({
         </span>
         <span className="truncate text-[13px] text-ink-2">{photo.name}</span>
       </button>
-      <RemoveButton name={photo.name} onClick={onRemove} />
+      <RemoveButton name={photo.name} disabled={locked} onClick={onRemove} />
     </div>
   );
 }
@@ -199,6 +213,7 @@ export function WorkbenchRail({
   active,
   orderCount,
   dropOpen,
+  locked,
   onPick,
   onMove,
   onRemove,
@@ -211,6 +226,12 @@ export function WorkbenchRail({
   /** 사진이 든 자리 수(`state.order.length`) — 그 밖의 칩(사진 없는 카드)은 옮길 자리가 없다 */
   orderCount: number;
   dropOpen: boolean;
+  /**
+   * 카피 생성 중에는 사진을 바꾸는 길을 전부 막는다. 20~50초 뒤 도착한 `SET_SPEC` 은 **그때의**
+   * `order` 로 다시 묶기 때문에, 기다리는 동안 사진을 옮기면 옛 사진을 보고 쓴 카피가 다른
+   * 사진에 붙는다. 고르기(`onPick`)는 사진을 건드리지 않으므로 잠그지 않는다.
+   */
+  locked: boolean;
   onPick: (index: number) => void;
   onMove: (to: number) => void;
   onRemove: (photoId: string) => void;
@@ -227,6 +248,7 @@ export function WorkbenchRail({
           on={i === active}
           canBack={i > 0 && i < orderCount}
           canForward={i + 1 < orderCount}
+          locked={locked}
           onPick={() => onPick(i)}
           onMove={onMove}
           onRemove={onRemove}
@@ -241,6 +263,7 @@ export function WorkbenchRail({
           photo={photo}
           slotLabel={`${active + 1}번`}
           canSwap={active < orderCount}
+          locked={locked}
           onSwapIn={() => onSwapIn(photo.id)}
           onRemove={() => onRemove(photo.id)}
         />
@@ -249,8 +272,10 @@ export function WorkbenchRail({
       <button
         type="button"
         onClick={onToggleDrop}
+        disabled={locked}
         aria-expanded={dropOpen}
-        className={`m-2.5 flex aspect-[4/5] w-[120px] flex-none flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-hair text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+        // 비활성 색은 텍스트만 바꾸면 점선 테두리가 살아 있는 것처럼 보인다 — 테두리도 함께 죽인다
+        className={`m-2.5 flex aspect-[4/5] w-[120px] flex-none flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-hair text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink disabled:text-ink-disabled disabled:hover:border-hair disabled:hover:text-ink-disabled ${FOCUS_RING} motion-reduce:transition-none`}
       >
         <Plus size={20} aria-hidden="true" />
         <span className="text-[13px] font-bold">사진 추가</span>

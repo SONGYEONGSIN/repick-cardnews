@@ -15,7 +15,6 @@ import {
   CARDNEWS_MIN,
   canLeaveWorkbench,
   slotPhotos,
-  trayPhotos,
   type CardnewsAction,
   type CardnewsState,
 } from "../reducer";
@@ -90,7 +89,6 @@ export function WorkbenchScreen({
   const [adding, setAdding] = useState(false);
 
   const slots = slotPhotos(state);
-  const tray = trayPhotos(state);
 
   // 칩 하나가 가리키는 것. 카피가 나오면 카드가 기준이 된다 — 사진이 모자란 카드도 칩을 가져야
   // 글을 고칠 수 있다. 카드의 사진은 order 가 아니라 card.photoId 로 찾는다(출력 `toRenderCards`
@@ -104,6 +102,13 @@ export function WorkbenchScreen({
         }))
       : slots.map((photo) => ({ key: photo.id, photo, card: undefined }));
 
+  // 트레이는 **칩에 안 뜬 사진 전부**다. reducer 의 `trayPhotos` 는 order 기준이라, 카드보다
+  // 사진이 많을 때(6장으로 생성했는데 카드가 5장, 또는 생성 뒤 사진을 더 올림) order 뒤쪽 사진이
+  // 칩에도 트레이에도 없어 화면에서 사라지고 뺄 수도 없었다. 올린 사진은 예외 없이 둘 중
+  // 하나에 보여야 한다. reducer 는 건드리지 않는다 — `trayPhotos` 의 뜻을 바꾸면 파급이 크다.
+  const shownIds = new Set(items.flatMap((it) => (it.photo ? [it.photo.id] : [])));
+  const tray = state.photos.filter((p) => !shownIds.has(p.id));
+
   // 사진을 빼거나 갈아 끼우면 레일이 줄 수 있다. effect 로 selected 를 고치지 않고 렌더 중에
   // 좁힌다 — 범위를 벗어난 한 프레임이 먼저 그려지지 않고 렌더도 한 번만 돈다.
   const active = items.length === 0 ? 0 : Math.min(selected, items.length - 1);
@@ -114,7 +119,8 @@ export function WorkbenchScreen({
   const photo = item?.photo;
 
   // 사진이 아직 없으면 올릴 곳이 늘 보여야 한다 — 이 화면의 첫 상태다.
-  const dropOpen = adding || state.photos.length === 0;
+  // 생성 중에는 닫는다: 지금 올린 사진이 order 에 들어가면 도착한 카피가 다른 사진에 붙는다.
+  const dropOpen = !state.busy && (adding || state.photos.length === 0);
   const canGenerate = slots.length >= CARDNEWS_MIN && !state.busy;
 
   function pick(index: number) {
@@ -125,7 +131,11 @@ export function WorkbenchScreen({
   }
 
   function swapIn(photoId: string) {
-    dispatch({ type: "SWAP_IN", slotIndex: active, photoId });
+    // 트레이에는 두 종류가 있다. order 밖 사진은 갈아 끼우고(SWAP_IN), 카드보다 뒤라 칩이 없는
+    // order 안 사진은 자리를 옮겨 데려온다 — SWAP_IN 은 이미 order 에 있는 사진을 무시한다.
+    const from = state.order.indexOf(photoId);
+    if (from >= 0) dispatch({ type: "REORDER", from, to: active });
+    else dispatch({ type: "SWAP_IN", slotIndex: active, photoId });
     setAdding(false);
   }
 
@@ -150,8 +160,13 @@ export function WorkbenchScreen({
       // 카드가 통째로 바뀌었다. 고르기와 같은 이유로 편집 대상을 되돌린다.
       setTarget("heading");
     } catch (e) {
-      // 서버가 한국어로 준 문구를 그대로 보여 준다(`api-errors.ts`).
-      dispatch({ type: "SET_ERROR", error: e instanceof Error ? e.message : "카피 생성에 실패했어요." });
+      // 서버가 한국어로 준 문구(`api-errors.ts`)만 그대로 쓴다. 네트워크가 끊기거나 dev 서버가
+      // 재시작되면 `Failed to fetch` 같은 영문이 여기로 온다 — 영어 원문을 사용자에게 보이지 않는다.
+      const message =
+        e instanceof Error && /[가-힣]/.test(e.message)
+          ? e.message
+          : "카피 생성에 실패했어요. 잠시 뒤 다시 시도해 주세요.";
+      dispatch({ type: "SET_ERROR", error: message });
     } finally {
       dispatch({ type: "SET_BUSY", busy: false });
     }
@@ -170,7 +185,9 @@ export function WorkbenchScreen({
       step={1}
       title={state.keyword}
       summary={[
-        { label: "형태", value: `카드뉴스 ${slots.length}장` },
+        // 생성 전에는 만들 장수(사진), 생성 후에는 실제 카드 수를 말한다 — 카드가 사진보다
+        // 적게 올 수 있어(스키마 5~6장) 사진 장수를 계속 쓰면 사이드바가 거짓을 말한다.
+        { label: "형태", value: `카드뉴스 ${state.cards.length > 0 ? state.cards.length : slots.length}장` },
         { label: "올린 사진", value: `${state.photos.length}장` },
       ]}
       action={
@@ -202,24 +219,32 @@ export function WorkbenchScreen({
                 active={active}
                 orderCount={state.order.length}
                 dropOpen={dropOpen}
+                locked={state.busy}
                 onPick={pick}
                 onMove={moveTo}
                 onRemove={(photoId) => dispatch({ type: "REMOVE_PHOTO", photoId })}
                 onSwapIn={swapIn}
                 onToggleDrop={() => setAdding((v) => !v)}
               />
+              {/* 잠긴 이유를 잠긴 컨트롤 바로 옆에서 말한다 — 비활성만 보이면 고장으로 읽힌다 */}
               <p className="text-[13px] text-ink-2">
-                {/* 카피가 나오기 전에는 "카피는 자리에 남는다"는 말이 성립하지 않는다 —
-                    카드 순서는 hook→cta 로 스키마가 고정하므로 바뀌는 것은 늘 사진뿐이다 */}
-                {state.cards.length > 0
-                  ? "칩을 누르면 그 카드를 고쳐요. 고른 칩의 화살표는 사진을 앞뒤 카드로 옮겨요 — 카피는 자리에 남아요."
-                  : "고른 칩의 화살표로 사진 차례를 바꿔요."}{" "}
-                빼기를 누르면 그 사진을 지워요.
-                {tray.length > 0 && (
+                {state.busy ? (
+                  "카피를 쓰는 중에는 사진을 바꿀 수 없어요. 지금 바꾸면 옛 사진을 보고 쓴 글이 다른 사진에 붙어요."
+                ) : (
                   <>
-                    {" "}
-                    안 쓴 사진을 누르면 지금 고른 <span className="tabular-nums">{active + 1}</span>번 자리에
-                    들어가요.
+                    {/* 카피가 나오기 전에는 "카피는 자리에 남는다"는 말이 성립하지 않는다 —
+                        카드 순서는 hook→cta 로 스키마가 고정하므로 바뀌는 것은 늘 사진뿐이다 */}
+                    {state.cards.length > 0
+                      ? "칩을 누르면 그 카드를 고쳐요. 고른 칩의 화살표는 사진을 앞뒤 카드로 옮겨요 — 카피는 자리에 남아요."
+                      : "고른 칩의 화살표로 사진 차례를 바꿔요."}{" "}
+                    빼기를 누르면 그 사진을 지워요.
+                    {tray.length > 0 && (
+                      <>
+                        {" "}
+                        안 쓴 사진을 누르면 지금 고른 <span className="tabular-nums">{active + 1}</span>번 자리에
+                        들어가요.
+                      </>
+                    )}
                   </>
                 )}
               </p>
