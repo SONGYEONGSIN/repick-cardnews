@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, type KeyboardEvent } from "react";
+import { FOCUS_RING } from "./focus";
 
 export function SegmentedControl<T extends string>({
   options,
@@ -53,7 +54,7 @@ export function SegmentedControl<T extends string>({
             tabIndex={i === activeIndex ? 0 : -1}
             onClick={() => onChange(opt.value)}
             onKeyDown={(e) => handleKeyDown(e, i)}
-            className={`h-9 rounded-md px-3 text-sm font-semibold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum motion-reduce:transition-none ${
+            className={`h-9 rounded-md px-3 text-sm font-semibold transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
               on ? "bg-plum text-white" : "text-ink-2 hover:text-ink"
             }`}
           >
