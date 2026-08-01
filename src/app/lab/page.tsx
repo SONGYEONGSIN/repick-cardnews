@@ -4,6 +4,9 @@ import { useState } from "react";
 import { HubW1 } from "./HubW1";
 import { HubW2 } from "./HubW2";
 import { HubW3 } from "./HubW3";
+import { WorkbenchE1 } from "./wb/E1";
+import { WorkbenchE2 } from "./wb/E2";
+import { WorkbenchE3 } from "./wb/E3";
 
 /**
  * 허브 화면 시안 비교대.
@@ -37,6 +40,27 @@ const VARIANTS = [
     axis: "Cadence — KPI 4장 + 단일 지배 시각화",
     caption:
       "KPI 4장 위에 12주 제작 달력이 화면의 주인공이에요. 꾸준함을 보여 주는 축이라 콘텐츠 도구에 맞지만, 데이터가 쌓여야 성립해요 — 지금 보이는 숫자는 샘플입니다.",
+  },
+  {
+    id: "e1",
+    label: "E1 3열",
+    axis: "편집 — 좌 레일 · 중앙 프리뷰 · 우 인스펙터",
+    caption:
+      "편집 도구의 표준 골격이에요. 사진·순서·편집 세 단계가 한 화면으로 합쳐집니다. 인스펙터에 세로 공간이 넉넉해 슬라이더가 답답하지 않은 대신, 프리뷰가 한 장뿐이라 세트 전체의 톤은 못 봐요.",
+  },
+  {
+    id: "e2",
+    label: "E2 필름스트립",
+    axis: "편집 — 상단 가로 스트립 · 프리뷰 · 인스펙터",
+    caption:
+      "카드뉴스는 옆으로 넘겨 보는 매체라 순서를 가로 스트립으로 뒀어요. 조작 방향과 결과물의 방향이 같아지고, 안 쓴 사진도 같은 줄 끝에 있어 끌어 넣는 동작이 한 축에서 끝납니다.",
+  },
+  {
+    id: "e3",
+    label: "E3 갤러리",
+    axis: "편집 — 인스펙터 없이 카드에서 직접",
+    caption:
+      "인스펙터 패널이 없어요. 카드를 전부 펼쳐 놓고 고른 카드만 그 자리에서 커지며 편집 컨트롤이 열립니다. 다섯 장이 한 덩어리로 읽히는지 항상 보면서 고칠 수 있는 대신, 세밀 조절 폭이 좁아요.",
   },
 ] as const;
 
@@ -76,6 +100,9 @@ export default function LabPage() {
       {current === "w1" && <HubW1 />}
       {current === "w2" && <HubW2 />}
       {current === "w3" && <HubW3 />}
+      {current === "e1" && <WorkbenchE1 />}
+      {current === "e2" && <WorkbenchE2 />}
+      {current === "e3" && <WorkbenchE3 />}
     </div>
   );
 }
