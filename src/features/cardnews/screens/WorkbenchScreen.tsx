@@ -2,14 +2,13 @@
 
 import { useState, type Dispatch } from "react";
 import { ArrowLeft, ArrowRight, CircleAlert, LoaderCircle, Sparkles } from "lucide-react";
-import { FOCUS_RING } from "@/components/ui";
-import { StudioFrame, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
+import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { Dropzone } from "@/features/photos/Dropzone";
 import { requestSpec } from "@/features/studio/useGenerate";
 import type { CardnewsSpec } from "@/lib/schema";
 import { CardCanvas } from "../parts/CardCanvas";
 import { EditToolbar, type EditTarget } from "../parts/EditToolbar";
-import { ROLE_LABELS, WorkbenchRail } from "./WorkbenchRail";
+import { ROLE_LABELS, WorkbenchRail, type RailItem } from "./WorkbenchRail";
 import { WorkbenchSetBar } from "./WorkbenchSetBar";
 import {
   CARDNEWS_MAX,
@@ -30,12 +29,16 @@ import {
  * 액센트 색을 쓰지 않는다 — 선택도 오류도 검정 채움(`bg-ink text-surface`)과 굵기로만 만든다.
  * 그래서 **사진과 카드 프리뷰가 화면에서 유일하게 색을 가진 것**이 된다.
  *
- * 인덱스가 두 개다: 레일은 `state.order`(= `slotPhotos`), 캔버스는 `state.cards`. 카피 생성
- * 전에는 `cards` 가 비어 있고 사진을 갈아 끼우면 `order` 가 줄 수 있으므로, 둘 다 **렌더 중
- * 순수 계산으로** 좁혀서 접근한다(아래 `active`·`card`). effect 로 되돌리지 않는다.
+ * 레일 칩의 기준은 **카피 생성 전에는 사진, 생성 후에는 카드**다(`items`). 카드가 사진보다
+ * 많을 수 있어 사진 기준으로만 그리면 마지막 카드에 닿지 못한다. 길이가 상황마다 달라지므로
+ * 고른 자리(`selected`)는 **렌더 중 순수 계산으로** 좁혀서 쓴다(`active`) — effect 로 되돌리지
+ * 않는다. 카드가 없는 자리에서는 캔버스를 아예 그리지 않는다.
+ *
+ * `order` 와 `cards` 의 사진 연결은 reducer 가 지킨다(`relinkPhotos`). 이 화면은 `REORDER`·
+ * `SWAP_IN`·`REMOVE_PHOTO` 를 그대로 보내기만 하고 카드 쪽을 따로 보정하지 않는다.
  *
  * 시안(`src/app/lab2/Workbench.tsx`)에서 뺀 것: 되돌리기·다시 실행(조각 2), 제목 서체
- * 그룹(데이터 모델에 없다), 순서 드래그(이 화면이 받는 동작이 아니다).
+ * 그룹(데이터 모델에 없다), 순서 드래그(버튼으로 대신한다 — 키보드로도 되어야 한다).
  */
 
 /** 카피 생성 줄. 20~50초 걸리는 호출이라 버튼 문구와 옆 한 줄이 진행 상황을 함께 말한다. */
@@ -89,15 +92,26 @@ export function WorkbenchScreen({
   const slots = slotPhotos(state);
   const tray = trayPhotos(state);
 
-  // 사진을 갈아 끼우거나 빼면 order 가 줄 수 있다. effect 로 selected 를 고치지 않고 렌더 중에
+  // 칩 하나가 가리키는 것. 카피가 나오면 카드가 기준이 된다 — 사진이 모자란 카드도 칩을 가져야
+  // 글을 고칠 수 있다. 카드의 사진은 order 가 아니라 card.photoId 로 찾는다(출력 `toRenderCards`
+  // 와 같은 식이라야 캔버스와 저장 결과가 어긋나지 않는다).
+  const items: RailItem[] =
+    state.cards.length > 0
+      ? state.cards.map((card) => ({
+          key: card.id,
+          photo: state.photos.find((p) => p.id === card.photoId),
+          card,
+        }))
+      : slots.map((photo) => ({ key: photo.id, photo, card: undefined }));
+
+  // 사진을 빼거나 갈아 끼우면 레일이 줄 수 있다. effect 로 selected 를 고치지 않고 렌더 중에
   // 좁힌다 — 범위를 벗어난 한 프레임이 먼저 그려지지 않고 렌더도 한 번만 돈다.
-  const active = slots.length === 0 ? 0 : Math.min(selected, slots.length - 1);
-  // `.at()` 은 `CardDraft | undefined` 를 준다. 카피 생성 전에는 반드시 undefined 이므로
-  // 아래에서 카드가 있을 때만 툴바·캔버스를 그린다(단언으로 뭉개지 않는다).
-  const card = state.cards.at(active);
-  // 카드의 사진은 order 가 아니라 card.photoId 로 찾는다 — 출력(`toRenderCards`)이 쓰는 것과
-  // 같은 식이라야 캔버스와 저장 결과가 어긋나지 않는다.
-  const photo = card ? state.photos.find((p) => p.id === card.photoId) : undefined;
+  const active = items.length === 0 ? 0 : Math.min(selected, items.length - 1);
+  // `.at()` 은 `RailItem | undefined` 를 준다. 카드도 사진도 없을 수 있으므로 아래에서 카드가
+  // 있을 때만 툴바·캔버스를 그린다(단언으로 뭉개지 않는다).
+  const item = items.at(active);
+  const card = item?.card;
+  const photo = item?.photo;
 
   // 사진이 아직 없으면 올릴 곳이 늘 보여야 한다 — 이 화면의 첫 상태다.
   const dropOpen = adding || state.photos.length === 0;
@@ -112,10 +126,14 @@ export function WorkbenchScreen({
 
   function swapIn(photoId: string) {
     dispatch({ type: "SWAP_IN", slotIndex: active, photoId });
-    // order 만 바꾸면 이미 만들어진 카드는 옛 사진을 계속 본다(card.photoId 는 SET_SPEC 시점 값이고
-    // 캔버스도 출력도 그것으로 사진을 찾는다). 레일과 카드가 같은 사진을 가리키게 함께 옮긴다.
-    if (card) dispatch({ type: "UPDATE_CARD", index: active, patch: { photoId } });
     setAdding(false);
+  }
+
+  function moveTo(to: number) {
+    dispatch({ type: "REORDER", from: active, to });
+    // 옮긴 사진을 계속 따라간다 — 같은 버튼을 다시 눌러 한 칸 더 옮길 수 있어야 한다.
+    // 자리가 바뀌면 그 자리의 카피도 달라지므로 pick 과 같은 이유로 편집 대상도 되돌린다.
+    pick(to);
   }
 
   async function generate() {
@@ -156,16 +174,10 @@ export function WorkbenchScreen({
       ]}
       action={
         <>
-          {/* 셸의 LineButton 은 onClick 을 받지 않는다(셸은 이 태스크에서 건드리지 않는다) —
-              같은 모양을 여기서 만든다. */}
-          <button
-            type="button"
-            onClick={onPrev}
-            className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-hair px-5 text-[15px] font-bold transition-colors duration-200 hover:border-ink ${FOCUS_RING} motion-reduce:transition-none`}
-          >
+          <LineButton onClick={onPrev}>
             <ArrowLeft size={16} aria-hidden="true" />
             주제 고치기
-          </button>
+          </LineButton>
           <SolidButton disabled={!canLeaveWorkbench(state)} onClick={onNext}>
             내보내기
             <ArrowRight size={16} aria-hidden="true" />
@@ -181,22 +193,32 @@ export function WorkbenchScreen({
             title="넘겨 보는 순서"
             aside={`${slots.length}장 · ${CARDNEWS_MIN}~${CARDNEWS_MAX}장으로 만들어요`}
           />
-          {slots.length > 0 && (
-            <WorkbenchRail
-              slots={slots}
-              tray={tray}
-              cards={state.cards}
-              active={active}
-              dropOpen={dropOpen}
-              onPick={pick}
-              onSwapIn={swapIn}
-              onToggleDrop={() => setAdding((v) => !v)}
-            />
-          )}
-          {tray.length > 0 && (
-            <p className="text-[13px] text-ink-2">
-              안 쓴 사진을 누르면 지금 고른 <span className="tabular-nums">{active + 1}</span>번 자리에 들어가요.
-            </p>
+          {items.length > 0 && (
+            <>
+              <WorkbenchRail
+                items={items}
+                tray={tray}
+                active={active}
+                orderCount={state.order.length}
+                dropOpen={dropOpen}
+                onPick={pick}
+                onMove={moveTo}
+                onRemove={(photoId) => dispatch({ type: "REMOVE_PHOTO", photoId })}
+                onSwapIn={swapIn}
+                onToggleDrop={() => setAdding((v) => !v)}
+              />
+              <p className="text-[13px] text-ink-2">
+                칩을 누르면 그 카드를 고쳐요. 고른 칩의 화살표는 사진 차례를 바꾸고(카피는 자리에 남아요),
+                휴지통은 사진을 빼요.
+                {tray.length > 0 && (
+                  <>
+                    {" "}
+                    안 쓴 사진을 누르면 지금 고른 <span className="tabular-nums">{active + 1}</span>번 자리에
+                    들어가요.
+                  </>
+                )}
+              </p>
+            </>
           )}
           {dropOpen && (
             <Dropzone

@@ -172,10 +172,17 @@ export function SolidButton({
   );
 }
 
-export function LineButton({ children }: { children: React.ReactNode }) {
+export function LineButton({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+}) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-hair px-5 text-[15px] font-bold transition-colors duration-200 hover:border-ink ${FOCUS_RING} motion-reduce:transition-none`}
     >
       {children}
