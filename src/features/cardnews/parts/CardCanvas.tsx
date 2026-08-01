@@ -22,8 +22,7 @@ import type { EditTarget } from "./EditToolbar";
  * 표면으로서 쓸모가 없다.
  *
  * 인라인 `style` 은 **네 곳뿐**이다. 넷 다 0~1 연속값이라 Tailwind 클래스로 표현할 수 없다
- * (JIT 은 런타임 값으로 클래스를 만들지 못한다). dnd-kit transform 을 같은 이유로 인라인에
- * 두는 `SortableSlot.tsx` 와 같은 선례다:
+ * (JIT 은 런타임 값으로 클래스를 만들지 못한다):
  *   1. 초점 핸들 위치 — `card.focal`
  *   2. 사진 크롭 기준점 — `card.focal`
  *   3. 글 배경 진하기 — `card.scrim`
