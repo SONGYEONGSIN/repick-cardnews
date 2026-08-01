@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, Download, FolderOpen, Link2, Send, Smartphone } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
-import { Frame, LineButton, SectionHead, SolidButton } from "./Frame";
+import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { SAMPLE_CARDS, TONE_CLASS } from "../lab/wb/data";
 
 /**
@@ -52,7 +52,7 @@ export function Export() {
   const captionLen = CAPTION.length + TAGS.join(" #").length + 1;
 
   return (
-    <Frame
+    <StudioFrame
       step={2}
       title="에어컨 전기세"
       summary={[
@@ -256,6 +256,6 @@ export function Export() {
           </div>
         </section>
       </div>
-    </Frame>
+    </StudioFrame>
   );
 }

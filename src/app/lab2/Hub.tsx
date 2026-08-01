@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
-import { Frame, SectionHead, SolidButton } from "./Frame";
+import { StudioFrame, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 
 /**
  * 화면 1 — 주제. 기존 허브(선택지 카드)와 1단계(주제 입력)를 합쳤다.
@@ -42,7 +42,7 @@ export function Hub() {
   const [keyword, setKeyword] = useState("");
 
   return (
-    <Frame step={0} title="새로 만들기">
+    <StudioFrame step={0} title="새로 만들기">
       <div className="grid gap-10 px-5 py-8 sm:px-8 lg:gap-14 lg:px-10 lg:py-12 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex flex-col gap-10 lg:gap-12">
           <div className="flex flex-col gap-6 lg:gap-7">
@@ -127,6 +127,6 @@ export function Hub() {
           </ul>
         </aside>
       </div>
-    </Frame>
+    </StudioFrame>
   );
 }

@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
-import { Logo, StudioMark } from "./Mark";
+import { Logo, StudioMark } from "@/components/brand/Mark";
 
 /**
  * D2 무채색 캔버스 — 공통 프레임.
@@ -21,7 +21,7 @@ export const STEPS = [
   { label: "내보내기", note: "세트로 확인하고 저장해요" },
 ] as const;
 
-export function Frame({
+export function StudioFrame({
   step,
   summary,
   title,

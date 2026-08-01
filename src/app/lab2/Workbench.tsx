@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, GripVertical, Plus, Redo2, RefreshCw, Undo2 } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
-import { Frame, LineButton, SectionHead, SolidButton } from "./Frame";
+import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { Canvas } from "./Canvas";
 import { Toolbar, type Target } from "./Editor";
 import { SAMPLE_CARDS, THEMES, TONE_CLASS, UNUSED_PHOTOS } from "../lab/wb/data";
@@ -26,7 +26,7 @@ export function Workbench() {
   const card = SAMPLE_CARDS[selected];
 
   return (
-    <Frame
+    <StudioFrame
       step={1}
       title="에어컨 전기세"
       summary={[
@@ -176,6 +176,6 @@ export function Workbench() {
           <p className="text-center text-[13px] text-ink-2">고칠 곳을 눌러요. 글은 그 자리에서 바로 고쳐요.</p>
         </section>
       </div>
-    </Frame>
+    </StudioFrame>
   );
 }
