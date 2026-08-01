@@ -21,6 +21,7 @@ export const colors = {
   plumHover: "#66255A",
   plumActive: "#521D48",
   plumSoft: "#F6EAF3",
+  /** 경고 뱃지 전용 amber 쌍. 액센트(plum)와 겹치지 않게 별도로 유지한다. */
   warnSoft: "#FDF1E7",
   warnInk: "#8A4B12",
   danger: "#B4231F",

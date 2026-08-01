@@ -9,7 +9,8 @@ describe("FOCUS_RING", () => {
   });
 
   it("액센트 색 링과 오프셋을 갖는다", () => {
+    expect(FOCUS_RING).toContain("focus-visible:outline-2");
+    expect(FOCUS_RING).toContain("focus-visible:outline-offset-2");
     expect(FOCUS_RING).toContain("outline-plum");
-    expect(FOCUS_RING).toContain("outline-offset");
   });
 });
