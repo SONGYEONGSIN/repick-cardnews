@@ -40,6 +40,19 @@ import {
  * 그룹(데이터 모델에 없다), 순서 드래그(버튼으로 대신한다 — 키보드로도 되어야 한다).
  */
 
+/**
+ * 사용자에게 보일 오류 문구를 고른다.
+ *
+ * 한글이 든 것만 그대로 쓴다 — 서버가 만든 한국어(`api-errors.ts`)와 사진 읽기 경로의 우리
+ * 문구는 통과하고, 브라우저가 던진 영문(`Failed to fetch`, 파일 읽기 `DOMException` 등)은
+ * 안내 문구로 갈아 끼운다. 이 프로젝트는 영어 원문이나 JSON 을 사용자에게 노출하지 않는다.
+ *
+ * 카피 생성과 사진 읽기 **두 경로가 같이 쓴다** — 한쪽만 거르면 나머지로 영문이 샌다.
+ */
+function inKorean(raw: string, fallback: string): string {
+  return /[가-힣]/.test(raw) ? raw : fallback;
+}
+
 /** 카피 생성 줄. 20~50초 걸리는 호출이라 버튼 문구와 옆 한 줄이 진행 상황을 함께 말한다. */
 function GenerateRow({
   busy,
@@ -160,12 +173,11 @@ export function WorkbenchScreen({
       // 카드가 통째로 바뀌었다. 고르기와 같은 이유로 편집 대상을 되돌린다.
       setTarget("heading");
     } catch (e) {
-      // 서버가 한국어로 준 문구(`api-errors.ts`)만 그대로 쓴다. 네트워크가 끊기거나 dev 서버가
-      // 재시작되면 `Failed to fetch` 같은 영문이 여기로 온다 — 영어 원문을 사용자에게 보이지 않는다.
-      const message =
-        e instanceof Error && /[가-힣]/.test(e.message)
-          ? e.message
-          : "카피 생성에 실패했어요. 잠시 뒤 다시 시도해 주세요.";
+      // 네트워크가 끊기거나 dev 서버가 재시작되면 `Failed to fetch` 같은 영문이 여기로 온다.
+      const message = inKorean(
+        e instanceof Error ? e.message : "",
+        "카피 생성에 실패했어요. 잠시 뒤 다시 시도해 주세요."
+      );
       dispatch({ type: "SET_ERROR", error: message });
     } finally {
       dispatch({ type: "SET_BUSY", busy: false });
@@ -257,7 +269,14 @@ export function WorkbenchScreen({
                 dispatch({ type: "ADD_PHOTOS", photos });
                 setAdding(false);
               }}
-              onError={(error) => dispatch({ type: "SET_ERROR", error })}
+              // Dropzone 이 넘겨주는 문구도 늘 한국어는 아니다 — 파일 읽기가 던진 영문
+              // DOMException 이 그대로 올라올 수 있어 생성 오류와 같은 필터를 거친다.
+              onError={(error) =>
+                dispatch({
+                  type: "SET_ERROR",
+                  error: inKorean(error, "사진을 읽지 못했어요. 다른 사진으로 다시 해 주세요."),
+                })
+              }
             />
           )}
         </section>
