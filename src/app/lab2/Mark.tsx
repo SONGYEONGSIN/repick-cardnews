@@ -14,8 +14,8 @@ export function SeomamWordmark({ height = 30, label = "서맘" }: { height?: num
   return (
     <svg
       height={height}
-      width={(height * 94) / 46}
-      viewBox="0 0 94 46"
+      width={(height * 105) / 46}
+      viewBox="0 0 105 46"
       fill="none"
       role={label ? "img" : "presentation"}
       aria-label={label || undefined}
@@ -27,13 +27,14 @@ export function SeomamWordmark({ height = 30, label = "서맘" }: { height?: num
       <path d="M43 7 V39" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
       <path d="M33 23 H43" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
 
-      {/* 맘 — 초성 ㅁ(좌상) · 중성 ㅏ(우측 전체 높이) · 종성 ㅁ(하단, 더 넓게).
-          두 ㅁ 은 획이 아니라 둥근 프레임 — 카드 두 장이다. 크기가 같으면 글자 구조가
-          무너져 "서엄" 처럼 읽힌다. 종성이 초성보다 넓어야 맘 이 된다. */}
-      <rect x="54" y="7" width="16" height="15" rx="3.5" stroke="currentColor" strokeWidth="4.6" />
-      <rect x="54" y="26" width="25" height="13" rx="3.5" stroke="currentColor" strokeWidth="4.6" />
-      <path d="M87 7 V39" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
-      <path d="M77 16 H87" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
+      {/* 맘 — 초성 ㅁ(좌상) · 종성 ㅁ(좌하) · 중성 ㅏ(우측 전체 높이).
+          두 ㅁ 은 획이 아니라 둥근 프레임 — 카드 두 장이다. 조판 관례로는 종성이 초성보다
+          넓지만, 여기서는 **같은 크기**로 둔다. 두 장이 같아야 카드 두 장으로 읽힌다.
+          ㅏ 는 세로획에서 가로획이 **오른쪽**으로 나간다 — 왼쪽으로 나가면 ㅓ 다. */}
+      <rect x="54" y="7" width="25" height="14" rx="3.5" stroke="currentColor" strokeWidth="4.6" />
+      <rect x="54" y="25" width="25" height="14" rx="3.5" stroke="currentColor" strokeWidth="4.6" />
+      <path d="M88 7 V39" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
+      <path d="M88 16 H98" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
     </svg>
   );
 }
