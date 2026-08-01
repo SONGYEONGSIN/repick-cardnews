@@ -19,7 +19,7 @@ import { chromium } from "playwright";
 
 const BASE = "http://localhost:3500";
 const ROUTES = ["/", "/cardnews", "/info"];
-const WIDTHS = [1280, 1366, 1440, 1600, 1920, 390];
+const WIDTHS = [1280, 1366, 1440, 1600, 1920, 390, 768, 1024];
 const A11Y_MIN = 95;
 
 function lighthouseScore(url) {
