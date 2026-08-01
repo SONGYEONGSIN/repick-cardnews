@@ -49,7 +49,7 @@ export function Hub() {
             {/* 폭 제한을 걸지 않는다 — 공간이 있으면 한 줄로 가고, 좁아지면 balance 가 두 줄을 고르게 나눈다.
                 고정 max-w 는 오른쪽이 비어 있을 때 의도가 아니라 결함으로 읽힌다. */}
             <h2 className="text-balance text-[34px] font-black leading-[1.06] tracking-tight sm:text-[44px] lg:text-[60px]">
-              무슨 이야기를 카드로 만들까요
+              무슨 이야기를 카드로 만들까요?
             </h2>
 
             <div className="flex flex-col gap-2.5">
