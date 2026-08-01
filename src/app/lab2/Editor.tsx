@@ -88,25 +88,30 @@ export function Toolbar({
   const max = target === "heading" ? 40 : 120;
 
   return (
-    <div className="flex min-h-[64px] flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-hair px-3 py-2.5">
-      <Group>
+    <div className="flex flex-col rounded-xl border border-hair">
+      {/* 무엇을 고칠지 고르는 줄. 컨트롤은 바로 아래에 붙는다 — 한 줄에 다 밀어 넣으면
+          좁은 폭에서 줄바꿈이 지저분해지고, 고른 것과 그 도구의 관계도 흐려진다. */}
+      <div className="flex gap-1 border-b border-hair p-2" role="tablist" aria-label="고칠 요소">
         {picks.map((p) => (
           <button
             key={p.id}
             type="button"
+            role="tab"
+            aria-selected={target === p.id}
             onClick={() => onSelect(p.id)}
-            aria-pressed={target === p.id}
-            className={`h-9 rounded px-3 text-[14px] font-bold transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
-              target === p.id ? "bg-ink text-surface" : "text-ink-2 hover:text-ink"
+            className={`h-10 rounded-lg px-4 text-[14px] font-bold transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
+              target === p.id ? "bg-ink text-surface" : "text-ink-2 hover:bg-hair-soft hover:text-ink"
             }`}
           >
             {p.label}
           </button>
         ))}
-      </Group>
+      </div>
 
-      <Divider />
-
+      <div
+        role="tabpanel"
+        className="flex min-h-[64px] flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5"
+      >
       {isText && (
         <>
           <Group>
@@ -181,6 +186,7 @@ export function Toolbar({
           </span>
         </>
       )}
+      </div>
     </div>
   );
 }
