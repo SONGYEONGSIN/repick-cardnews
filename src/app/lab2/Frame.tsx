@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
-import { Wordmark } from "./Mark";
+import { Logo } from "./Mark";
 
 /**
  * D2 무채색 캔버스 — 공통 프레임.
@@ -39,7 +39,7 @@ export function Frame({
     <div className="flex min-h-[calc(100vh-52px)] flex-col bg-surface text-ink lg:flex-row">
       {/* 모바일 — 사이드바를 세울 폭이 없다. 같은 정보를 가로로 압축해 상단에 둔다. */}
       <div className="flex flex-col gap-3 border-b border-hair px-5 py-4 lg:hidden">
-        <Wordmark />
+        <Logo />
         <ol className="flex items-center gap-1.5">
           {STEPS.map((s, i) => {
             const done = i < step;
@@ -73,7 +73,7 @@ export function Frame({
       </div>
 
       <aside className="hidden w-[276px] flex-none flex-col gap-9 border-r border-hair px-6 py-7 lg:flex">
-        <Wordmark size="lg" />
+        <Logo size="lg" />
 
         <nav aria-label="진행 단계">
           <ol className="flex flex-col gap-1">
