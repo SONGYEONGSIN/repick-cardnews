@@ -4,7 +4,8 @@ import { useState } from "react";
 import { ArrowRight, GripVertical, Plus, Redo2, RefreshCw, Undo2 } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { Frame, LineButton, SectionHead, SolidButton } from "./Frame";
-import { Inspector } from "./Inspector";
+import { Canvas } from "./Canvas";
+import { SidePanel, Toolbar, type Target } from "./Editor";
 import { SAMPLE_CARDS, THEMES, TONE_CLASS, UNUSED_PHOTOS } from "../lab/wb/data";
 
 /**
@@ -21,6 +22,7 @@ const HEAD_FONTS = ["두들체", "고딕 볼드", "본문과 같게"] as const;
 
 export function Workbench() {
   const [selected, setSelected] = useState(1);
+  const [target, setTarget] = useState<Target>("heading");
   const card = SAMPLE_CARDS[selected];
 
   return (
@@ -170,43 +172,17 @@ export function Workbench() {
               무엇이 바뀌었는지 확인하려고 매번 위로 올라가야 한다. 중첩 스크롤 대신
               sticky 를 쓰는 이유는 스크롤바가 둘 보이는 걸 피하려는 것이다. */}
           <section className="flex flex-col gap-4 xl:sticky xl:top-6 xl:self-start">
-            <SectionHead title={`${selected + 1}번 · ${card.roleLabel}`} aside="1080 × 1350" />
-            <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8 lg:py-12">
-              <div className="flex aspect-[4/5] w-full max-w-[520px] flex-col overflow-hidden rounded-2xl border border-hair bg-surface">
-                {card.layout === "split" && <span className={`block h-[42%] w-full ${TONE_CLASS[card.tone]}`} />}
-                {card.layout === "full-bleed" && (
-                  <span className={`relative flex flex-1 flex-col justify-end ${TONE_CLASS[card.tone]}`}>
-                    <span className="flex flex-col gap-3 bg-surface/85 p-7">
-                      <span className="text-[24px] font-black leading-tight tracking-tight sm:text-[32px]">
-                        {card.heading}
-                      </span>
-                      {card.action && (
-                        <span className="self-start rounded-full bg-ink px-4 py-2 text-[15px] font-bold text-surface">
-                          {card.action}
-                        </span>
-                      )}
-                    </span>
-                  </span>
-                )}
-                {card.layout !== "full-bleed" && (
-                  <span
-                    className={`flex flex-1 flex-col gap-3 p-7 ${card.layout === "text-only" ? "justify-center" : ""}`}
-                  >
-                    <span className="text-[24px] font-black leading-tight tracking-tight sm:text-[32px]">
-                      {card.heading}
-                    </span>
-                    {card.body && (
-                      <span className="text-[15px] leading-relaxed text-ink-2 sm:text-[17px]">{card.body}</span>
-                    )}
-                  </span>
-                )}
-              </div>
+            <Toolbar target={target} card={card} />
+            <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8 lg:py-10">
+              <Canvas card={card} target={target} onSelect={setTarget} />
             </div>
+            <p className="text-center text-[13px] text-ink-2">
+              고칠 곳을 눌러요. 글은 그 자리에서 바로 고쳐요.
+            </p>
           </section>
 
           <aside className="flex flex-col gap-4">
-            <SectionHead title="이 카드 고치기" />
-            <Inspector card={card} />
+            <SidePanel card={card} />
           </aside>
         </div>
       </div>
