@@ -1,46 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, GripVertical, Plus, RefreshCw } from "lucide-react";
+import { ArrowRight, GripVertical, Plus, Redo2, RefreshCw, Undo2 } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { Frame, LineButton, SectionHead, SolidButton } from "./Frame";
-import { LAYOUT_LABEL, SAMPLE_CARDS, TONE_CLASS, UNUSED_PHOTOS } from "../lab/wb/data";
+import { Inspector } from "./Inspector";
+import { SAMPLE_CARDS, THEMES, TONE_CLASS, UNUSED_PHOTOS } from "../lab/wb/data";
 
 /**
  * 화면 2 — 만들기. 사진·순서·편집이 한 화면이다(기존 3단계 통합).
  *
- * 순서 레일이 가로인 이유: 카드뉴스는 옆으로 넘겨 보는 매체다. 조작 축과 결과물의 축을 맞춘다.
+ * 설정을 두 층으로 나눴다. **세트 단위**(테마·제목 서체·핸들)는 상단 바에, **카드 단위**는
+ * 우측 인스펙터에. 카드마다 서체가 다르면 다섯 장이 한 덩어리로 안 읽히므로 그 결정은
+ * 카드 옆에 두면 안 된다.
  *
- * 색이 없는 UI 라 **사진과 카드 프리뷰가 화면에서 유일하게 색을 가진 것**이 된다 — 시선이
- * 자동으로 결과물로 간다. 그래서 프리뷰를 크게 잡았다(최대 520px).
+ * 색이 없는 UI 라 **사진과 카드 프리뷰가 화면에서 유일하게 색을 가진 것**이 된다.
  */
 
-const INPUT =
-  "w-full rounded-lg border border-hair bg-surface px-3.5 py-3 text-[15px] transition-colors duration-200 focus:border-ink focus:outline-none motion-reduce:transition-none";
-
-function Slider({ label, value }: { label: string; value: number }) {
-  return (
-    <label className="flex items-center gap-3">
-      <span className="w-[92px] flex-none text-[14px] text-ink-2">{label}</span>
-      <input type="range" min={0} max={100} defaultValue={value} className={`h-1 w-full accent-ink ${FOCUS_RING}`} />
-      <span className="w-9 flex-none text-right text-[13px] tabular-nums text-ink-2">{value}</span>
-    </label>
-  );
-}
-
-/** 글자수 — 넘치면 검정 채움으로 뒤집어 경고한다(색을 쓰지 않으므로). */
-function Counter({ len, max }: { len: number; max: number }) {
-  const over = len > max;
-  return (
-    <span
-      className={`rounded px-1.5 py-0.5 text-[13px] font-bold tabular-nums ${
-        over ? "bg-ink text-surface" : "text-ink-2"
-      }`}
-    >
-      {len}/{max}
-    </span>
-  );
-}
+const HEAD_FONTS = ["두들체", "고딕 볼드", "본문과 같게"] as const;
 
 export function Workbench() {
   const [selected, setSelected] = useState(1);
@@ -52,14 +29,30 @@ export function Workbench() {
       title="에어컨 전기세"
       summary={[
         { label: "형태", value: "카드뉴스 5장" },
-        { label: "테마", value: "보라 두들" },
         { label: "저장 위치", value: "cardnews/에어컨-전기세-0801" },
       ]}
       action={
         <>
+          <span className="flex items-center rounded-lg border border-hair">
+            <button
+              type="button"
+              aria-label="되돌리기"
+              className={`flex h-11 w-11 items-center justify-center rounded-l-lg text-ink-2 transition-colors duration-200 hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+            >
+              <Undo2 size={16} aria-hidden="true" />
+            </button>
+            <span className="h-6 w-px bg-hair" aria-hidden="true" />
+            <button
+              type="button"
+              aria-label="다시 실행"
+              className={`flex h-11 w-11 items-center justify-center rounded-r-lg text-ink-disabled ${FOCUS_RING}`}
+            >
+              <Redo2 size={16} aria-hidden="true" />
+            </button>
+          </span>
           <LineButton>
             <RefreshCw size={15} aria-hidden="true" />
-            카피 다시
+            전체 다시
           </LineButton>
           <SolidButton>
             내보내기
@@ -69,6 +62,52 @@ export function Workbench() {
       }
     >
       <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9">
+        {/* 세트 단위 — 다섯 장 전체에 걸리는 설정 */}
+        <section className="flex flex-wrap items-end gap-x-8 gap-y-4 rounded-xl border border-hair px-5 py-4">
+          <div className="flex flex-col gap-2">
+            <p className="text-[14px] font-bold text-ink-2">테마</p>
+            <div className="inline-flex rounded-lg border border-hair p-1">
+              {THEMES.map((t, i) => (
+                <span
+                  key={t.id}
+                  className={`h-10 rounded px-3.5 text-[14px] font-bold leading-10 ${
+                    i === 0 ? "bg-ink text-surface" : "text-ink-2"
+                  }`}
+                >
+                  {t.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="text-[14px] font-bold text-ink-2">제목 서체</p>
+            <div className="inline-flex rounded-lg border border-hair p-1">
+              {HEAD_FONTS.map((f, i) => (
+                <span
+                  key={f}
+                  className={`h-10 rounded px-3.5 text-[14px] font-bold leading-10 ${
+                    i === 0 ? "bg-ink text-surface" : "text-ink-2"
+                  }`}
+                >
+                  {f}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex min-w-[180px] flex-1 flex-col gap-2">
+            <label htmlFor="handle" className="text-[14px] font-bold text-ink-2">
+              계정 핸들
+            </label>
+            <input
+              id="handle"
+              defaultValue="@repick.kr"
+              className={`h-10 w-full rounded-lg border border-hair px-3 text-[15px] transition-colors duration-200 focus:border-ink focus:outline-none ${FOCUS_RING} motion-reduce:transition-none`}
+            />
+          </div>
+        </section>
+
         <section className="flex flex-col gap-4">
           <SectionHead
             title="넘겨 보는 순서"
@@ -135,7 +174,9 @@ export function Workbench() {
                 {card.layout === "full-bleed" && (
                   <span className={`relative flex flex-1 flex-col justify-end ${TONE_CLASS[card.tone]}`}>
                     <span className="flex flex-col gap-3 bg-surface/85 p-7">
-                      <span className="text-[24px] font-black leading-tight tracking-tight sm:text-[32px]">{card.heading}</span>
+                      <span className="text-[24px] font-black leading-tight tracking-tight sm:text-[32px]">
+                        {card.heading}
+                      </span>
                       {card.action && (
                         <span className="self-start rounded-full bg-ink px-4 py-2 text-[15px] font-bold text-surface">
                           {card.action}
@@ -160,56 +201,9 @@ export function Workbench() {
             </div>
           </section>
 
-          <aside className="flex flex-col gap-6">
+          <aside className="flex flex-col gap-4">
             <SectionHead title="이 카드 고치기" />
-
-            <div className="flex flex-col gap-2.5">
-              <p className="text-[15px] font-bold text-ink-2">레이아웃</p>
-              <div className="inline-flex rounded-lg border border-hair p-1">
-                {(["full-bleed", "split", "text-only"] as const).map((l) => (
-                  <span
-                    key={l}
-                    className={`h-11 rounded px-4 text-[15px] font-bold leading-[2.75rem] ${
-                      l === card.layout ? "bg-ink text-surface" : "text-ink-2"
-                    }`}
-                  >
-                    {LAYOUT_LABEL[l]}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              <div className="flex items-baseline justify-between">
-                <label htmlFor="hd" className="text-[15px] font-bold text-ink-2">
-                  헤드라인
-                </label>
-                <Counter len={card.heading.length} max={40} />
-              </div>
-              <textarea id="hd" rows={2} defaultValue={card.heading} className={INPUT} />
-            </div>
-
-            {card.body !== undefined && (
-              <div className="flex flex-col gap-2.5">
-                <div className="flex items-baseline justify-between">
-                  <label htmlFor="bd" className="text-[15px] font-bold text-ink-2">
-                    본문
-                  </label>
-                  <Counter len={card.body.length} max={120} />
-                </div>
-                <textarea id="bd" rows={4} defaultValue={card.body} className={INPUT} />
-              </div>
-            )}
-
-            {card.layout !== "text-only" && (
-              <div className="flex flex-col gap-4 border-t border-hair pt-5">
-                <p className="text-[15px] font-bold text-ink-2">사진 조절</p>
-                <Slider label="가로 초점" value={50} />
-                <Slider label="세로 초점" value={40} />
-                {card.layout === "full-bleed" && <Slider label="글 배경" value={70} />}
-                {card.layout === "split" && <Slider label="사진 높이" value={42} />}
-              </div>
-            )}
+            <Inspector card={card} />
           </aside>
         </div>
       </div>
