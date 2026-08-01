@@ -103,10 +103,10 @@ export function WorkbenchScreen({
         }))
       : slots.map((photo) => ({ key: photo.id, photo, card: undefined }));
 
-  // 트레이는 **칩에 안 뜬 사진 전부**다. reducer 의 `trayPhotos` 는 order 기준이라, 카드보다
+  // 트레이는 **칩에 안 뜬 사진 전부**다. order 기준 파생만 쓰면, 카드보다
   // 사진이 많을 때(6장으로 생성했는데 카드가 5장, 또는 생성 뒤 사진을 더 올림) order 뒤쪽 사진이
   // 칩에도 트레이에도 없어 화면에서 사라지고 뺄 수도 없었다. 올린 사진은 예외 없이 둘 중
-  // 하나에 보여야 한다. reducer 는 건드리지 않는다 — `trayPhotos` 의 뜻을 바꾸면 파급이 크다.
+  // 하나에 보여야 한다.
   const shownIds = new Set(items.flatMap((it) => (it.photo ? [it.photo.id] : [])));
   const tray = state.photos.filter((p) => !shownIds.has(p.id));
 
