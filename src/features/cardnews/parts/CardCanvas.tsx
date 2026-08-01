@@ -3,7 +3,7 @@
 import { Move } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import type { Photo } from "@/lib/photos";
-import type { Focal } from "@/templates/layout-utils";
+import { objectPosition, type Focal } from "@/templates/layout-utils";
 import type { CardDraft } from "../reducer";
 import type { EditTarget } from "./EditToolbar";
 
@@ -17,20 +17,29 @@ import type { EditTarget } from "./EditToolbar";
  * 잡는 껍데기 안에 **사진 버튼과 초점 핸들을 형제로** 두고, 글 블록은 그 위에 `pointer-events`
  * 를 되살린 층으로 얹는다.
  *
- * 인라인 `style` 은 **세 곳뿐**이다. 셋 다 0~1 연속값이라 Tailwind 클래스로 표현할 수 없다
+ * 출력(`src/templates`)과 **같은 식을 쓴다**: 크롭 기준점은 `objectPosition(focal)`, full-bleed
+ * 는 어두운 가림막 위 밝은 글(템플릿의 `onPhoto` 반전). 캔버스가 결과와 다르게 보이면 편집
+ * 표면으로서 쓸모가 없다.
+ *
+ * 인라인 `style` 은 **네 곳뿐**이다. 넷 다 0~1 연속값이라 Tailwind 클래스로 표현할 수 없다
  * (JIT 은 런타임 값으로 클래스를 만들지 못한다). dnd-kit transform 을 같은 이유로 인라인에
  * 두는 `SortableSlot.tsx` 와 같은 선례다:
  *   1. 초점 핸들 위치 — `card.focal`
- *   2. 글 배경 진하기 — `card.scrim`
- *   3. split 사진 높이 — `card.band`
+ *   2. 사진 크롭 기준점 — `card.focal`
+ *   3. 글 배경 진하기 — `card.scrim`
+ *   4. split 사진 높이 — `card.band`
  * 색은 전부 토큰 클래스에서 오고, 인라인으로는 숫자(위치·불투명도·높이)만 넘긴다.
  */
 
 /** 방향키 한 번에 5%. 스무 번이면 끝에서 끝까지 가고, 한 칸이 눈에 보인다. */
 const FOCAL_STEP = 0.05;
 
-function ring(on: boolean) {
-  return on ? "ring-2 ring-ink ring-offset-2 ring-offset-surface" : "";
+/** full-bleed 는 글이 어두운 가림막 위에 놓이므로 선택 링도 뒤집어야 보인다. */
+function ring(on: boolean, onPhoto: boolean): string {
+  if (!on) return "";
+  return onPhoto
+    ? "ring-2 ring-surface ring-offset-2 ring-offset-ink"
+    : "ring-2 ring-ink ring-offset-2 ring-offset-surface";
 }
 
 function clamp01(v: number): number {
@@ -42,16 +51,29 @@ function pct(ratio: number): string {
 }
 
 /**
+ * 편집 결과를 한 줄 텍스트로 정규화한다.
+ *
+ * `innerText` 로 읽어 화면에 보이는 줄바꿈을 개행으로 받은 뒤 공백 하나로 접는다 — `textContent`
+ * 는 `<br>` 을 빈 문자열로 읽어 Enter 로 나눈 두 줄이 **구분자 없이 붙는다**. 스키마의 heading·
+ * body·action 은 한 줄 문자열이고 줄 나눔은 출력 템플릿이 하므로 여기서 개행을 보존할 이유가 없다.
+ */
+function normalize(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/**
  * 그 자리에서 고치는 글.
  *
- * `editing` 과 `selected` 를 나눠 받는다 — 헤드라인·본문은 툴바에서 고른 동안만 편집 가능하고
- * 선택 링이 뜨지만, cta 의 버튼 문구는 툴바에 대응하는 대상이 없어(다섯 번째 대상을 만들지
- * 않는다) 늘 편집 가능하고 링 대신 포커스 표시만 쓴다.
+ * `contentEditable="plaintext-only"` 라 붙여넣기해도 마크업이 React 관리 노드로 들어오지 않는다.
+ *
+ * `editing`(고칠 수 있는가)과 `ringClass`(선택 표시)를 나눠 받는다 — 헤드라인·본문은 툴바에서
+ * 고른 동안만 편집 가능하고 선택 링이 뜨지만, cta 의 버튼 문구는 툴바에 대응하는 대상이 없어
+ * (다섯 번째 대상을 만들지 않는다) 늘 편집 가능하고 링 대신 포커스 표시만 쓴다.
  */
 function EditableText({
   value,
   editing,
-  selected,
+  ringClass,
   label,
   className,
   onCommit,
@@ -59,7 +81,7 @@ function EditableText({
 }: {
   value: string;
   editing: boolean;
-  selected: boolean;
+  ringClass: string;
   label: string;
   className: string;
   onCommit: (text: string) => void;
@@ -69,16 +91,16 @@ function EditableText({
     <div
       role="textbox"
       aria-label={label}
-      aria-multiline="true"
+      aria-multiline="false"
       tabIndex={0}
-      contentEditable={editing}
+      contentEditable={editing ? "plaintext-only" : false}
       suppressContentEditableWarning
       onClick={onActivate}
       onFocus={onActivate}
       // 편집 중에는 DOM 이 진실이다. 빠져나갈 때 한 번만 상태로 올린다 —
       // 글자마다 올리면 카드 전체가 다시 그려져 커서가 튄다.
-      onBlur={(e) => onCommit(e.currentTarget.textContent ?? "")}
-      className={`pointer-events-auto cursor-text rounded outline-none ${ring(selected)} ${className}`}
+      onBlur={(e) => onCommit(normalize(e.currentTarget.innerText))}
+      className={`pointer-events-auto cursor-text rounded outline-none ${ringClass} ${className}`}
     >
       {value}
     </div>
@@ -107,7 +129,7 @@ function FocalHandle({ focal, onFocal }: { focal: Focal; onFocal: (focal: Focal)
       // 이름에 현재 값을 담는다 — 방향키로 값이 바뀌면 포커스된 요소의 이름이 다시 읽힌다
       aria-label={`사진 초점 — 가로 ${Math.round(focal.x * 100)}%, 세로 ${Math.round(focal.y * 100)}%. 방향키로 옮겨요`}
       onKeyDown={handleKey}
-      // 인라인 style 1/3 — 초점은 0~1 연속값이라 자리를 Tailwind 클래스로 표현할 수 없다
+      // 인라인 style 1/4 — 초점은 0~1 연속값이라 자리를 Tailwind 클래스로 표현할 수 없다
       style={{ left: pct(focal.x), top: pct(focal.y) }}
       className={`pointer-events-none absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-ink bg-surface ${FOCUS_RING}`}
     >
@@ -160,7 +182,7 @@ function PhotoSurface({
 
   return (
     <div
-      // 인라인 style 3/3 — split 사진 높이는 card.band(0~1 연속값) 라 클래스로 표현할 수 없다
+      // 인라인 style 4/4 — split 사진 높이는 card.band(0~1 연속값) 라 클래스로 표현할 수 없다
       style={bandRatio === undefined ? undefined : { height: pct(bandRatio) }}
       className={`${wrapperClass} overflow-hidden bg-hair-soft`}
     >
@@ -180,7 +202,14 @@ function PhotoSurface({
             draggable={false} 가 없으면 브라우저의 이미지 끌어놓기가 먼저 발동해 초점 드래그가
             pointercancel 로 끊긴다 — 포인터 캡처는 네이티브 드래그를 막지 못한다. */}
         {photo && (
-          <img src={photo.thumbUrl} alt={photo.name} draggable={false} className="h-full w-full object-cover" />
+          <img
+            src={photo.thumbUrl}
+            alt={photo.name}
+            draggable={false}
+            // 인라인 style 2/4 — 크롭 기준점. 출력 템플릿과 같은 objectPosition(focal) 을 쓴다
+            style={{ objectPosition: objectPosition(focal) }}
+            className="h-full w-full object-cover"
+          />
         )}
       </button>
       {on && <FocalHandle focal={focal} onFocal={onFocal} />}
@@ -202,11 +231,20 @@ export function CardCanvas({
   onPatch: (patch: Partial<Omit<CardDraft, "id">>) => void;
 }) {
   const copy = card.copy;
-  const headingClass = "text-[26px] font-black leading-tight tracking-tight sm:text-[36px]";
-  const bodyClass = "text-[16px] leading-relaxed text-ink-2 sm:text-[18px]";
+
+  // full-bleed 만 글이 가림막 위에 놓인다. 출력 템플릿의 `onPhoto` 와 같은 반전을 쓴다 —
+  // 어두운 가림막 + 밝은 글. 반대로 두면 글 배경을 낮췄을 때 검정 글이 사진에 묻힌다.
+  const onPhoto = card.layout === "full-bleed";
+  const headingClass = `text-[26px] font-black leading-tight tracking-tight sm:text-[36px] ${
+    onPhoto ? "text-surface" : ""
+  }`;
+  const bodyClass = `text-[16px] leading-relaxed sm:text-[18px] ${onPhoto ? "text-surface" : "text-ink-2"}`;
   // 버튼 문구는 늘 편집 가능하므로 선택 링 대신 포커스 링으로 지금 어디 있는지 알린다
-  const actionClass =
-    "self-start rounded-full bg-ink px-4 py-2 text-[15px] font-bold text-surface focus:ring-2 focus:ring-ink focus:ring-offset-2 focus:ring-offset-surface";
+  const actionClass = `self-start rounded-full px-4 py-2 text-[15px] font-bold focus:ring-2 focus:ring-offset-2 ${
+    onPhoto
+      ? "bg-surface text-ink focus:ring-surface focus:ring-offset-ink"
+      : "bg-ink text-surface focus:ring-ink focus:ring-offset-surface"
+  }`;
 
   // heading 은 다섯 역할 전부에 있어 유니온을 그대로 펼쳐도 된다.
   const commitHeading = (text: string) => onPatch({ copy: { ...copy, heading: text } });
@@ -230,9 +268,9 @@ export function CardCanvas({
       {scrim !== undefined && (
         <span
           aria-hidden="true"
-          // 인라인 style 2/3 — 글 배경 진하기는 card.scrim(0~1 연속값). 색 자체는 토큰 클래스에서 온다
+          // 인라인 style 3/4 — 글 배경 진하기는 card.scrim(0~1 연속값). 색 자체는 토큰 클래스에서 온다
           style={{ opacity: scrim }}
-          className="absolute inset-0 bg-surface"
+          className="absolute inset-0 bg-ink"
         />
       )}
       <div className="relative flex flex-col gap-3">
@@ -243,7 +281,7 @@ export function CardCanvas({
           key={`${card.id}-heading-${copy.heading}`}
           value={copy.heading}
           editing={target === "heading"}
-          selected={target === "heading"}
+          ringClass={ring(target === "heading", onPhoto)}
           onActivate={() => onSelect("heading")}
           onCommit={commitHeading}
           label="헤드라인"
@@ -254,7 +292,7 @@ export function CardCanvas({
             key={`${card.id}-body-${bodyEdit.value}`}
             value={bodyEdit.value}
             editing={target === "body"}
-            selected={target === "body"}
+            ringClass={ring(target === "body", onPhoto)}
             onActivate={() => onSelect("body")}
             onCommit={bodyEdit.commit}
             label="본문"
@@ -266,7 +304,7 @@ export function CardCanvas({
             key={`${card.id}-action-${actionEdit.value}`}
             value={actionEdit.value}
             editing
-            selected={false}
+            ringClass=""
             onCommit={actionEdit.commit}
             label="버튼 문구 (최대 40자)"
             className={actionClass}

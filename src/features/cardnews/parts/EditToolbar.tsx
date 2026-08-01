@@ -129,32 +129,37 @@ export function EditToolbar({
     { id: "photo", label: "사진", show: hasPhoto },
     { id: "card", label: "카드", show: true },
   ];
+  const tabs = picks.filter((p) => p.show);
 
-  const isText = target === "heading" || target === "body";
-  const len = target === "body" ? (body?.length ?? 0) : copy.heading.length;
-  const max = target === "body" ? 120 : 40;
+  // 카드를 넘기면 지금 카드에 없는 요소를 가리키고 있을 수 있다(problem 에서 "본문"을 고른 뒤
+  // cta 로 이동, text-only 에서 "사진"). 그대로 두면 어느 탭도 선택 표시가 안 되고 패널이
+  // 엉뚱하게 비므로, **렌더 중에 순수 계산으로** 항상 있는 "카드"로 떨어뜨린다.
+  // effect 로 부모 상태를 고치지 않는다 — 한 프레임 어긋난 화면이 먼저 보이고 렌더가 두 번 돈다.
+  const active: EditTarget = tabs.some((p) => p.id === target) ? target : "card";
+
+  const isText = active === "heading" || active === "body";
+  const len = active === "body" ? (body?.length ?? 0) : copy.heading.length;
+  const max = active === "body" ? 120 : 40;
 
   return (
     <div className="flex flex-col rounded-xl border border-hair">
       {/* 무엇을 고칠지 고르는 줄. 컨트롤은 바로 아래에 붙는다 — 한 줄에 다 밀어 넣으면
           좁은 폭에서 줄바꿈이 지저분해지고, 고른 것과 그 도구의 관계도 흐려진다. */}
       <div className="flex gap-1 border-b border-hair p-2" role="tablist" aria-label="고칠 요소">
-        {picks
-          .filter((p) => p.show)
-          .map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              role="tab"
-              aria-selected={target === p.id}
-              onClick={() => onSelect(p.id)}
-              className={`h-10 rounded-lg px-4 text-[14px] font-bold transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
-                target === p.id ? "bg-ink text-surface" : "text-ink-2 hover:bg-hair-soft hover:text-ink"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        {tabs.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            aria-selected={active === p.id}
+            onClick={() => onSelect(p.id)}
+            className={`h-10 rounded-lg px-4 text-[14px] font-bold transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
+              active === p.id ? "bg-ink text-surface" : "text-ink-2 hover:bg-hair-soft hover:text-ink"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
 
       <div role="tabpanel" className="flex min-h-[64px] flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
@@ -165,7 +170,7 @@ export function EditToolbar({
           </>
         )}
 
-        {target === "photo" && hasPhoto && (
+        {active === "photo" && (
           <>
             <span className="text-[14px] text-ink-2">사진 위를 끌어 초점을 옮겨요</span>
             <Divider />
@@ -196,7 +201,7 @@ export function EditToolbar({
           </>
         )}
 
-        {target === "card" && (
+        {active === "card" && (
           <span className="flex items-center gap-2.5">
             <span className="text-[14px] text-ink-2">구성</span>
             <Group>
