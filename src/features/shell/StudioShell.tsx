@@ -54,7 +54,7 @@ export function StudioShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 flex-none items-center justify-between border-b border-hair bg-surface px-6">
-          <h1 className="text-[15px] font-semibold">
+          <h1 className="min-w-0 truncate text-[15px] font-semibold">
             <span className="mr-2 tabular-nums text-ink-3">{current}</span>
             {currentStep?.label}
           </h1>
