@@ -5,12 +5,13 @@ import { CaptureStage } from "@/features/studio/CaptureStage";
 import { useExport } from "@/features/studio/useExport";
 import { TopicScreen } from "./screens/TopicScreen";
 import { WorkbenchScreen } from "./screens/WorkbenchScreen";
+import { ExportScreen } from "./screens/ExportScreen";
 import { toRenderCards } from "./render";
 import { cardnewsReducer, initialCardnewsState } from "./reducer";
 
 export function CardnewsFlow() {
   const [state, dispatch] = useReducer(cardnewsReducer, initialCardnewsState);
-  const { registerRef } = useExport();
+  const { registerRef, download, saveToFolder } = useExport();
 
   const go = (step: number) => dispatch({ type: "SET_STEP", step });
 
@@ -20,6 +21,23 @@ export function CardnewsFlow() {
 
       {state.step === 1 && (
         <WorkbenchScreen state={state} dispatch={dispatch} onPrev={() => go(0)} onNext={() => go(2)} />
+      )}
+
+      {state.step === 2 && (
+        <ExportScreen
+          state={state}
+          dispatch={dispatch}
+          onPrev={() => go(1)}
+          onDownload={() => download(state.cards.length, state.keyword)}
+          onSave={() =>
+            saveToFolder({
+              count: state.cards.length,
+              keyword: state.keyword,
+              type: "cardnews",
+              templateIds: state.cards.map((c) => c.layout),
+            })
+          }
+        />
       )}
 
       {state.cards.length > 0 && (
