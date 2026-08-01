@@ -74,9 +74,13 @@ export function Logo({ size = "md" }: { size?: "md" | "lg" }) {
       <span aria-hidden="true" className="flex">
         <SeomamWordmark height={lg ? 32 : 24} label="" />
       </span>
+      {/* 폭을 워드마크의 88% 로 좁혀 자간을 줄인다. 100% 면 양끝이 워드마크에 딱 붙어
+          자간이 과해 보인다. 비율로 두면 로고 크기가 바뀌어도 같은 인상이 유지된다. */}
       <span
         aria-hidden="true"
-        className={`flex justify-between font-bold text-ink-2 ${lg ? "text-[12px]" : "text-[10px]"}`}
+        className={`flex w-[88%] self-center justify-between font-bold text-ink-2 ${
+          lg ? "text-[12px]" : "text-[10px]"
+        }`}
       >
         {["스", "튜", "디", "오"].map((c) => (
           <span key={c}>{c}</span>
