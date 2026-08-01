@@ -166,7 +166,10 @@ export function Workbench() {
         </section>
 
         <div className="grid gap-9 xl:grid-cols-[minmax(0,1fr)_400px]">
-          <section className="flex flex-col gap-4">
+          {/* 프리뷰는 제자리에 두고 인스펙터만 스크롤한다 — 고칠 때 결과가 눈에서 사라지면
+              무엇이 바뀌었는지 확인하려고 매번 위로 올라가야 한다. 중첩 스크롤 대신
+              sticky 를 쓰는 이유는 스크롤바가 둘 보이는 걸 피하려는 것이다. */}
+          <section className="flex flex-col gap-4 xl:sticky xl:top-6 xl:self-start">
             <SectionHead title={`${selected + 1}번 · ${card.roleLabel}`} aside="1080 × 1350" />
             <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8 lg:py-12">
               <div className="flex aspect-[4/5] w-full max-w-[520px] flex-col overflow-hidden rounded-2xl border border-hair bg-surface">
