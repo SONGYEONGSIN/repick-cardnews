@@ -63,18 +63,24 @@ export function StudioMark({ size = 32, label = "서맘 스튜디오" }: { size?
  */
 export function Logo({ size = "md" }: { size?: "md" | "lg" }) {
   const lg = size === "lg";
-  // 락업 전체가 하나의 이름이므로 바깥이 이름을 갖고 안쪽은 감춘다 — 자간을 크게 벌린 글자를
+  // 락업 전체가 하나의 이름이므로 바깥이 이름을 갖고 안쪽은 감춘다 — 자간을 벌린 글자를
   // 스크린리더가 한 자씩 읽는 일을 막는다.
+  //
+  // 아래 글자는 자간을 숫자로 주지 않는다. 로고 크기가 바뀔 때마다 어긋나기 때문이다.
+  // 글자를 하나씩 나눠 양끝 정렬하면 세로 방향 flex 가 정해 준 폭(= 워드마크 폭)에
+  // 언제나 정확히 맞는다.
   return (
-    <span className="flex flex-col items-center gap-1.5" role="img" aria-label="서맘 스튜디오">
+    <span className="inline-flex flex-col gap-1.5" role="img" aria-label="서맘 스튜디오">
       <span aria-hidden="true" className="flex">
         <SeomamWordmark height={lg ? 32 : 24} label="" />
       </span>
       <span
         aria-hidden="true"
-        className={`pl-[0.3em] font-bold tracking-[0.3em] text-ink-2 ${lg ? "text-[12px]" : "text-[10px]"}`}
+        className={`flex justify-between font-bold text-ink-2 ${lg ? "text-[12px]" : "text-[10px]"}`}
       >
-        스튜디오
+        {["스", "튜", "디", "오"].map((c) => (
+          <span key={c}>{c}</span>
+        ))}
       </span>
     </span>
   );
