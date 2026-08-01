@@ -131,8 +131,9 @@ export function WorkbenchScreen({
 
   function moveTo(to: number) {
     dispatch({ type: "REORDER", from: active, to });
-    // 옮긴 사진을 계속 따라간다 — 같은 버튼을 다시 눌러 한 칸 더 옮길 수 있어야 한다.
-    // 자리가 바뀌면 그 자리의 카피도 달라지므로 pick 과 같은 이유로 편집 대상도 되돌린다.
+    // 선택은 **옮긴 사진**을 따라간다(`move` 가 그 사진을 to 자리에 놓는다). 자리에 남겨 두면
+    // 방금 옮긴 사진이 아니라 옆 사진이 골라진 채가 돼 같은 버튼을 다시 못 누른다.
+    // 자리가 바뀌면 그 자리의 카피가 달라지므로 pick 이 편집 대상도 heading 으로 되돌린다.
     pick(to);
   }
 
@@ -208,8 +209,12 @@ export function WorkbenchScreen({
                 onToggleDrop={() => setAdding((v) => !v)}
               />
               <p className="text-[13px] text-ink-2">
-                칩을 누르면 그 카드를 고쳐요. 고른 칩의 화살표는 사진 차례를 바꾸고(카피는 자리에 남아요),
-                휴지통은 사진을 빼요.
+                {/* 카피가 나오기 전에는 "카피는 자리에 남는다"는 말이 성립하지 않는다 —
+                    카드 순서는 hook→cta 로 스키마가 고정하므로 바뀌는 것은 늘 사진뿐이다 */}
+                {state.cards.length > 0
+                  ? "칩을 누르면 그 카드를 고쳐요. 고른 칩의 화살표는 사진을 앞뒤 카드로 옮겨요 — 카피는 자리에 남아요."
+                  : "고른 칩의 화살표로 사진 차례를 바꿔요."}{" "}
+                빼기를 누르면 그 사진을 지워요.
                 {tray.length > 0 && (
                   <>
                     {" "}

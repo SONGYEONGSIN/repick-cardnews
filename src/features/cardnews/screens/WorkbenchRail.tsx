@@ -114,21 +114,48 @@ function SlotChip({
       </button>
 
       {on && (
-        <div className="flex items-center gap-1.5 px-2.5">
-          <ChipAction label={`${index + 1}번 사진을 앞으로`} disabled={!canBack} onClick={() => onMove(index - 1)}>
-            <ChevronLeft size={16} aria-hidden="true" />
-          </ChipAction>
-          <ChipAction label={`${index + 1}번 사진을 뒤로`} disabled={!canForward} onClick={() => onMove(index + 1)}>
-            <ChevronRight size={16} aria-hidden="true" />
-          </ChipAction>
-          {photo && (
-            <ChipAction label={`${photo.name} 빼기`} onClick={() => onRemove(photo.id)}>
-              <Trash2 size={15} aria-hidden="true" />
+        <div className="flex flex-col gap-2 px-2.5">
+          {/* 옮기는 것은 사진이지 카드가 아니다 — 이름에 그걸 담는다. 카피가 나오기 전에는
+              카드가 없으므로 "카드" 대신 "자리"로 말한다. */}
+          <div className="flex items-center gap-1.5">
+            <ChipAction
+              label={`${index + 1}번 사진을 ${card ? "앞 카드로" : "앞 자리로"} 옮기기`}
+              disabled={!canBack}
+              onClick={() => onMove(index - 1)}
+            >
+              <ChevronLeft size={16} aria-hidden="true" />
             </ChipAction>
-          )}
+            <ChipAction
+              label={`${index + 1}번 사진을 ${card ? "뒤 카드로" : "뒤 자리로"} 옮기기`}
+              disabled={!canForward}
+              onClick={() => onMove(index + 1)}
+            >
+              <ChevronRight size={16} aria-hidden="true" />
+            </ChipAction>
+          </div>
+          {/* 삭제는 화살표와 같은 줄에 두지 않는다 — 되돌릴 수 없는 동작이라 오폭이 곧 손실이다 */}
+          {photo && <RemoveButton name={photo.name} onClick={() => onRemove(photo.id)} />}
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * 사진 빼기. 되돌리기가 없으므로(조각 2) 화살표 **옆이 아니라 아래 줄에** 떼어 두고,
+ * 아이콘만 두지 않고 "빼기"라고 쓴다 — 잘못 눌렀을 때 되돌릴 방법이 없다.
+ */
+function RemoveButton({ name, onClick }: { name: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`${name} 빼기`}
+      className={`flex h-8 items-center justify-center gap-1.5 rounded-lg border border-hair text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+    >
+      <Trash2 size={14} aria-hidden="true" />
+      빼기
+    </button>
   );
 }
 
@@ -161,15 +188,7 @@ function TrayItem({
         </span>
         <span className="truncate text-[13px] text-ink-2">{photo.name}</span>
       </button>
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`${photo.name} 빼기`}
-        className={`flex h-8 items-center justify-center gap-1.5 rounded-lg border border-hair text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
-      >
-        <Trash2 size={14} aria-hidden="true" />
-        빼기
-      </button>
+      <RemoveButton name={photo.name} onClick={onRemove} />
     </div>
   );
 }
