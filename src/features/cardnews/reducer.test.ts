@@ -142,6 +142,80 @@ describe("SET_SPEC", () => {
   });
 });
 
+/**
+ * 불변식: `cards[i].photoId === (order[i] ?? "")`.
+ *
+ * `SET_SPEC` 이 이렇게 세우므로 order 를 건드리는 액션(SWAP_IN·REORDER·REMOVE_PHOTO)은 전부
+ * 이것을 다시 세워야 한다. 안 그러면 레일은 새 사진을 보여 주는데 캔버스와 출력
+ * (`toRenderCards` 는 card.photoId 로 사진을 찾는다)은 옛 사진을 계속 쓴다.
+ */
+describe("order 와 cards 의 사진 연결", () => {
+  function specOf(count: number) {
+    const middle = Array.from({ length: count - 2 }, (_, i) => ({
+      role: "problem" as const,
+      heading: `문제${i + 1}`,
+      body: "본문",
+    }));
+    return {
+      type: "cardnews" as const,
+      keyword: "에어컨",
+      cards: [
+        { role: "hook" as const, heading: "표지" },
+        ...middle,
+        { role: "cta" as const, heading: "마무리", action: "저장" },
+      ],
+    };
+  }
+
+  function withCards(photoCount: number, cardCount: number): CardnewsState {
+    return cardnewsReducer(withPhotos(photoCount), { type: "SET_SPEC", spec: specOf(cardCount) });
+  }
+
+  /** 카드가 실제로 가리키는 사진 vs 슬롯 순서가 요구하는 사진 */
+  function linkage(s: CardnewsState): { actual: string[]; expected: string[] } {
+    return {
+      actual: s.cards.map((c) => c.photoId),
+      expected: s.cards.map((_, i) => s.order[i] ?? ""),
+    };
+  }
+
+  it("SWAP_IN 하면 그 자리의 카드도 새 사진을 가리킨다", () => {
+    const s = cardnewsReducer(withCards(8, 6), { type: "SWAP_IN", slotIndex: 0, photoId: "p7" });
+    expect(s.cards[0].photoId).toBe("p7");
+    const { actual, expected } = linkage(s);
+    expect(actual).toEqual(expected);
+  });
+
+  it("REORDER 하면 카드가 옮겨진 순서를 따라간다", () => {
+    const s = cardnewsReducer(withCards(5, 5), { type: "REORDER", from: 0, to: 2 });
+    expect(s.cards.map((c) => c.photoId)).toEqual(["p2", "p3", "p1", "p4", "p5"]);
+  });
+
+  it("REMOVE_PHOTO 로 트레이가 자리를 메우면 카드도 그 사진을 가리킨다", () => {
+    const s = cardnewsReducer(withCards(8, 6), { type: "REMOVE_PHOTO", photoId: "p1" });
+    expect(s.cards.map((c) => c.photoId)).toEqual(["p2", "p3", "p4", "p5", "p6", "p7"]);
+    const { actual, expected } = linkage(s);
+    expect(actual).toEqual(expected);
+  });
+
+  it("REMOVE_PHOTO 로 순서가 줄면 남는 카드는 사진 없이 남는다", () => {
+    const s = cardnewsReducer(withCards(5, 5), { type: "REMOVE_PHOTO", photoId: "p1" });
+    expect(s.cards.map((c) => c.photoId)).toEqual(["p2", "p3", "p4", "p5", ""]);
+    const { actual, expected } = linkage(s);
+    expect(actual).toEqual(expected);
+  });
+
+  it("사진보다 카드가 많아도 남는 카드는 빈 채로 유지된다", () => {
+    const s = cardnewsReducer(withCards(5, 6), { type: "REORDER", from: 0, to: 4 });
+    expect(s.cards.map((c) => c.photoId)).toEqual(["p2", "p3", "p4", "p5", "p1", ""]);
+  });
+
+  it("카피 생성 전에는 아무 일도 하지 않는다", () => {
+    const s = cardnewsReducer(withPhotos(5), { type: "REORDER", from: 0, to: 2 });
+    expect(s.cards).toEqual([]);
+  });
+});
+
 describe("UPDATE_CARD", () => {
   it("한 장만 바꾸고 나머지는 그대로 둔다", () => {
     const base = cardnewsReducer(withPhotos(5), {

@@ -99,6 +99,29 @@ export function bandFor(copy: CardnewsCard): number {
   return steps >= 4 ? 0.3 : DEFAULT_BAND_CARDNEWS;
 }
 
+/**
+ * 카드의 사진 연결을 `order` 에 다시 맞춘다 — 불변식은 `cards[i].photoId === (order[i] ?? "")` 다.
+ *
+ * `SET_SPEC` 이 이 식으로 연결을 세우고, 캔버스도 출력(`toRenderCards`)도 `card.photoId` 로 사진을
+ * 찾는다. 그래서 `order` 를 건드리는 액션은 전부 이 함수를 통과해야 한다 — 안 그러면 순서 레일은
+ * 새 사진을, 카드와 저장 결과는 옛 사진을 가리킨다. 액션마다 화면에서 보정하면 같은 땜질이 세 군데
+ * 생기므로 여기서 한 번만 한다.
+ *
+ * 사진보다 카드가 많으면 남는 카드는 `""` 로 남는다 — `SET_SPEC` 과 같은 규칙(사진 없는 카드)이다.
+ * 카피 생성 전에는 `cards` 가 비어 있어 아무 일도 하지 않는다.
+ */
+function relinkPhotos(state: CardnewsState): CardnewsState {
+  if (state.cards.length === 0) return state;
+  return {
+    ...state,
+    cards: state.cards.map((card, i) => {
+      const photoId = state.order[i] ?? "";
+      // 안 바뀐 카드는 같은 객체로 둔다 — 사진 하나 옮겼다고 다섯 장이 전부 다시 그려지지 않게
+      return card.photoId === photoId ? card : { ...card, photoId };
+    }),
+  };
+}
+
 export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): CardnewsState {
   switch (action.type) {
     case "ADD_PHOTOS": {
@@ -107,7 +130,7 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
       const photos = [...state.photos, ...added];
       const room = CARDNEWS_MAX - state.order.length;
       const order = [...state.order, ...added.slice(0, Math.max(0, room)).map((p) => p.id)];
-      return { ...state, photos, order, error: null };
+      return relinkPhotos({ ...state, photos, order, error: null });
     }
     case "REMOVE_PHOTO": {
       const photos = state.photos.filter((p) => p.id !== action.photoId);
@@ -117,16 +140,16 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
       // order 는 이 액션 말고는 줄어들 길이 없고(SWAP_IN 은 1:1, ADD_PHOTOS 는 기존 id 를 건너뜀),
       // 트레이는 바로 이런 보충을 위해 존재한다.
       const backfill = kept.length < state.order.length ? photos.find((p) => !kept.includes(p.id)) : undefined;
-      return { ...state, photos, order: backfill ? [...kept, backfill.id] : kept };
+      return relinkPhotos({ ...state, photos, order: backfill ? [...kept, backfill.id] : kept });
     }
     case "REORDER":
-      return { ...state, order: move(state.order, action.from, action.to) };
+      return relinkPhotos({ ...state, order: move(state.order, action.from, action.to) });
     case "SWAP_IN": {
       if (state.order.includes(action.photoId)) return state;
       if (action.slotIndex < 0 || action.slotIndex >= state.order.length) return state;
       const order = [...state.order];
       order[action.slotIndex] = action.photoId;
-      return { ...state, order };
+      return relinkPhotos({ ...state, order });
     }
     case "SET_KEYWORD":
       return { ...state, keyword: action.keyword };
