@@ -238,6 +238,21 @@ describe("UPDATE_CARD", () => {
   });
 });
 
+describe("SET_ERROR", () => {
+  it("생성이 진행 중이라는 사실을 건드리지 않는다", () => {
+    // 오류가 났다는 사실과 생성이 도는 중이라는 사실은 별개다. 함께 풀면 Dropzone 오류
+    // 한 번에 생성 버튼이 되살아나 CLI 호출이 둘 동시에 돈다.
+    const s = cardnewsReducer({ ...initialCardnewsState, busy: true }, { type: "SET_ERROR", error: "사진을 읽지 못했어요." });
+    expect(s.busy).toBe(true);
+    expect(s.error).toBe("사진을 읽지 못했어요.");
+  });
+
+  it("생성 중이 아니면 그대로 꺼져 있다", () => {
+    const s = cardnewsReducer(initialCardnewsState, { type: "SET_ERROR", error: "실패" });
+    expect(s.busy).toBe(false);
+  });
+});
+
 describe("bandFor", () => {
   it("단계가 없으면 기본 밴드다", () => {
     expect(bandFor({ role: "hook", heading: "표지" })).toBe(0.45);

@@ -182,7 +182,10 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
     case "SET_BUSY":
       return { ...state, busy: action.busy };
     case "SET_ERROR":
-      return { ...state, error: action.error, busy: false };
+      // busy 는 건드리지 않는다. 오류가 났다는 사실과 생성이 도는 중이라는 사실은 별개다 —
+      // 함께 풀면 생성 대기 중 Dropzone 오류 한 번에 버튼이 되살아나 CLI 호출이 둘 동시에 돈다.
+      // 생성·내보내기 경로는 finally 에서 SET_BUSY false 를 부른다.
+      return { ...state, error: action.error };
     case "RESET":
       return initialCardnewsState;
   }
