@@ -4,6 +4,7 @@ import { useReducer } from "react";
 import { CaptureStage } from "@/features/studio/CaptureStage";
 import { useExport } from "@/features/studio/useExport";
 import { TopicScreen } from "./screens/TopicScreen";
+import { WorkbenchScreen } from "./screens/WorkbenchScreen";
 import { toRenderCards } from "./render";
 import { cardnewsReducer, initialCardnewsState } from "./reducer";
 
@@ -16,6 +17,10 @@ export function CardnewsFlow() {
   return (
     <>
       {state.step === 0 && <TopicScreen state={state} dispatch={dispatch} onNext={() => go(1)} />}
+
+      {state.step === 1 && (
+        <WorkbenchScreen state={state} dispatch={dispatch} onPrev={() => go(0)} onNext={() => go(2)} />
+      )}
 
       {state.cards.length > 0 && (
         <CaptureStage
