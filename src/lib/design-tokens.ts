@@ -6,6 +6,12 @@
  *
  * `ink3` 는 순백·canvas 표면 전용이다. hairSoft 이상 muted 표면 위 보조 텍스트에는
  * `ink2` 를 써야 한다 (ink3 는 hairSoft 위에서 4.39:1 로 AA 미달).
+ *
+ * **주의**: 이 객체는 브라우저가 읽지 않는다 — 실제 렌더 값은 `src/app/globals.css` 의
+ * `@theme inline` 블록에 별도로 선언돼 있다. `design-tokens.test.ts` 의 "globals.css 와
+ * 색상 토큰 동기화" 스위트가 둘이 같은 값을 갖도록 bijection 을 고정한다 — globals.css 만
+ * 고쳐도 그 테스트가 잡는다. 여기 값만 바꾸고 globals.css 를 안 고치면 테스트가 잡지만,
+ * 대비 계산 자체는 이 파일의 값을 기준으로 하므로 두 파일을 항상 같이 고쳐야 한다.
  */
 export const colors = {
   canvas: "#FAFAFA",
@@ -31,3 +37,14 @@ export const radii = {
   control: "0.5rem",
   panel: "0.75rem",
 } as const;
+
+/**
+ * TS 토큰 키를 Tailwind CSS 변수/유틸 이름으로 변환.
+ * hairSoft → hair-soft, ink2 → ink-2.
+ *
+ * `design-tokens.test.ts` 의 globals.css 동기화 테스트와 `design-gate.test.ts` 가
+ * 공유한다 — 사본을 두면 그 자체가 이 함수가 막으려는 중복이 된다.
+ */
+export function utilityName(key: string): string {
+  return key.replace(/([A-Z])/g, "-$1").replace(/(\d)/g, "-$1").toLowerCase();
+}
