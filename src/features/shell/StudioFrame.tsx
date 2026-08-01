@@ -151,15 +151,18 @@ export function SolidButton({
   children,
   size = "md",
   disabled = false,
+  onClick,
 }: {
   children: React.ReactNode;
   size?: "md" | "lg";
   disabled?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
       disabled={disabled}
+      onClick={onClick}
       className={`inline-flex items-center justify-center gap-2 rounded-lg bg-ink font-bold text-surface transition-opacity duration-200 hover:opacity-85 disabled:bg-hair disabled:text-ink-disabled ${FOCUS_RING} motion-reduce:transition-none ${
         size === "lg" ? "h-14 px-7 text-[17px]" : "h-11 px-5 text-[15px]"
       }`}
