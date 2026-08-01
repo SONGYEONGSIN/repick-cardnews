@@ -196,7 +196,7 @@ export function WorkbenchScreen({
             <ArrowLeft size={16} aria-hidden="true" />
             주제 고치기
           </LineButton>
-          <SolidButton disabled={!canLeaveWorkbench(state)} onClick={onNext}>
+          <SolidButton disabled={!canLeaveWorkbench(state) || state.busy} onClick={onNext}>
             내보내기
             <ArrowRight size={16} aria-hidden="true" />
           </SolidButton>

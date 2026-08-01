@@ -115,7 +115,10 @@ export function ExportScreen({
         )}
 
         {saved && (
-          <p className="flex items-center gap-2.5 rounded-lg border border-hair bg-canvas px-4 py-3 text-[14px]">
+          <p
+            role="status"
+            className="flex items-center gap-2.5 rounded-lg border border-hair bg-canvas px-4 py-3 text-[14px]"
+          >
             <Check size={16} aria-hidden="true" className="flex-none" />
             <span>
               <span className="font-bold">{saved.count}장</span> 저장했어요 —{" "}
@@ -125,13 +128,19 @@ export function ExportScreen({
         )}
 
         <section className="flex flex-col gap-4">
-          <SectionHead title="다섯 장 이어 보기" aside="인스타에서 넘어가는 순서 그대로예요" />
+          <SectionHead
+            title={`${state.cards.length}장 이어 보기`}
+            aside="인스타에서 넘어가는 순서 그대로예요"
+          />
           <ol className="flex gap-4 overflow-x-auto pb-3">
             {rendered.map((card, i) => {
               const draft = state.cards[i];
               return (
                 <li key={draft.id} className="flex w-[152px] flex-none flex-col gap-2">
-                  <div className="overflow-hidden rounded-xl border border-hair bg-surface">
+                  {/* 순수 시각 미리보기 — 헤드라인·본문·핸들은 실제 템플릿 텍스트라 스크린리더에
+                      그대로 노출되면 아래 순번·역할 캡션, "저장될 파일" 목록과 카드 수만큼
+                      중복 낭독된다. 보이는 정보는 그 두 곳에 이미 텍스트로 있다. */}
+                  <div className="overflow-hidden rounded-xl border border-hair bg-surface" aria-hidden="true">
                     <span className="block aspect-[4/5] w-full overflow-hidden bg-hair-soft">
                       <span className="block origin-top-left scale-[0.1407]">
                         <CardRenderer card={card} themeId={state.themeId} handle={state.handle} />
