@@ -37,10 +37,10 @@ export function Export() {
         </>
       }
     >
-      <div className="flex flex-col gap-10 px-10 py-12">
+      <div className="flex flex-col gap-9 px-5 py-8 sm:px-8 lg:gap-10 lg:px-10 lg:py-12">
         <div className="flex flex-col gap-3">
-          <h2 className="text-[44px] font-black leading-[1.06] tracking-tight">이대로 저장할까요</h2>
-          <p className="max-w-[54ch] text-[17px] leading-relaxed text-ink-2">
+          <h2 className="text-balance text-[30px] font-black leading-[1.08] tracking-tight sm:text-[36px] lg:text-[44px]">이대로 저장할까요</h2>
+          <p className="max-w-[54ch] text-[15px] leading-relaxed text-ink-2 sm:text-[17px]">
             넘겨 보는 순서대로 늘어놓았어요. 한 덩어리로 읽히는지 마지막으로 확인해 보세요.
           </p>
         </div>

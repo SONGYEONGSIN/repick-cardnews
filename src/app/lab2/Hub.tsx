@@ -43,10 +43,12 @@ export function Hub() {
 
   return (
     <Frame step={0} title="새로 만들기">
-      <div className="grid gap-14 px-10 py-12 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="flex flex-col gap-12">
-          <div className="flex flex-col gap-7">
-            <h2 className="max-w-[13ch] text-[60px] font-black leading-[1.03] tracking-tight">
+      <div className="grid gap-10 px-5 py-8 sm:px-8 lg:gap-14 lg:px-10 lg:py-12 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex flex-col gap-10 lg:gap-12">
+          <div className="flex flex-col gap-6 lg:gap-7">
+            {/* 폭 제한을 걸지 않는다 — 공간이 있으면 한 줄로 가고, 좁아지면 balance 가 두 줄을 고르게 나눈다.
+                고정 max-w 는 오른쪽이 비어 있을 때 의도가 아니라 결함으로 읽힌다. */}
+            <h2 className="text-balance text-[34px] font-black leading-[1.06] tracking-tight sm:text-[44px] lg:text-[60px]">
               무슨 이야기를 카드로 만들까요
             </h2>
 
@@ -60,7 +62,7 @@ export function Hub() {
                 onChange={(e) => setKeyword(e.target.value)}
                 maxLength={60}
                 placeholder="에어컨 전기세"
-                className={`h-[68px] w-full rounded-xl border-2 border-hair bg-surface px-5 text-[24px] font-bold tracking-tight transition-colors duration-200 placeholder:font-normal placeholder:text-ink-3 focus:border-ink focus:outline-none ${FOCUS_RING} motion-reduce:transition-none`}
+                className={`h-[60px] w-full rounded-xl border-2 border-hair bg-surface px-4 text-[19px] sm:h-[68px] sm:px-5 sm:text-[24px] font-bold tracking-tight transition-colors duration-200 placeholder:font-normal placeholder:text-ink-3 focus:border-ink focus:outline-none ${FOCUS_RING} motion-reduce:transition-none`}
               />
               <p className="text-[14px] text-ink-2">
                 구체적일수록 좋아요. &ldquo;여름 전기세&rdquo;보다 &ldquo;에어컨 전기세 줄이는 법&rdquo;처럼요.
@@ -79,12 +81,12 @@ export function Hub() {
                     type="button"
                     onClick={() => setKind(k.id)}
                     aria-pressed={on}
-                    className={`flex flex-col gap-2.5 rounded-xl border-2 p-6 text-left transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
+                    className={`flex flex-col gap-2.5 rounded-xl border-2 p-5 text-left sm:p-6 transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
                       on ? "border-ink" : "border-hair hover:border-ink-3"
                     }`}
                   >
                     <span className="flex items-center gap-2.5">
-                      <span className="text-[24px] font-black tracking-tight">{k.title}</span>
+                      <span className="text-[20px] font-black tracking-tight sm:text-[24px]">{k.title}</span>
                       {on && (
                         <span className="rounded bg-ink px-2 py-0.5 text-[12px] font-bold text-surface">선택</span>
                       )}

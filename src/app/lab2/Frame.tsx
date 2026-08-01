@@ -36,8 +36,43 @@ export function Frame({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-[calc(100vh-52px)] bg-surface text-ink">
-      <aside className="flex w-[276px] flex-none flex-col gap-9 border-r border-hair px-6 py-7">
+    <div className="flex min-h-[calc(100vh-52px)] flex-col bg-surface text-ink lg:flex-row">
+      {/* 모바일 — 사이드바를 세울 폭이 없다. 같은 정보를 가로로 압축해 상단에 둔다. */}
+      <div className="flex flex-col gap-3 border-b border-hair px-5 py-4 lg:hidden">
+        <Wordmark />
+        <ol className="flex items-center gap-1.5">
+          {STEPS.map((s, i) => {
+            const done = i < step;
+            const now = i === step;
+            return (
+              <li key={s.label} className="flex min-w-0 items-center gap-1.5">
+                {i > 0 && <span className="h-px w-3 flex-none bg-hair" aria-hidden="true" />}
+                <span
+                  aria-current={now ? "step" : undefined}
+                  className={`flex h-8 flex-none items-center gap-1.5 rounded-full px-3 text-[14px] ${
+                    now ? "bg-ink font-bold text-surface" : done ? "font-bold text-ink" : "text-ink-3"
+                  }`}
+                >
+                  <span className="tabular-nums">{i + 1}</span>
+                  {s.label}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+        {summary && (
+          <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            {summary.map((s) => (
+              <div key={s.label} className="flex min-w-0 items-baseline gap-1.5">
+                <dt className="flex-none text-[13px] text-ink-2">{s.label}</dt>
+                <dd className="truncate text-[13px] font-bold">{s.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </div>
+
+      <aside className="hidden w-[276px] flex-none flex-col gap-9 border-r border-hair px-6 py-7 lg:flex">
         <Wordmark size="lg" />
 
         <nav aria-label="진행 단계">
@@ -96,9 +131,9 @@ export function Frame({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-[76px] flex-none items-center gap-4 border-b border-hair px-10">
-          <h1 className="min-w-0 truncate text-[24px] font-black tracking-tight">{title}</h1>
-          <div className="ml-auto flex flex-none items-center gap-2.5">{action}</div>
+        <header className="flex min-h-[76px] flex-none flex-wrap items-center gap-x-4 gap-y-3 border-b border-hair px-5 py-4 sm:px-8 lg:px-10">
+          <h1 className="min-w-0 flex-1 truncate text-[20px] font-black tracking-tight sm:text-[24px]">{title}</h1>
+          <div className="flex flex-none flex-wrap items-center gap-2.5">{action}</div>
         </header>
 
         <main className="min-h-0 flex-1">{children}</main>

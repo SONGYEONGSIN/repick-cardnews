@@ -68,7 +68,7 @@ export function Workbench() {
         </>
       }
     >
-      <div className="flex flex-col gap-9 px-10 py-9">
+      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9">
         <section className="flex flex-col gap-4">
           <SectionHead
             title="넘겨 보는 순서"
@@ -129,13 +129,13 @@ export function Workbench() {
         <div className="grid gap-9 xl:grid-cols-[minmax(0,1fr)_400px]">
           <section className="flex flex-col gap-4">
             <SectionHead title={`${selected + 1}번 · ${card.roleLabel}`} aside="1080 × 1350" />
-            <div className="flex justify-center rounded-2xl bg-canvas py-12">
+            <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8 lg:py-12">
               <div className="flex aspect-[4/5] w-full max-w-[520px] flex-col overflow-hidden rounded-2xl border border-hair bg-surface">
                 {card.layout === "split" && <span className={`block h-[42%] w-full ${TONE_CLASS[card.tone]}`} />}
                 {card.layout === "full-bleed" && (
                   <span className={`relative flex flex-1 flex-col justify-end ${TONE_CLASS[card.tone]}`}>
                     <span className="flex flex-col gap-3 bg-surface/85 p-7">
-                      <span className="text-[32px] font-black leading-tight tracking-tight">{card.heading}</span>
+                      <span className="text-[24px] font-black leading-tight tracking-tight sm:text-[32px]">{card.heading}</span>
                       {card.action && (
                         <span className="self-start rounded-full bg-ink px-4 py-2 text-[15px] font-bold text-surface">
                           {card.action}
@@ -148,8 +148,12 @@ export function Workbench() {
                   <span
                     className={`flex flex-1 flex-col gap-3 p-7 ${card.layout === "text-only" ? "justify-center" : ""}`}
                   >
-                    <span className="text-[32px] font-black leading-tight tracking-tight">{card.heading}</span>
-                    {card.body && <span className="text-[17px] leading-relaxed text-ink-2">{card.body}</span>}
+                    <span className="text-[24px] font-black leading-tight tracking-tight sm:text-[32px]">
+                      {card.heading}
+                    </span>
+                    {card.body && (
+                      <span className="text-[15px] leading-relaxed text-ink-2 sm:text-[17px]">{card.body}</span>
+                    )}
                   </span>
                 )}
               </div>
