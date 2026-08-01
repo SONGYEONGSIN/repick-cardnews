@@ -38,7 +38,7 @@ export function Frame({
   return (
     <div className="flex min-h-[calc(100vh-52px)] flex-col bg-surface text-ink lg:flex-row">
       {/* 모바일 — 사이드바를 세울 폭이 없다. 같은 정보를 가로로 압축해 상단에 둔다. */}
-      <div className="flex flex-col gap-3 border-b border-hair px-5 py-4 lg:hidden">
+      <div className="flex flex-col gap-2.5 border-b border-hair px-5 py-3 lg:hidden">
         <div className="flex justify-center">
           <Logo />
         </div>
@@ -74,8 +74,8 @@ export function Frame({
         )}
       </div>
 
-      <aside className="hidden w-[276px] flex-none flex-col gap-9 border-r border-hair px-6 py-7 lg:flex">
-        <div className="flex justify-center py-2">
+      <aside className="hidden w-[276px] flex-none flex-col gap-6 border-r border-hair px-6 py-5 lg:flex">
+        <div className="flex justify-center">
           <Logo size="lg" />
         </div>
 
@@ -119,7 +119,7 @@ export function Frame({
         </nav>
 
         {summary && (
-          <dl className="flex flex-col gap-3 border-t border-hair pt-5">
+          <dl className="flex flex-col gap-2.5 border-t border-hair pt-4">
             {summary.map((s) => (
               <div key={s.label} className="flex flex-col gap-0.5">
                 <dt className="text-[13px] text-ink-2">{s.label}</dt>
@@ -129,7 +129,7 @@ export function Frame({
           </dl>
         )}
 
-        <p className="mt-auto border-t border-hair pt-5 text-[13px] leading-relaxed text-ink-2">
+        <p className="mt-auto border-t border-hair pt-4 text-[13px] leading-relaxed text-ink-2">
           사진은 이 기기를 벗어나지 않아요. 카피는 로컬 Claude 가 씁니다.
         </p>
       </aside>

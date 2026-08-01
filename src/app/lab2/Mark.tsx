@@ -16,14 +16,10 @@ export function StudioMark({ size = 44, label = "서맘 스튜디오" }: { size?
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" role="img" aria-label={label}>
       {/* ㅁ — 카드 프레임 */}
       <rect x="3.5" y="3.5" width="25" height="25" rx="6.5" stroke="currentColor" strokeWidth="2" />
-      {/* ㅅ */}
-      <path
-        d="M16 10 L10.5 22 M16 10 L21.5 22"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      {/* ㅅ — 좌우 대칭이면 삼각형(재생 아이콘)으로 읽힌다. 실제 시옷의 비대칭을 살린다:
+          왼쪽 획은 짧고 가파르게, 오른쪽 획은 길고 완만하게 뻗으며 획 두께도 다르다. */}
+      <path d="M14.8 9.2 L9.2 21.8" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
+      <path d="M14.8 9.2 L23.2 22.8" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" />
     </svg>
   );
 }
