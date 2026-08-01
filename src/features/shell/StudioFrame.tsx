@@ -36,7 +36,7 @@ export function StudioFrame({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-[calc(100vh-52px)] flex-col bg-surface text-ink lg:flex-row">
+    <div className="flex min-h-screen flex-col bg-surface text-ink lg:flex-row">
       {/* 모바일 — 사이드바를 세울 폭이 없다. 같은 정보를 가로로 압축해 상단에 둔다. */}
       <div className="flex flex-col gap-2.5 border-b border-hair px-5 py-3 lg:hidden">
         <div className="flex justify-center">

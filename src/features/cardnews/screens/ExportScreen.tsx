@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type Dispatch } from "react";
-import { ArrowLeft, Check, CircleAlert, Download, FolderDown } from "lucide-react";
+import { ArrowLeft, Check, CircleAlert, Download, FolderDown, RotateCcw } from "lucide-react";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { CardRenderer } from "@/templates/CardRenderer";
 import { outputDir } from "@/lib/paths";
@@ -34,6 +34,8 @@ export function ExportScreen({
 }) {
   // 어디에 저장됐는지는 저장할 값이 아니라 이 화면을 보는 동안의 확인 표시다 — reducer 에 넣지 않는다.
   const [saved, setSaved] = useState<{ dir: string; count: number } | null>(null);
+  // 되돌릴 수 없는 조작이라 확인을 한 번 거친다 — 이 화면 안의 지역 상태로, window.confirm 은 쓰지 않는다.
+  const [resetConfirm, setResetConfirm] = useState(false);
 
   const rendered = toRenderCards(state);
   const dir = outputDir("cardnews", state.keyword, mmdd());
@@ -66,7 +68,7 @@ export function ExportScreen({
       ]}
       action={
         <>
-          <LineButton onClick={onPrev}>
+          <LineButton disabled={state.busy} onClick={onPrev}>
             <ArrowLeft size={16} aria-hidden="true" />
             만들기로 돌아가기
           </LineButton>
@@ -175,6 +177,30 @@ export function ExportScreen({
               같은 주제로 오늘 다시 저장하면 이 폴더를 덮어써요. 이전 회차를 남기려면 폴더 이름을 바꿔 주세요.
             </p>
           </div>
+        </section>
+
+        <section className="flex max-w-[640px] flex-col gap-4">
+          <SectionHead title="새로 만들기" />
+          {resetConfirm ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-hair p-6">
+              <p className="text-[14px] leading-relaxed text-ink-2">
+                정말 처음부터 다시 할까요? 지금까지 만든 내용이 모두 사라져요.
+              </p>
+              <div className="flex gap-2.5">
+                <LineButton disabled={state.busy} onClick={() => setResetConfirm(false)}>
+                  취소
+                </LineButton>
+                <SolidButton disabled={state.busy} onClick={() => dispatch({ type: "RESET" })}>
+                  처음부터 다시
+                </SolidButton>
+              </div>
+            </div>
+          ) : (
+            <LineButton disabled={state.busy} onClick={() => setResetConfirm(true)}>
+              <RotateCcw size={15} aria-hidden="true" />
+              처음부터 다시
+            </LineButton>
+          )}
         </section>
       </div>
     </StudioFrame>
