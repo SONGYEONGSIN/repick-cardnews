@@ -14,23 +14,26 @@ export function SeomamWordmark({ height = 30, label = "서맘" }: { height?: num
   return (
     <svg
       height={height}
-      width={(height * 104) / 46}
-      viewBox="0 0 104 46"
+      width={(height * 94) / 46}
+      viewBox="0 0 94 46"
       fill="none"
       role={label ? "img" : "presentation"}
       aria-label={label || undefined}
     >
-      {/* 서 — ㅅ (심볼과 같은 비대칭) + ㅓ */}
-      <path d="M17 8 L6 33" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-      <path d="M17 8 L28 35" stroke="currentColor" strokeWidth="4.2" strokeLinecap="round" />
-      <path d="M42 6 V38" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-      <path d="M32 22 H42" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+      {/* 획 두께는 4.6 하나로 통일한다. 섞이면 딱 떨어지지 않는다. */}
+      {/* 서 — ㅅ(심볼과 같은 비대칭) + ㅓ */}
+      <path d="M18 8 L7 34" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
+      <path d="M18 8 L29 36" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
+      <path d="M43 7 V39" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
+      <path d="M33 23 H43" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
 
-      {/* 맘 — 두 ㅁ 을 카드 두 장으로. 획이 아니라 프레임이다. */}
-      <rect x="56" y="6" width="22" height="15" rx="4" stroke="currentColor" strokeWidth="4.4" />
-      <rect x="56" y="26" width="22" height="15" rx="4" stroke="currentColor" strokeWidth="4.4" />
-      <path d="M92 5 V41" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-      <path d="M82 17 H92" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+      {/* 맘 — 초성 ㅁ(좌상) · 중성 ㅏ(우측 전체 높이) · 종성 ㅁ(하단, 더 넓게).
+          두 ㅁ 은 획이 아니라 둥근 프레임 — 카드 두 장이다. 크기가 같으면 글자 구조가
+          무너져 "서엄" 처럼 읽힌다. 종성이 초성보다 넓어야 맘 이 된다. */}
+      <rect x="54" y="7" width="16" height="15" rx="3.5" stroke="currentColor" strokeWidth="4.6" />
+      <rect x="54" y="26" width="25" height="13" rx="3.5" stroke="currentColor" strokeWidth="4.6" />
+      <path d="M87 7 V39" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
+      <path d="M77 16 H87" stroke="currentColor" strokeWidth="4.6" strokeLinecap="round" />
     </svg>
   );
 }

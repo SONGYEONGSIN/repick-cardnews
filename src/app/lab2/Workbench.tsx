@@ -5,7 +5,7 @@ import { ArrowRight, GripVertical, Plus, Redo2, RefreshCw, Undo2 } from "lucide-
 import { FOCUS_RING } from "@/components/ui";
 import { Frame, LineButton, SectionHead, SolidButton } from "./Frame";
 import { Canvas } from "./Canvas";
-import { SidePanel, Toolbar, type Target } from "./Editor";
+import { Toolbar, type Target } from "./Editor";
 import { SAMPLE_CARDS, THEMES, TONE_CLASS, UNUSED_PHOTOS } from "../lab/wb/data";
 
 /**
@@ -167,24 +167,14 @@ export function Workbench() {
           </div>
         </section>
 
-        <div className="grid gap-9 xl:grid-cols-[minmax(0,1fr)_400px]">
-          {/* 프리뷰는 제자리에 두고 인스펙터만 스크롤한다 — 고칠 때 결과가 눈에서 사라지면
-              무엇이 바뀌었는지 확인하려고 매번 위로 올라가야 한다. 중첩 스크롤 대신
-              sticky 를 쓰는 이유는 스크롤바가 둘 보이는 걸 피하려는 것이다. */}
-          <section className="flex flex-col gap-4 xl:sticky xl:top-6 xl:self-start">
-            <Toolbar target={target} card={card} />
-            <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8 lg:py-10">
-              <Canvas card={card} target={target} onSelect={setTarget} />
-            </div>
-            <p className="text-center text-[13px] text-ink-2">
-              고칠 곳을 눌러요. 글은 그 자리에서 바로 고쳐요.
-            </p>
-          </section>
-
-          <aside className="flex flex-col gap-4">
-            <SidePanel card={card} />
-          </aside>
-        </div>
+        <section className="flex flex-col gap-4">
+          <SectionHead title={`${selected + 1}번 · ${card.roleLabel}`} aside="1080 × 1350" />
+          <Toolbar target={target} onSelect={setTarget} card={card} />
+          <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8">
+            <Canvas card={card} target={target} onSelect={setTarget} />
+          </div>
+          <p className="text-center text-[13px] text-ink-2">고칠 곳을 눌러요. 글은 그 자리에서 바로 고쳐요.</p>
+        </section>
       </div>
     </Frame>
   );

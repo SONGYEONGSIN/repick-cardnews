@@ -94,11 +94,11 @@ export function Canvas({
   target: Target;
   onSelect: (t: Target) => void;
 }) {
-  const headingClass = "text-[24px] font-black leading-tight tracking-tight sm:text-[32px]";
-  const bodyClass = "text-[15px] leading-relaxed text-ink-2 sm:text-[17px]";
+  const headingClass = "text-[26px] font-black leading-tight tracking-tight sm:text-[36px]";
+  const bodyClass = "text-[16px] leading-relaxed text-ink-2 sm:text-[18px]";
 
   return (
-    <div className="relative flex aspect-[4/5] w-full max-w-[520px] flex-col overflow-hidden rounded-2xl border border-hair bg-surface">
+    <div className="relative flex aspect-[4/5] h-[min(70vh,760px)] max-w-full flex-col overflow-hidden rounded-2xl border border-hair bg-surface">
       {card.layout === "full-bleed" && (
         <>
           <PhotoSurface card={card} current={target} onSelect={onSelect} className="absolute inset-0" />
