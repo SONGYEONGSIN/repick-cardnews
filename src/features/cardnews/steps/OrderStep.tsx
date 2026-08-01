@@ -14,7 +14,7 @@ import {
   rectSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { Panel } from "@/components/ui";
+import { FOCUS_RING, Panel } from "@/components/ui";
 import { SortableSlot } from "../parts/SortableSlot";
 import { slotPhotos, trayPhotos, type CardnewsAction, type CardnewsState } from "../reducer";
 
@@ -85,7 +85,7 @@ export function OrderStep({
                         if (e.target.value === "") return;
                         dispatch({ type: "SWAP_IN", slotIndex: Number(e.target.value), photoId: photo.id });
                       }}
-                      className="h-7 rounded border border-hair bg-surface px-1 text-[11px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-plum"
+                      className={`h-7 rounded border border-hair bg-surface px-1 text-[11px] ${FOCUS_RING}`}
                     >
                       <option value="">자리 바꾸기</option>
                       {slots.map((_, i) => (

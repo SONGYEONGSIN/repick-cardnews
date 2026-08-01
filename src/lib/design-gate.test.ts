@@ -1,14 +1,21 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { colors } from "@/lib/design-tokens";
+import { colors, utilityName } from "@/lib/design-tokens";
 
 /** 스튜디오 UI 경로만 검사한다 — src/templates 는 카드 산출물이라 규칙이 다르다. */
 const ROOTS = ["src/app", "src/components", "src/features"];
 
-function sourceFiles(): string[] {
+/**
+ * 이모지 규칙만 src/lib 도 함께 본다 — `api-errors.ts` 가 만드는 한국어 에러 문구처럼
+ * 사용자 화면에 그대로 노출되는 카피가 거기 있다. 다른 규칙(하드코딩 색상 등)은 그대로
+ * ROOTS 만 본다 — src/lib 에는 design-tokens.ts·contrast.ts 처럼 raw hex 가 정당하게 있다.
+ */
+const EMOJI_ROOTS = [...ROOTS, "src/lib"];
+
+function sourceFiles(roots: string[]): string[] {
   const out: string[] = [];
-  for (const root of ROOTS) {
+  for (const root of roots) {
     for (const name of readdirSync(root, { recursive: true })) {
       if (typeof name !== "string") continue;
       if (!name.endsWith(".tsx") && !name.endsWith(".ts")) continue;
@@ -19,9 +26,9 @@ function sourceFiles(): string[] {
   return out;
 }
 
-function violations(pattern: RegExp): string[] {
+function violations(pattern: RegExp, roots: string[] = ROOTS): string[] {
   const hits: string[] = [];
-  for (const file of sourceFiles()) {
+  for (const file of sourceFiles(roots)) {
     const lines = readFileSync(file, "utf8").split("\n");
     lines.forEach((line, i) => {
       if (pattern.test(line)) hits.push(`${file}:${i + 1} ${line.trim()}`);
@@ -30,18 +37,13 @@ function violations(pattern: RegExp): string[] {
   return hits;
 }
 
-/** TS 토큰 키를 Tailwind 유틸 이름으로 변환. hairSoft → hair-soft, ink2 → ink-2 */
-function utilityName(key: string): string {
-  return key.replace(/([A-Z])/g, "-$1").replace(/(\d)/g, "-$1").toLowerCase();
-}
-
 describe("디자인 게이트 — 스튜디오 UI", () => {
   it("이모지를 쓰지 않는다 (아이콘은 lucide-react)", () => {
     // U+1F300-U+1FAFF (이모지), U+2600-U+27BF (심볼/날씨),
     // U+2B00-U+2BFF (추가 화살표/기호 — ⭐ U+2B50),
     // U+1F1E6-U+1F1FF (지역 지표 — 국기)
     expect(
-      violations(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F1E6}-\u{1F1FF}]/u)
+      violations(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F1E6}-\u{1F1FF}]/u, EMOJI_ROOTS)
     ).toEqual([]);
   });
 
@@ -50,7 +52,9 @@ describe("디자인 게이트 — 스튜디오 UI", () => {
   });
 
   it("허용 목록 밖 폰트를 지정하지 않는다", () => {
-    // 스튜디오는 전역 --font-sans 하나만 쓴다. fontFamily 직접 지정은 카드 템플릿 몫이다.
+    // 인라인 fontFamily 지정(객체 프로퍼티 `fontFamily:`)을 막아 Tailwind 유틸 밖에서
+    // 폰트를 지정하는 경로를 차단한다. Tailwind 유틸인 font-sans(기본 본문)와
+    // font-mono(ExportStep·FlowCard 의 파일 경로 같은 고정폭 표기)는 둘 다 허용 목록 안이다.
     expect(violations(/fontFamily\s*:/)).toEqual([]);
   });
 

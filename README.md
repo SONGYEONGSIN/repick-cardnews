@@ -6,6 +6,8 @@
 1. `npm install`
 2. 로컬 `claude` CLI가 로그인되어 있어야 합니다 — 이 앱은 `claude -p` 서브프로세스를 호출하며, `ANTHROPIC_API_KEY`나 `ANTHROPIC_AUTH_TOKEN`은 읽지 않습니다
 3. `npm run dev` → http://localhost:3500
+4. 디자인 게이트를 브라우저까지 돌리려면 `npx playwright install chromium`이 먼저 필요합니다
+5. `npm run design:audit` (선택) — `:3500` dev 서버가 떠 있는 상태에서, 접근성 점수와 폭별 가로 오버플로를 검사합니다
 
 ## 화면
 - `/` 허브 — 무엇을 만들지 고르고, 최근 만든 것을 봅니다

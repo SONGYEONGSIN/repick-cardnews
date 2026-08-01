@@ -3,6 +3,13 @@
  *
  * dev 서버가 떠 있어야 한다: npm run dev
  * 실행: npm run design:audit
+ *
+ * 한계 2가지 (해결은 후속 작업, 지금은 사실만 명시한다):
+ * 1. `document.documentElement.scrollWidth` 만 잰다. `StudioShell` 의 `<main>` 은
+ *    `overflow-y-auto` 라 `overflow-x` 가 함께 `auto` 로 계산되고, 그 안에서 생기는
+ *    가로 오버플로는 그 스크롤 컨테이너가 흡수해 document 레벨에서는 안 보인다.
+ * 2. 각 라우트의 **초기 화면만** 로드한다. 위저드의 이후 스텝은 조작하지 않으므로
+ *    측정 대상이 아니다.
  */
 import { spawnSync } from "node:child_process";
 import { readFileSync, mkdtempSync } from "node:fs";
@@ -14,7 +21,6 @@ const BASE = "http://localhost:3500";
 const ROUTES = ["/", "/cardnews", "/info"];
 const WIDTHS = [1280, 1366, 1440, 1600, 1920, 390];
 const A11Y_MIN = 95;
-const CLEARANCE = 16;
 
 function lighthouseScore(url) {
   const out = path.join(mkdtempSync(path.join(tmpdir(), "lh-")), "r.json");
@@ -65,5 +71,5 @@ if (results.length === 0) {
   process.exit(1);
 }
 const failed = results.filter((r) => !r.pass);
-console.log(`\n${results.length - failed.length}/${results.length} 통과 (여유 기준 ${CLEARANCE}px 는 참고값)`);
+console.log(`\n${results.length - failed.length}/${results.length} 통과`);
 process.exit(failed.length === 0 ? 0 : 1);

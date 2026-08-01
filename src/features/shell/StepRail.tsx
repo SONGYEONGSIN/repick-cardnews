@@ -43,7 +43,9 @@ export function StepRail({
                       ? "bg-plum text-white"
                       : done
                         ? "bg-plum-soft text-plum"
-                        : "bg-hair text-ink-2"
+                        : reachable
+                          ? "bg-hair text-ink-2"
+                          : "bg-hair text-ink-disabled"
                   }`}
                 >
                   {done ? <Check size={12} strokeWidth={3} aria-hidden="true" /> : step.id}
