@@ -6,12 +6,12 @@ import { FOCUS_RING } from "@/components/ui";
 import { Frame, SectionHead, SolidButton } from "./Frame";
 
 /**
- * 화면 1 — 주제.
+ * 화면 1 — 주제. 기존 허브(선택지 카드)와 1단계(주제 입력)를 합쳤다.
  *
- * 기존 허브(선택지 2개 카드)와 1단계(주제 입력)를 합쳤다. 사용자가 도구를 열 때 들고
- * 오는 건 주제지 "무엇을 만들까"가 아니다. 종류는 주제 아래 두 줄로 내린다.
+ * 도구를 열 때 사용자가 들고 오는 건 주제지 "무엇을 만들까"가 아니다. 그래서 주제 입력이
+ * 화면의 축이고 종류는 그 아래로 내렸다.
  *
- * 액센트 색이 없으므로 선택 상태는 검정 테두리 2px 과 굵기로만 표현한다.
+ * 액센트 색이 없으므로 선택 상태는 검정 테두리 2px 과 검정 배지로만 표현한다.
  */
 
 const KINDS = [
@@ -42,16 +42,16 @@ export function Hub() {
   const [keyword, setKeyword] = useState("");
 
   return (
-    <Frame step={0}>
-      <div className="mx-auto grid w-full max-w-[1100px] gap-14 px-8 py-14 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="flex flex-col gap-10">
-          <div className="flex flex-col gap-6">
-            <h1 className="max-w-[14ch] text-[52px] font-black leading-[1.04] tracking-tight">
+    <Frame step={0} title="새로 만들기">
+      <div className="grid gap-14 px-10 py-12 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex flex-col gap-12">
+          <div className="flex flex-col gap-7">
+            <h2 className="max-w-[13ch] text-[60px] font-black leading-[1.03] tracking-tight">
               무슨 이야기를 카드로 만들까요
-            </h1>
+            </h2>
 
-            <div className="flex flex-col gap-2">
-              <label htmlFor="kw" className="text-[13px] font-bold text-ink-2">
+            <div className="flex flex-col gap-2.5">
+              <label htmlFor="kw" className="text-[15px] font-bold text-ink-2">
                 주제
               </label>
               <input
@@ -60,17 +60,17 @@ export function Hub() {
                 onChange={(e) => setKeyword(e.target.value)}
                 maxLength={60}
                 placeholder="에어컨 전기세"
-                className={`h-14 w-full rounded-lg border-2 border-hair bg-surface px-4 text-[19px] font-bold tracking-tight transition-colors duration-200 placeholder:font-normal placeholder:text-ink-3 focus:border-ink focus:outline-none ${FOCUS_RING} motion-reduce:transition-none`}
+                className={`h-[68px] w-full rounded-xl border-2 border-hair bg-surface px-5 text-[24px] font-bold tracking-tight transition-colors duration-200 placeholder:font-normal placeholder:text-ink-3 focus:border-ink focus:outline-none ${FOCUS_RING} motion-reduce:transition-none`}
               />
-              <p className="text-[13px] text-ink-2">
+              <p className="text-[14px] text-ink-2">
                 구체적일수록 좋아요. &ldquo;여름 전기세&rdquo;보다 &ldquo;에어컨 전기세 줄이는 법&rdquo;처럼요.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             <SectionHead title="어떤 형태로" />
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               {KINDS.map((k) => {
                 const on = k.id === kind;
                 return (
@@ -79,48 +79,44 @@ export function Hub() {
                     type="button"
                     onClick={() => setKind(k.id)}
                     aria-pressed={on}
-                    className={`flex flex-col gap-2 rounded-xl border-2 p-5 text-left transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
+                    className={`flex flex-col gap-2.5 rounded-xl border-2 p-6 text-left transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
                       on ? "border-ink" : "border-hair hover:border-ink-3"
                     }`}
                   >
-                    <span className="flex items-center gap-2">
-                      <span className="text-[19px] font-black tracking-tight">{k.title}</span>
+                    <span className="flex items-center gap-2.5">
+                      <span className="text-[24px] font-black tracking-tight">{k.title}</span>
                       {on && (
-                        <span className="rounded bg-ink px-1.5 py-0.5 text-[11px] font-bold text-surface">
-                          선택
-                        </span>
+                        <span className="rounded bg-ink px-2 py-0.5 text-[12px] font-bold text-surface">선택</span>
                       )}
                     </span>
-                    <span className="text-sm font-bold text-ink-2">{k.line}</span>
-                    <span className="text-[13px] leading-relaxed text-ink-2">{k.detail}</span>
+                    <span className="text-[15px] font-bold text-ink-2">{k.line}</span>
+                    <span className="text-[14px] leading-relaxed text-ink-2">{k.detail}</span>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-5">
             <SolidButton size="lg" disabled={keyword.trim().length === 0}>
               사진 올리러 가기
-              <ArrowRight size={16} aria-hidden="true" />
+              <ArrowRight size={18} aria-hidden="true" />
             </SolidButton>
-            <p className="text-[13px] text-ink-2">
-              다음 화면에서 사진을 올리고 카피를 붙여요.
-            </p>
+            <p className="text-[14px] text-ink-2">다음 화면에서 사진을 올리고 카피를 붙여요.</p>
           </div>
         </div>
 
-        <aside className="flex flex-col gap-3">
+        <aside className="flex flex-col gap-4">
           <SectionHead title="최근" aside={`${RECENT.length}개`} />
           <ul className="flex flex-col">
             {RECENT.map((r) => (
               <li key={r.keyword}>
                 <button
                   type="button"
-                  className={`flex w-full flex-col gap-1 border-b border-hair-soft py-3 text-left transition-colors duration-200 hover:bg-canvas ${FOCUS_RING} motion-reduce:transition-none`}
+                  className={`flex w-full flex-col gap-1 border-b border-hair-soft py-4 text-left transition-colors duration-200 hover:bg-canvas ${FOCUS_RING} motion-reduce:transition-none`}
                 >
-                  <span className="truncate text-sm font-bold">{r.keyword}</span>
-                  <span className="text-[13px] text-ink-2">
+                  <span className="truncate text-[16px] font-bold tracking-tight">{r.keyword}</span>
+                  <span className="text-[14px] text-ink-2">
                     {r.kind} · {r.count}장 · {r.when}
                   </span>
                 </button>
