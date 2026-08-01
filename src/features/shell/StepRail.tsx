@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { FOCUS_RING } from "@/components/ui";
 import type { StepDef } from "./types";
 
 export function StepRail({
@@ -28,12 +29,12 @@ export function StepRail({
                 disabled={!reachable}
                 aria-current={active ? "step" : undefined}
                 onClick={() => onSelect(step.id)}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum motion-reduce:transition-none ${
+                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
                   active
                     ? "bg-plum-soft font-semibold text-plum"
                     : reachable
                       ? "text-ink-2 hover:bg-hair-soft hover:text-ink"
-                      : "cursor-not-allowed text-ink-3/60"
+                      : "cursor-not-allowed text-ink-disabled"
                 }`}
               >
                 <span
@@ -41,8 +42,8 @@ export function StepRail({
                     active
                       ? "bg-plum text-white"
                       : done
-                        ? "bg-plum/25 text-plum"
-                        : "bg-hair text-ink-3"
+                        ? "bg-plum-soft text-plum"
+                        : "bg-hair text-ink-2"
                   }`}
                 >
                   {done ? <Check size={12} strokeWidth={3} aria-hidden="true" /> : step.id}

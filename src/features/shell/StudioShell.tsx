@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, ArrowRight, RotateCcw } from "lucide-react";
-import { Button, ContiMark } from "@/components/ui";
+import { Button, ContiMark, FOCUS_RING } from "@/components/ui";
 import { StepRail } from "./StepRail";
 import type { ShellFooter, StepDef } from "./types";
 
@@ -36,20 +36,20 @@ export function StudioShell({
         <button
           type="button"
           onClick={onExit}
-          className="mb-6 flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-200 hover:bg-hair-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum motion-reduce:transition-none"
+          className={`mb-6 flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-200 hover:bg-hair-soft ${FOCUS_RING} motion-reduce:transition-none`}
         >
           <span className="text-plum">
             <ContiMark size={20} />
           </span>
           <span className="leading-tight">
             <span className="block text-sm font-extrabold tracking-tight">콘티</span>
-            <span className="block text-[11px] text-ink-3">{flowLabel}</span>
+            <span className="block text-[11px] text-ink-2">{flowLabel}</span>
           </span>
         </button>
 
         <StepRail steps={steps} current={current} maxReached={maxReached} onSelect={onSelectStep} />
 
-        <div className="mt-auto border-t border-hair-soft pt-3 text-[11px] tabular-nums text-ink-3">{meta}</div>
+        <div className="mt-auto border-t border-hair-soft pt-3 text-[11px] tabular-nums text-ink-2">{meta}</div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -67,7 +67,7 @@ export function StudioShell({
         <main className="min-h-0 flex-1 overflow-y-auto px-6 py-6">{children}</main>
 
         <footer className="flex h-16 flex-none items-center justify-between gap-4 border-t border-hair bg-surface px-6">
-          <p className="min-w-0 truncate text-sm text-ink-3">{footer.hint ?? ""}</p>
+          <p className="min-w-0 truncate text-sm text-ink-2">{footer.hint ?? ""}</p>
           <div className="flex flex-none gap-2">
             {footer.onPrev && (
               <Button variant="secondary" onClick={footer.onPrev}>

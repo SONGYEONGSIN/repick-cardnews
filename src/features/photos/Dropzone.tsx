@@ -71,6 +71,7 @@ export function Dropzone({
         type="file"
         accept="image/*"
         multiple
+        aria-label="사진 폴더 선택"
         // 폴더 통째 선택 — React 타입에 없는 비표준 속성이라 문자열로 넘긴다
         {...{ webkitdirectory: "" }}
         // sr-only 라 포커스 링을 보여 줄 수 없으므로 탭 순서에서 뺀다.
