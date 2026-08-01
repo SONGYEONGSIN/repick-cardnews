@@ -3,8 +3,6 @@ import {
   cardnewsReducer,
   initialCardnewsState,
   slotPhotos,
-  trayPhotos,
-  canLeaveOrder,
   canLeaveTopic,
   canLeaveWorkbench,
   bandFor,
@@ -29,9 +27,10 @@ describe("ADD_PHOTOS", () => {
     expect(s.order).toHaveLength(CARDNEWS_MAX);
     expect(s.photos).toHaveLength(8);
   });
-  it("나머지는 트레이에 남는다", () => {
+  it("나머지는 트레이(슬롯 밖)에 남는다", () => {
     const s = withPhotos(8);
-    expect(trayPhotos(s).map((p) => p.id)).toEqual(["p7", "p8"]);
+    const tray = s.photos.filter((p) => !s.order.includes(p.id));
+    expect(tray.map((p) => p.id)).toEqual(["p7", "p8"]);
   });
   it("정원보다 적으면 전부 슬롯에 들어간다", () => {
     expect(withPhotos(3).order).toEqual(["p1", "p2", "p3"]);
@@ -42,12 +41,14 @@ describe("ADD_PHOTOS", () => {
   });
 });
 
-describe("canLeaveOrder", () => {
+// canLeaveOrder 는 canLeaveWorkbench 내부에서만 쓰는 비-export 함수라 공개 게이트로 검증한다.
+// 카드는 고정으로 채워 두어 사진 장수 경계만 갈린다.
+describe("canLeaveWorkbench 의 사진 장수 경계(canLeaveOrder)", () => {
   it("5장 미만이면 못 넘어간다", () => {
-    expect(canLeaveOrder(withPhotos(4))).toBe(false);
+    expect(canLeaveWorkbench({ ...withPhotos(4), cards: [CARD] })).toBe(false);
   });
   it("5장이면 넘어간다", () => {
-    expect(canLeaveOrder(withPhotos(5))).toBe(true);
+    expect(canLeaveWorkbench({ ...withPhotos(5), cards: [CARD] })).toBe(true);
   });
 });
 
@@ -62,7 +63,8 @@ describe("SWAP_IN", () => {
   it("트레이 사진을 슬롯 자리와 맞바꾼다", () => {
     const s = cardnewsReducer(withPhotos(8), { type: "SWAP_IN", slotIndex: 0, photoId: "p7" });
     expect(s.order[0]).toBe("p7");
-    expect(trayPhotos(s).map((p) => p.id)).toContain("p1");
+    const tray = s.photos.filter((p) => !s.order.includes(p.id));
+    expect(tray.map((p) => p.id)).toContain("p1");
   });
   it("이미 슬롯에 있는 사진이면 아무 일도 없다", () => {
     const before = withPhotos(8);
@@ -78,18 +80,21 @@ describe("REMOVE_PHOTO", () => {
     expect(s.order).toHaveLength(CARDNEWS_MAX);
     expect(s.order).toEqual(["p2", "p3", "p4", "p5", "p6", "p7"]);
     expect(s.photos.map((p) => p.id)).not.toContain("p1");
-    expect(trayPhotos(s).map((p) => p.id)).toEqual(["p8"]);
+    const tray = s.photos.filter((p) => !s.order.includes(p.id));
+    expect(tray.map((p) => p.id)).toEqual(["p8"]);
   });
   it("트레이가 비어 있으면 순서가 한 칸 줄어든다", () => {
     const s = cardnewsReducer(withPhotos(5), { type: "REMOVE_PHOTO", photoId: "p1" });
     expect(s.order).toEqual(["p2", "p3", "p4", "p5"]);
-    expect(trayPhotos(s)).toHaveLength(0);
+    const tray = s.photos.filter((p) => !s.order.includes(p.id));
+    expect(tray).toHaveLength(0);
   });
   it("트레이 사진을 빼면 슬롯은 그대로다", () => {
     const before = withPhotos(8);
     const after = cardnewsReducer(before, { type: "REMOVE_PHOTO", photoId: "p7" });
     expect(after.order).toEqual(before.order);
-    expect(trayPhotos(after).map((p) => p.id)).toEqual(["p8"]);
+    const tray = after.photos.filter((p) => !after.order.includes(p.id));
+    expect(tray.map((p) => p.id)).toEqual(["p8"]);
   });
 });
 
@@ -253,6 +258,16 @@ describe("SET_ERROR", () => {
   });
 });
 
+describe("SET_STEP", () => {
+  it("화면을 옮기면 이전 화면이 세운 오류를 지운다", () => {
+    // 한 화면의 오류가 다른 화면의 오류 자리에 그대로 뜨면 안 된다 —
+    // 예: 만들기 화면의 429 오류가 내보내기 화면 상단에 내보내기 실패인 것처럼 뜨는 사고.
+    const withError = { ...initialCardnewsState, error: "요청이 많아요. 잠시 후 다시 시도해 주세요." };
+    const s = cardnewsReducer(withError, { type: "SET_STEP", step: 2 });
+    expect(s.error).toBeNull();
+  });
+});
+
 describe("bandFor", () => {
   it("단계가 없으면 기본 밴드다", () => {
     expect(bandFor({ role: "hook", heading: "표지" })).toBe(0.45);
@@ -301,6 +316,5 @@ describe("단계 게이트", () => {
 
   it("처음 단계는 0 이다", () => {
     expect(initialCardnewsState.step).toBe(0);
-    expect(initialCardnewsState.maxReached).toBe(0);
   });
 });

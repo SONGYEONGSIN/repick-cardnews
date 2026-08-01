@@ -23,7 +23,6 @@ function draft(overrides: Partial<CardDraft> = {}): CardDraft {
 function state(overrides: Partial<CardnewsState> = {}): CardnewsState {
   return {
     step: 4,
-    maxReached: 4,
     photos: [photo("p1")],
     order: ["p1"],
     keyword: "키워드",

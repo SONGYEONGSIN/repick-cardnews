@@ -227,7 +227,7 @@ export function CardCanvas({
   photo: Photo | undefined;
   target: EditTarget;
   onSelect: (t: EditTarget) => void;
-  onPatch: (patch: Partial<Omit<CardDraft, "id">>) => void;
+  onPatch: (patch: Partial<Omit<CardDraft, "id" | "photoId">>) => void;
 }) {
   const copy = card.copy;
 

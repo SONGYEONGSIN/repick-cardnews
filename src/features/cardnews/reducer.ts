@@ -20,7 +20,6 @@ export type CardDraft = {
 
 export type CardnewsState = {
   step: number;
-  maxReached: number;
   photos: Photo[];
   /** 슬롯에 든 photoId — 순서 그 자체 */
   order: string[];
@@ -41,7 +40,7 @@ export type CardnewsAction =
   | { type: "SET_THEME"; themeId: ThemeId }
   | { type: "SET_HANDLE"; handle: string }
   | { type: "SET_SPEC"; spec: CardnewsSpec }
-  | { type: "UPDATE_CARD"; index: number; patch: Partial<Omit<CardDraft, "id">> }
+  | { type: "UPDATE_CARD"; index: number; patch: Partial<Omit<CardDraft, "id" | "photoId">> }
   | { type: "SET_STEP"; step: number }
   | { type: "SET_BUSY"; busy: boolean }
   | { type: "SET_ERROR"; error: string | null }
@@ -49,7 +48,6 @@ export type CardnewsAction =
 
 export const initialCardnewsState: CardnewsState = {
   step: 0,
-  maxReached: 0,
   photos: [],
   order: [],
   keyword: "",
@@ -66,11 +64,7 @@ export function slotPhotos(state: CardnewsState): Photo[] {
     .filter((p): p is Photo => p !== undefined);
 }
 
-export function trayPhotos(state: CardnewsState): Photo[] {
-  return state.photos.filter((p) => !state.order.includes(p.id));
-}
-
-export function canLeaveOrder(state: CardnewsState): boolean {
+function canLeaveOrder(state: CardnewsState): boolean {
   return state.order.length >= CARDNEWS_MIN && state.order.length <= CARDNEWS_MAX;
 }
 
@@ -178,7 +172,9 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
         cards: state.cards.map((c, i) => (i === action.index ? { ...c, ...action.patch } : c)),
       };
     case "SET_STEP":
-      return { ...state, step: action.step, maxReached: Math.max(state.maxReached, action.step) };
+      // 이전 화면이 세운 오류를 새 화면으로 들고 가지 않는다 — 안 그러면 예컨대 만들기 화면의
+      // 429 오류가 내보내기 화면 상단에 내보내기 실패인 것처럼 뜬다.
+      return { ...state, step: action.step, error: null };
     case "SET_BUSY":
       return { ...state, busy: action.busy };
     case "SET_ERROR":
