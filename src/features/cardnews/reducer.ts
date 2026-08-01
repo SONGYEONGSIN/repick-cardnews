@@ -48,8 +48,8 @@ export type CardnewsAction =
   | { type: "RESET" };
 
 export const initialCardnewsState: CardnewsState = {
-  step: 1,
-  maxReached: 1,
+  step: 0,
+  maxReached: 0,
   photos: [],
   order: [],
   keyword: "",
@@ -72,6 +72,21 @@ export function trayPhotos(state: CardnewsState): Photo[] {
 
 export function canLeaveOrder(state: CardnewsState): boolean {
   return state.order.length >= CARDNEWS_MIN && state.order.length <= CARDNEWS_MAX;
+}
+
+/** 주제 화면 → 만들기 화면. 키워드 없이는 카피를 만들 수 없다. */
+export function canLeaveTopic(state: CardnewsState): boolean {
+  return state.keyword.trim().length > 0;
+}
+
+/**
+ * 만들기 화면 → 내보내기 화면.
+ *
+ * 사진 장수와 카피 생성 여부를 **둘 다** 본다. 예전에는 두 단계로 나뉘어 각각 걸렸지만
+ * 한 화면으로 합쳐졌으므로 한 곳에서 판정한다.
+ */
+export function canLeaveWorkbench(state: CardnewsState): boolean {
+  return canLeaveOrder(state) && state.cards.length > 0;
 }
 
 /**

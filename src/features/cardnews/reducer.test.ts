@@ -5,9 +5,12 @@ import {
   slotPhotos,
   trayPhotos,
   canLeaveOrder,
+  canLeaveTopic,
+  canLeaveWorkbench,
   bandFor,
   CARDNEWS_MAX,
   type CardnewsState,
+  type CardDraft,
 } from "@/features/cardnews/reducer";
 import type { Photo } from "@/lib/photos";
 
@@ -170,5 +173,45 @@ describe("bandFor", () => {
   });
   it("단계가 4개 이상이면 사진을 줄여 글 자리를 만든다", () => {
     expect(bandFor({ role: "solution", heading: "해결", body: "본문", steps: ["1", "2", "3", "4"] })).toBe(0.3);
+  });
+});
+
+const CARD: CardDraft = {
+  id: "card-1",
+  photoId: "a",
+  layout: "full-bleed",
+  focal: { x: 0.5, y: 0.5 },
+  scrim: 0.7,
+  band: 0.45,
+  copy: { role: "hook", heading: "후크" },
+};
+
+describe("단계 게이트", () => {
+  it("주제 화면은 키워드가 있어야 넘어간다", () => {
+    expect(canLeaveTopic({ ...initialCardnewsState, keyword: "" })).toBe(false);
+    expect(canLeaveTopic({ ...initialCardnewsState, keyword: "   " })).toBe(false);
+    expect(canLeaveTopic({ ...initialCardnewsState, keyword: "에어컨 전기세" })).toBe(true);
+  });
+
+  it("만들기 화면은 사진 5~6장과 생성된 카피가 둘 다 있어야 넘어간다", () => {
+    const five = ["a", "b", "c", "d", "e"];
+    const base = { ...initialCardnewsState, keyword: "에어컨" };
+
+    // 사진만 있고 카피가 없으면 못 넘어간다
+    expect(canLeaveWorkbench({ ...base, order: five })).toBe(false);
+    // 카피만 있고 사진이 모자라면 못 넘어간다
+    expect(canLeaveWorkbench({ ...base, order: ["a"], cards: [CARD] })).toBe(false);
+    // 둘 다 있어야 넘어간다
+    expect(canLeaveWorkbench({ ...base, order: five, cards: [CARD] })).toBe(true);
+  });
+
+  it("사진이 7장이면 넘어가지 못한다", () => {
+    const seven = ["a", "b", "c", "d", "e", "f", "g"];
+    expect(canLeaveWorkbench({ ...initialCardnewsState, order: seven, cards: [CARD] })).toBe(false);
+  });
+
+  it("처음 단계는 0 이다", () => {
+    expect(initialCardnewsState.step).toBe(0);
+    expect(initialCardnewsState.maxReached).toBe(0);
   });
 });
