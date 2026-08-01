@@ -79,8 +79,12 @@ export function Dropzone({
         tabIndex={-1}
         className="sr-only"
         onChange={(e) => {
-          if (e.target.files) void ingest(e.target.files);
+          // FileList 를 그대로 넘기면 안 된다 — ingest 의 첫 await 뒤에서야 목록을 읽는데,
+          // 그 사이 아래 줄이 같은 입력의 value 를 비워 FileList 도 함께 비운다. 배열로
+          // 동기 복사한 뒤에 비워야 재선택도 가능하고 방금 고른 파일도 안전하다.
+          const files = Array.from(e.target.files ?? []);
           e.target.value = "";
+          void ingest(files);
         }}
       />
     </div>
