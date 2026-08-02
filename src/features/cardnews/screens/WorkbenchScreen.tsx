@@ -209,41 +209,42 @@ export function WorkbenchScreen({
         고친 기록은 `fullwidth-report.md`). 좌우 여백은 다른 화면(`TopicScreen`·`ExportScreen`)
         과 같은 `px-5 sm:px-8 lg:px-10` 뿐이다.
 
-        **왼쪽(순서 레일 + 카피 만들기)이 `xl:flex-1` 로 남는 폭을 전부 가져간다.** 화면이
-        넓어질수록 이 레일 행(`WorkbenchRail`, `w-full` 버튼)이 넓어져 읽기 좋아진다 — 폭이
-        늘어난다고 카드를 더 키울 필요는 없다(카드 크기 규칙은 아래 참고).
+        **왼쪽(순서 레일 + 카피 만들기)은 `xl:w-[400px] xl:flex-none` 로 폭을 못박는다.** 썸네일
+        96px + 글이라 400px 이면 충분하다(`WorkbenchRail`). 예전엔 이 칸이 `xl:flex-1` 로 남는
+        폭을 전부 가져갔는데, 그러면 카드가 있는 오른쪽 칸은 **자기 내용 크기만큼만** 차지해
+        (아래 설명) 남는 폭이 죄다 이 왼쪽 빈 레일로 흡수됐다 — 1920 폭에서 카드 왼쪽에만
+        1136px 빈 공간이 남던 결함이 이것이다. 왼쪽 폭을 고정해야 나머지가 전부 오른쪽으로 간다.
 
-        **오른쪽(세트 바 + 결과)은 `xl:flex-initial`(자라지 않고, 좁으면 줄어들고, 기본 폭은
-        내용 크기) 에 `xl:max-w-[880px]` 로 상한을 둔다.** 오른쪽의 "내용 크기"는 사실상
-        카드의 자연 폭(아래 설명)이므로, 이 조합은 오른쪽 칸이 카드가 실제로 요구하는 폭
-        **이상으로 벌어지지 않게** 막는다 — 커진 여유 폭은 전부 왼쪽으로 넘어간다. 880px 은
-        세로가 아주 넉넉한 화면(예: 뷰포트 높이 1300 안팎)에서 카드가 요구하는 폭에 여유를 더한
-        값이다(실측 근거는 `fullwidth-report.md` "오른쪽 칸 상한" 절) — 세로로 아주 긴 화면에서
-        카드 쪽이 왼쪽 목록을 짜부라뜨리지 않게 막는 안전판이기도 하다(`xl:min-w-0` 이 없으면
-        `flex-initial` 항목이 내용보다 좁아지지 못해 왼쪽이 밀린다).
+        **오른쪽(세트 바 + 결과)은 `xl:flex-1`(남는 폭을 전부 가져간다) 에 `xl:max-w-[1400px]`
+        로만 상한을 둔다.** `xl:min-w-0` 은 좁은 xl 폭(1280 근처)에서 내용보다 좁아질 수 있게
+        하는 안전판이다.
 
         카드는 세로 비율(`aspect-[4/5]`, `CardCanvas` 소관, 편집 동작은 안 건드린다)을 지키며
-        **남는 높이**에 맞춘다. 옛 `h-[min(70vh,760px)]` 는 뷰포트 비율이라 위 요소(세트 바·툴바)를
-        더하면 화면을 넘길 수 있었다 — 그래서 오른쪽 칸을 세로 flex 로 다시 나눠 세트 바·툴바·
-        캡션은 제 높이만 쓰고(`flex-none`, 기본값), 카드를 담는 칸만 `xl:flex-1`로 남는 높이를
-        전부 가져간다(아래 결과 section 과 카드 상자 참고). 이 flex 가 실제 픽셀 높이를 가지려면
+        **남는 높이와 폭 중 더 좁은 쪽**에 맞춘다. 오른쪽 칸을 세로 flex 로 나눠 세트 바·툴바는
+        제 높이만 쓰고(`flex-none`, 기본값), 카드+캡션 묶음만 `xl:flex-1`로 남는 높이를 전부
+        가져간다(아래 결과 section 과 카드 상자 참고). 이 flex 가 실제 픽셀 높이를 가지려면
         조상 사슬에 확정 높이가 있어야 한다 — `StudioFrame` 의 `xl:h-screen`(그 파일 주석 참고)이
         `<main>` 까지 내려주고, 이 컨테이너는 그걸 `xl:h-full` 로 받아 두 칸(왼쪽 레일 전체, 오른쪽
-        세트 바+결과)에 flex 기본 정렬(`stretch`)로 물려준다. `CardCanvas` 는 그 안에서
-        `xl:h-auto` + `xl:max-h-full`(그 파일의 크기 클래스, 인라인 style 은 늘지 않았다)로,
-        **높이와 폭 둘 다 상한 안에서 비율을 지키며 최대 크기를 스스로 계산한다** — 옛 `xl:h-full`
-        (높이를 확정값으로 못박는 방식)은 오른쪽 칸에 상한이 생기면 폭이 부족한 순간 비율이
-        깨졌다(카드 상자 주석 참고). 왼쪽 레일은 내용이 남는 높이보다 길면 `xl:overflow-y-auto`
-        로 그 칸 안에서만 스크롤한다 — 카드 쪽을 밀어내지 않는다.
+        세트 바+결과)에 flex 기본 정렬(`stretch`)로 물려준다. 카드 상자는 `xl:grid`(자식 기본
+        정렬이 `stretch`) 로 카드에 **확정된 세로 높이**를 준다 — `CardCanvas` 는 그 높이를
+        받아 `aspect-[4/5]` 로 폭을 역산하고(flexbox/grid 의 "정의된 cross size 에서 aspect-ratio
+        로 main size 를 구하는" 표준 동작), `xl:max-h-full`·`max-w-full`(그 파일의 크기 클래스)
+        이 그 결과를 상자 안으로 다시 잘라 넣는다. 예전엔 카드 상자에 `xl:items-center` 를 써서
+        이 stretch 를 껐었다 — stretch 가 꺼지면 세로 신호가 없어 `CardCanvas` 의 유일한 in-flow
+        내용(사진 층은 `absolute` 라 크기 계산에서 빠진다)인 글 텍스트의 자연 폭만큼만 그려졌다.
+        이게 카드가 411×514 로 굳어 있던, 화면이 커져도 안 커지던 진짜 원인이다(사진과 무관하게
+        헤드라인 글자 폭이 상한이 됐었다). 왼쪽 레일은 내용이 남는 높이보다 길면
+        `xl:overflow-y-auto` 로 그 칸 안에서만 스크롤한다 — 카드 쪽을 밀어내지 않는다.
 
         DOM 순서는 [왼쪽 레일 전체] → [카피 만들기] → [세트 바] → [결과]이고, `xl` flex 는 이
         순서를 배치로만 재배열한다(순서 클래스를 안 쓰므로 DOM 순서 그대로 나열된다). 그 아래
         폭에서는 지금처럼 위아래로 쌓인다.
       */}
-      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:h-full xl:flex-row xl:gap-x-8">
-        {/* 왼쪽 = 순서 레일 + 카피 만들기. `xl:flex-1` 이 남는 폭을 전부 가져간다 — 내용이
-            넘치면 이 칸 안에서만 스크롤한다. */}
-        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:min-w-0 xl:flex-1 xl:overflow-y-auto">
+      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:h-full xl:flex-row xl:gap-x-8 xl:py-3">
+        {/* 왼쪽 = 순서 레일 + 카피 만들기. 썸네일(96px) + 글이라 400px 이면 충분하다 — 폭을
+            여기에 못박아야 남는 폭이 전부 오른쪽(카드)으로 간다. 내용이 넘치면 이 칸 안에서만
+            스크롤한다. */}
+        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:w-[400px] xl:flex-none xl:overflow-y-auto">
           <section className="flex flex-col gap-4">
             <SectionHead
               title="넘겨 보는 순서"
@@ -317,19 +318,17 @@ export function WorkbenchScreen({
         </div>
 
         {/*
-          오른쪽 = 세트 바 + 결과. `xl:flex-initial`(자라지 않는다) + `xl:max-w-[880px]` 로 폭
-          상한을 두고, `xl:min-w-0` 으로 내용(특히 카드)보다 좁아질 수 있게 한다 — 세로가 아주
-          긴 화면에서 카드가 이 칸을 억지로 넓히지 못하게 막는 값이다(위 그리드 주석 참고).
-          안쪽은 세로 flex 로 나눈다 — 세트 바는 제 높이만(`flex-none`, 기본값), 결과 section 은
-          `xl:flex-1`로 남는 높이를 가져간다. gap 은 아래 폭(비 xl)에서 쓰던 `gap-8` 을 그대로
-          두고, xl 에서만 옛 `gap-y-6` 값(24px)으로 좁힌다 — 세트 바와 카드 사이는 레일 항목
-          사이보다 붙어도 된다.
+          오른쪽 = 세트 바 + 결과. `xl:flex-1`(왼쪽이 폭을 못박은 만큼 남는 폭을 전부 가져간다) 에
+          `xl:max-w-[1400px]` 로만 상한을 둔다(위 그리드 주석 참고). 안쪽은 세로 flex 로 나눈다 —
+          세트 바는 제 높이만(`flex-none`, 기본값), 결과 section 은 `xl:flex-1`로 남는 높이를
+          가져간다. gap 은 아래 폭(비 xl)에서 쓰던 `gap-8` 을 그대로 두고, xl 에서만 12px 로
+          좁힌다 — 세트 바와 카드 사이는 레일 항목 사이보다 붙어도 된다.
         */}
-        <div className="flex flex-col gap-8 xl:min-h-0 xl:min-w-0 xl:flex-initial xl:max-w-[880px] xl:gap-6">
+        <div className="flex flex-col gap-8 xl:min-h-0 xl:min-w-0 xl:flex-1 xl:max-w-[1400px] xl:gap-3">
           {/* 세트 바(테마·핸들). 고르면 바로 아래 카드에 반영되는 자리라야 한다. */}
           <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
 
-          <section className="flex flex-col gap-4 xl:min-h-0 xl:flex-1">
+          <section className="flex flex-col gap-4 xl:min-h-0 xl:flex-1 xl:gap-2">
             <SectionHead
               title={card ? `${active + 1}번 · ${ROLE_LABELS[card.copy.role]}` : "카드"}
               aside={card ? "1080 × 1350" : undefined}
@@ -354,21 +353,29 @@ export function WorkbenchScreen({
                   onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
                   onSwapPhoto={() => setAdding(true)}
                 />
-                {/* 카드 상자 — 남는 높이를 전부 받아(`xl:flex-1`) 그 안에서 카드를 가운데 둔다.
-                    `xl:items-center` 가 flex 기본 정렬(`stretch`)을 끈다 — stretch 면 자식 높이가
-                    이 상자 높이로 확정돼(`CardCanvas` 의 `xl:h-auto` 가 무력화된다) 폭 상한에
-                    걸렸을 때 비율이 깨진다(`CardCanvas` 주석 참고). `items-center` 라야 그 파일이
-                    스스로 계산한 크기 그대로 가운데 놓인다. */}
-                <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8 xl:min-h-0 xl:flex-1 xl:items-center">
-                  <CardCanvas
-                    card={card}
-                    photo={photo}
-                    target={target}
-                    onSelect={setTarget}
-                    onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
-                  />
+                {/* 카드 상자 + 캡션을 한 덩어리로 묶는다 — 이 안의 gap(`gap-1`)만 좁혀서 캡션이
+                    카드 바로 아래 붙게 하고, section 의 `gap-2`(위 SectionHead·EditToolbar 사이)
+                    는 그대로 둔다. 이 묶음 자체가 `xl:flex-1` 로 남는 높이를 전부 받는다.
+                    카드 상자는 `xl:grid`(자식 기본 정렬이 `stretch`) 로 — 세로가 stretch 돼야
+                    `CardCanvas` 의 `aspect-[4/5]` 가 그 정해진 높이에서 폭을 역산한다(그 파일
+                    주석의 "자동 축소"가 실제로 작동하려면 이 stretch 가 필요하다 — `items-center`
+                    로 stretch 를 끄면 세로 신호가 없어 텍스트 폭만큼만 작게 그려진다. 이전에
+                    `items-center` 를 쓴 것이 바로 카드가 작던 원인이었다. `xl:max-h-full` 이
+                    있으니 늘어나도 이 상자를 넘지 않는다). */}
+                <div className="flex min-h-0 flex-col gap-1 xl:flex-1">
+                  <div className="flex min-h-0 flex-1 justify-center rounded-2xl bg-canvas px-4 py-8 xl:grid xl:py-3">
+                    <CardCanvas
+                      card={card}
+                      photo={photo}
+                      target={target}
+                      onSelect={setTarget}
+                      onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
+                    />
+                  </div>
+                  <p className="flex-none text-center text-[13px] text-ink-2">
+                    고칠 곳을 눌러요. 글은 그 자리에서 바로 고쳐요.
+                  </p>
                 </div>
-                <p className="text-center text-[13px] text-ink-2">고칠 곳을 눌러요. 글은 그 자리에서 바로 고쳐요.</p>
               </>
             ) : (
               <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-hair bg-canvas px-6 py-16 text-center">
