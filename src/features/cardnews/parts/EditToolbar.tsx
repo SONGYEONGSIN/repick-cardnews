@@ -12,6 +12,7 @@ import {
   textScaleFor,
   textScaleStepOf,
 } from "@/templates/layout-utils";
+import { THEMES, THEME_IDS, type ThemeId } from "@/templates/themes";
 import type { CardDraft } from "../reducer";
 
 /**
@@ -28,6 +29,14 @@ import type { CardDraft } from "../reducer";
  * 저장될 곳이 없다 — 눌리는데 아무 일도 안 나는 버튼을 두지 않는다. 글자 크기·정렬은 이제
  * `CardDraft.textScale`·`textAlign`으로 받으므로 헤드라인·본문을 고른 동안 아래에 컨트롤을 둔다
  * — 카드 전체에 한 번에 적용되는 값이라 두 탭에서 같은 컨트롤·같은 값을 보여 준다.
+ *
+ * **테마**(`CardnewsState.themeId`, 다섯 장 전체에 적용)는 예전에 화면 전체 폭을 차지하던
+ * `WorkbenchSetBar` 띠에 있었다. 그 띠를 없애면서 여기 '카드' 탭 안으로 옮겼다 — 새 탭을 따로
+ * 만들지 않은 이유는, 이 툴바의 다른 네 탭이 전부 "지금 고른 카드 하나"를 향한 요소 선택기라 그
+ * 축에 다섯 장 전체에 걸리는 탭을 하나 더 얹으면 "이것도 카드 하나만의 설정"으로 잘못 읽히기
+ * 쉽기 때문이다. '카드' 탭은 이미 카드 자체(구성=레이아웃)를 다루는 자리이자 어느 카드를 보고
+ * 있어도 늘 뜨는 탭이라, 옆에 "5장 전체" 라벨을 붙여 구성과 테마의 적용 범위를 문구로만
+ * 구분했다.
  *
  * 액센트 색을 쓰지 않는다. 선택 상태는 검정 채움(`bg-ink text-surface`)과 굵기로만 만든다.
  */
@@ -133,6 +142,8 @@ export function EditToolbar({
   onSwapPhoto,
   onRequestFocus,
   headlineSelection,
+  themeId,
+  onThemeChange,
 }: {
   card: CardDraft;
   target: EditTarget;
@@ -145,6 +156,10 @@ export function EditToolbar({
   /** 캔버스의 헤드라인에서 지금 드래그·키보드로 고른 글자(CardCanvas 참고). 형광 버튼이 이 값을
       그대로 저장한다 — 비어 있으면 아직 아무것도 안 골랐다는 뜻이라 버튼을 비활성으로 둔다. */
   headlineSelection: string;
+  /** 다섯 장 전체에 적용되는 테마 — `CardDraft` 가 아니라 `CardnewsState` 소속이라 `onPatch` 로
+      보내지 않고 따로 받는다. '카드' 탭 안에서만 보여준다(위 파일 상단 주석 참고). */
+  themeId: ThemeId;
+  onThemeChange: (themeId: ThemeId) => void;
 }) {
   const copy = card.copy;
   // hook·cta 에는 본문이 없다. 없는 카드에서는 본문 탭 자체를 띄우지 않는다.

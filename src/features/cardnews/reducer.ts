@@ -27,12 +27,12 @@ export type CardDraft = {
   /** 글 덩어리의 세로 위치. 0(위 끝)~1(아래 끝) 여백 비율 — 좌표가 아니라 flex-grow 몫이라 카드 밖으로 넘칠 수 없다. */
   textY: number;
   /**
-   * 헤드라인·본문(및 cta 알약·핸들) 글자 크기 배수. 1이 지금 크기(보통) — layout-utils의
+   * 헤드라인·본문(및 cta 알약) 글자 크기 배수. 1이 지금 크기(보통) — layout-utils의
    * textScaleFor(단계)가 만든 값만 들어온다(0.85 작게·1 보통·1.2 크게). CardnewsBody·CardCanvas
    * 양쪽이 역할·레이아웃별 실제 크기에 이 값을 곱해 세 단계를 만든다.
    */
   textScale: number;
-  /** 헤드라인·본문(및 cta 알약·핸들) 정렬. 카드 전체에 한 번에 적용된다 — textAlignFor 참고. */
+  /** 헤드라인·본문(및 cta 알약) 정렬. 카드 전체에 한 번에 적용된다 — textAlignFor 참고. */
   textAlign: TextAlign;
   /**
    * 헤드라인에서 형광으로 강조할 문자열. 위치(인덱스)가 아니라 **글자 자체**를 저장한다 —
@@ -51,7 +51,6 @@ export type CardnewsState = {
   order: string[];
   keyword: string;
   themeId: ThemeId;
-  handle: string;
   cards: CardDraft[];
   error: string | null;
   busy: boolean;
@@ -64,7 +63,6 @@ export type CardnewsAction =
   | { type: "SWAP_IN"; slotIndex: number; photoId: string }
   | { type: "SET_KEYWORD"; keyword: string }
   | { type: "SET_THEME"; themeId: ThemeId }
-  | { type: "SET_HANDLE"; handle: string }
   | { type: "SET_SPEC"; spec: CardnewsSpec }
   | { type: "UPDATE_CARD"; index: number; patch: Partial<Omit<CardDraft, "id" | "photoId">> }
   | { type: "SET_STEP"; step: number }
@@ -78,7 +76,6 @@ export const initialCardnewsState: CardnewsState = {
   order: [],
   keyword: "",
   themeId: "mint-clean",
-  handle: "",
   cards: [],
   error: null,
   busy: false,
@@ -131,7 +128,7 @@ export function textYFor(layout: CardLayout): number {
 }
 
 /**
- * 카드의 기본 정렬 — cta 카드는 지금도 헤드라인·버튼·핸들을 가운데로 그린다(CardnewsBody의
+ * 카드의 기본 정렬 — cta 카드는 지금도 헤드라인·버튼을 가운데로 그린다(CardnewsBody의
  * 마지막 분기가 textAlign:"center"를 하드코딩한다). 그 기본을 그대로 지키려면 여기서도 cta만
  * 예외로 center를 주고, 나머지 역할은 지금처럼(암묵적 좌측 정렬) left를 기본으로 둔다. SET_SPEC이
  * 카드를 새로 만들 때만 쓰인다 — textYFor와 같은 이유로 UPDATE_CARD는 이 함수를 거치지 않는다.
@@ -196,8 +193,6 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
       return { ...state, keyword: action.keyword };
     case "SET_THEME":
       return { ...state, themeId: action.themeId };
-    case "SET_HANDLE":
-      return { ...state, handle: action.handle };
     case "SET_SPEC": {
       const layouts = assignLayouts(action.spec.cards.length);
       const cards: CardDraft[] = action.spec.cards.map((copy, i) => ({

@@ -28,7 +28,6 @@ const CtaCard = z.object({
   role: z.literal("cta"),
   heading: z.string().min(1).max(40),
   action: z.string().min(1).max(40),
-  handle: z.string().max(30).optional(),
 });
 
 export const CardnewsCard = z.discriminatedUnion("role", [

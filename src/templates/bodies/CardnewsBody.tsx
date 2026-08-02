@@ -26,11 +26,11 @@ export function CardnewsBody({
   /** split 레이아웃처럼 글 영역이 좁을 때 타이포를 줄여 클리핑을 막는다 */
   compact?: boolean;
   /**
-   * 헤드라인·본문(및 단계·버튼 문구·핸들) 글자 크기 배수. 역할·레이아웃별로 이미 다른 실제
+   * 헤드라인·본문(및 단계·버튼 문구) 글자 크기 배수. 역할·레이아웃별로 이미 다른 실제
    * 글꼴 크기에 이 배수를 그대로 곱한다 — layout-utils의 textScaleFor(단계)가 만든 값만 온다.
    */
   textScale: number;
-  /** 헤드라인·본문(및 cta 알약·핸들) 정렬. 카드 전체에 한 번에 적용된다. */
+  /** 헤드라인·본문(및 cta 알약) 정렬. 카드 전체에 한 번에 적용된다. */
   textAlign: TextAlign;
   /** 헤드라인에서 형광으로 강조할 문자열. 빈 문자열이면 강조 없음 — splitHighlight 참고. */
   highlight: string;
@@ -167,9 +167,6 @@ export function CardnewsBody({
         >
           {card.action}
         </div>
-      )}
-      {hasText(card.handle) && (
-        <p style={{ marginTop: 28, fontSize: Math.round(30 * textScale), opacity: 0.8, color: fg }}>{card.handle}</p>
       )}
     </div>
   );

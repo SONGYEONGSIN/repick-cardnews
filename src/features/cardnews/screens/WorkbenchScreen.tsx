@@ -9,7 +9,6 @@ import type { CardnewsSpec } from "@/lib/schema";
 import { CardCanvas } from "../parts/CardCanvas";
 import { EditToolbar, type EditTarget } from "../parts/EditToolbar";
 import { WorkbenchRail, type RailItem } from "./WorkbenchRail";
-import { WorkbenchSetBar } from "./WorkbenchSetBar";
 import { inKorean } from "./errors";
 import {
   CARDNEWS_MAX,
@@ -23,7 +22,7 @@ import {
 /**
  * 화면 2 — 만들기. 옛 위저드의 사진·순서·편집 세 단계가 이 한 화면이다.
  *
- * 설정이 두 층이다. **세트 단위**(테마·핸들)는 `WorkbenchSetBar`, **카드 단위**는 `EditToolbar`.
+ * 설정이 두 층이다. **세트 단위**(테마)와 **카드 단위**가 모두 `EditToolbar` 안에 있다.
  * 순서 레일은 `WorkbenchRail` 로 뺐다 — 세 덩어리가 각각 다른 것을 고른다.
  *
  * 액센트 색을 쓰지 않는다 — 선택도 오류도 검정 채움(`bg-ink text-surface`)과 굵기로만 만든다.
@@ -342,9 +341,8 @@ export function WorkbenchScreen({
           좁힌다 — 세트 바와 카드 사이는 레일 항목 사이보다 붙어도 된다.
         */}
         <div className="flex flex-col gap-8 xl:min-h-0 xl:min-w-0 xl:flex-1 xl:gap-3">
-          {/* 세트 바(테마·핸들). 고르면 바로 아래 카드에 반영되는 자리라야 한다. */}
-          <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
-
+          {/* 예전엔 여기 테마·계정 핸들을 담은 세트 바가 한 줄을 차지했다. 계정 핸들은 없앴고
+              테마는 툴바 안으로 들어가, 그 줄만큼 카드가 커졌다. */}
           <section className="flex flex-col gap-4 xl:min-h-0 xl:flex-1 xl:gap-2">
             <SectionHead
               title={card ? `${active + 1}번 카드` : "카드"}
@@ -371,6 +369,8 @@ export function WorkbenchScreen({
                   onSwapPhoto={() => setAdding(true)}
                   onRequestFocus={() => setFocusToken((n) => n + 1)}
                   headlineSelection={headlineSelection}
+                  themeId={state.themeId}
+                  onThemeChange={(themeId) => dispatch({ type: "SET_THEME", themeId })}
                 />
                 {/* 카드 상자 + 캡션을 한 덩어리로 묶는다 — 이 안의 gap(`gap-1`)만 좁혀서 캡션이
                     카드 바로 아래 붙게 하고, section 의 `gap-2`(위 SectionHead·EditToolbar 사이)

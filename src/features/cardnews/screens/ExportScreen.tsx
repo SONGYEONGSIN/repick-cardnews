@@ -19,8 +19,9 @@ import { InstagramPublishPanel } from "./InstagramPublishPanel";
  * 캡션·해시태그를 `InstagramPublishPanel`에 되돌리고 아래처럼 다시 정리했다.
  *
  * 미리보기는 `CardCanvas`(편집 표면)가 아니라 `CardRenderer` 로 실제 템플릿을 그려 축소한다
- * (옛 `steps/ExportStep.tsx` 와 같은 방식) — 테마·핸들이 반영된 진짜 결과라야 저장 직전
- * 확인이 의미가 있다.
+ * (옛 `steps/ExportStep.tsx` 와 같은 방식) — 테마가 반영된 진짜 결과라야 저장 직전
+ * 확인이 의미가 있다. `handle` 은 빈 문자열로 고정한다 — 카드뉴스는 계정 핸들 워터마크를
+ * 쓰지 않는다(그 prop 자체는 `CardRenderer`/`CardFrame` 공용이라 정보전달 플로우가 쓴다).
  *
  * **레이아웃**: `xl` 이상에서 두 칸이다. 왼쪽(미리보기 + 저장될 파일)은 `xl:flex-1` 로 남는
  * 폭을 전부 가져가고 상한을 두지 않는다 — `WorkbenchScreen` 의 오른쪽(카드) 칸과 같은
@@ -204,7 +205,7 @@ export function ExportScreen({
                   const draft = state.cards[i];
                   return (
                     <li key={draft.id} className="flex w-[270px] flex-none flex-col gap-2">
-                      {/* 순수 시각 미리보기 — 헤드라인·본문·핸들은 실제 템플릿 텍스트라 스크린리더에
+                      {/* 순수 시각 미리보기 — 헤드라인·본문은 실제 템플릿 텍스트라 스크린리더에
                           그대로 노출되면 아래 순번·역할 캡션, "저장될 파일" 목록과 카드 수만큼
                           중복 낭독된다. 보이는 정보는 그 두 곳에 이미 텍스트로 있다. */}
                       <div className="overflow-hidden rounded-xl border border-hair bg-surface" aria-hidden="true">
@@ -212,7 +213,8 @@ export function ExportScreen({
                           {/* 1080px 기준 템플릿을 0.25배(=270px)로 줄인다 — 옛 0.1407배(152px)는
                               "너무 작아 안 보인다"는 실사용 피드백으로 키웠다. */}
                           <span className="block origin-top-left scale-[0.25]">
-                            <CardRenderer card={card} themeId={state.themeId} handle={state.handle} />
+                            {/* 카드뉴스는 계정 핸들 워터마크를 쓰지 않는다 — 빈 문자열이면 CardFrame이 안 그린다. */}
+                            <CardRenderer card={card} themeId={state.themeId} handle="" />
                           </span>
                         </span>
                       </div>

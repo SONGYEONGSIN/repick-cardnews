@@ -45,7 +45,8 @@ export function CardnewsFlow() {
         <CaptureStage
           cards={toRenderCards(state)}
           themeId={state.themeId}
-          handle={state.handle}
+          // 카드뉴스는 계정 핸들 워터마크를 쓰지 않는다 — 빈 문자열이면 CardFrame이 안 그린다.
+          handle=""
           registerRef={registerRef}
         />
       )}
