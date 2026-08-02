@@ -10,6 +10,37 @@ export const DEFAULT_SCRIM = 0.72;
 export const DEFAULT_BAND_CARDNEWS = 0.45;
 export const DEFAULT_BAND_INFO = 0.35;
 
+export type TextAlign = "left" | "center";
+/** 헤드라인·본문(및 cta 알약·핸들) 정렬 기본값. cta 카드만 예외를 준다 — reducer.ts의 textAlignFor 참고 */
+export const DEFAULT_TEXT_ALIGN: TextAlign = "left";
+export const TEXT_ALIGNS: readonly TextAlign[] = ["left", "center"];
+export const TEXT_ALIGN_LABELS: Record<TextAlign, string> = { left: "왼쪽", center: "가운데" };
+
+export type TextScaleStep = "sm" | "md" | "lg";
+export const TEXT_SCALE_STEPS: readonly TextScaleStep[] = ["sm", "md", "lg"];
+export const TEXT_SCALE_LABELS: Record<TextScaleStep, string> = { sm: "작게", md: "보통", lg: "크게" };
+/** 글자 크기 배수 기본값 — "보통"(지금 크기 그대로) */
+export const DEFAULT_TEXT_SCALE = 1;
+
+/**
+ * 글자 크기 단계(작게/보통/크게) → 배수. `CardDraft.textScale` 에는 이 함수가 만든 값만 들어온다.
+ * 출력(CardnewsBody)·캔버스(CardCanvas) 양쪽이 역할·레이아웃별로 이미 다른 실제 글꼴 크기에
+ * 이 배수를 곱해 세 단계를 만든다 — 고정 크기를 넣으면 role/layout 마다 다른 지금의 크기 비율이
+ * 깨진다.
+ */
+export function textScaleFor(step: TextScaleStep): number {
+  if (step === "sm") return 0.85;
+  if (step === "lg") return 1.2;
+  return DEFAULT_TEXT_SCALE;
+}
+
+/** textScaleFor의 역함수 — 저장된 배수가 툴바에서 어느 단계로 눌려 있는지 판정한다. */
+export function textScaleStepOf(scale: number): TextScaleStep {
+  if (scale === textScaleFor("sm")) return "sm";
+  if (scale === textScaleFor("lg")) return "lg";
+  return "md";
+}
+
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
 }

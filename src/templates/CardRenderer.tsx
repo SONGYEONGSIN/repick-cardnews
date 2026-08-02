@@ -7,7 +7,7 @@ import { CardnewsBody } from "@/templates/bodies/CardnewsBody";
 import { FullBleedCard } from "@/templates/layouts/FullBleedCard";
 import { SplitPhotoCard } from "@/templates/layouts/SplitPhotoCard";
 import { TextOnlyCard } from "@/templates/layouts/TextOnlyCard";
-import { textYSpacers, type Focal, type TextYSpacers } from "@/templates/layout-utils";
+import { textYSpacers, type Focal, type TextAlign, type TextYSpacers } from "@/templates/layout-utils";
 
 function isInfographicCopy(copy: CardnewsCard | InfographicSpec): copy is InfographicSpec {
   return "type" in copy;
@@ -21,6 +21,10 @@ export type RenderCard = {
   band: number;
   /** 글 덩어리의 세로 위치(0~1). full-bleed 카드의 scrim 이 이 값에 앵커된다. */
   textY: number;
+  /** 헤드라인·본문 글자 크기 배수(CardnewsBody 전용). InfographicBody 경로에서는 쓰이지 않는다. */
+  textScale: number;
+  /** 헤드라인·본문 정렬(CardnewsBody 전용). InfographicBody 경로에서는 쓰이지 않는다. */
+  textAlign: TextAlign;
   /** "1 / 5" 형태. 빈 문자열이면 렌더하지 않는다 */
   badge: string;
   copy: CardnewsCard | InfographicSpec;
@@ -45,6 +49,8 @@ export function CardRenderer({
       theme={theme}
       onPhoto={onPhoto}
       compact={card.layout === "split"}
+      textScale={card.textScale}
+      textAlign={card.textAlign}
     />
   );
   // InfographicBody는 아이템 목록에 스스로 flex:1을 걸어 남는 공간을 요구한다 — 스페이서가

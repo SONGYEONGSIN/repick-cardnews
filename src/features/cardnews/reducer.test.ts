@@ -6,6 +6,7 @@ import {
   canLeaveTopic,
   canLeaveWorkbench,
   bandFor,
+  textAlignFor,
   CARDNEWS_MAX,
   type CardnewsState,
   type CardDraft,
@@ -133,6 +134,11 @@ describe("SET_SPEC", () => {
     // 여백 비율). 이 기본값이 그 배치와 어긋나면 텍스트 위치가 바뀌어 보인다.
     const s = cardnewsReducer(withPhotos(5), { type: "SET_SPEC", spec });
     expect(s.cards.map((c) => c.textY)).toEqual([1, 0.5, 0.5, 0.5, 0.5]);
+  });
+  it("글자 크기·정렬 기본값을 준다 — 크기는 1(보통), 정렬은 cta만 가운데 나머지는 왼쪽", () => {
+    const s = cardnewsReducer(withPhotos(5), { type: "SET_SPEC", spec });
+    expect(s.cards.map((c) => c.textScale)).toEqual([1, 1, 1, 1, 1]);
+    expect(s.cards.map((c) => c.textAlign)).toEqual(["left", "left", "left", "left", "center"]);
   });
   it("사진보다 카드가 많으면 남는 카드는 사진 없이 둔다", () => {
     const sixCardSpec = {
@@ -313,6 +319,18 @@ describe("SET_STEP", () => {
   });
 });
 
+describe("textAlignFor", () => {
+  it("cta 카드는 가운데가 기본이다 — CardnewsBody가 지금도 그렇게 그린다", () => {
+    expect(textAlignFor({ role: "cta", heading: "마무리", action: "저장" })).toBe("center");
+  });
+  it("cta 가 아닌 역할은 왼쪽이 기본이다", () => {
+    expect(textAlignFor({ role: "hook", heading: "표지" })).toBe("left");
+    expect(textAlignFor({ role: "problem", heading: "문제", body: "b" })).toBe("left");
+    expect(textAlignFor({ role: "evidence", heading: "근거", body: "b" })).toBe("left");
+    expect(textAlignFor({ role: "solution", heading: "해결", body: "b" })).toBe("left");
+  });
+});
+
 describe("bandFor", () => {
   it("단계가 없으면 기본 밴드다", () => {
     expect(bandFor({ role: "hook", heading: "표지" })).toBe(0.45);
@@ -333,6 +351,8 @@ const CARD: CardDraft = {
   scrim: 0.7,
   band: 0.45,
   textY: 1,
+  textScale: 1,
+  textAlign: "left",
   copy: { role: "hook", heading: "후크" },
 };
 

@@ -10,6 +10,8 @@ export function toRenderCards(state: CardnewsState): RenderCard[] {
     scrim: card.scrim,
     band: card.band,
     textY: card.textY,
+    textScale: card.textScale,
+    textAlign: card.textAlign,
     badge: `${i + 1} / ${state.cards.length}`,
     copy: card.copy,
   }));

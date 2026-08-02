@@ -3,7 +3,15 @@
 import { Image as ImageIcon } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { CARD_LAYOUTS, LAYOUT_LABELS } from "@/lib/layout-assign";
-import { isBlankText } from "@/templates/layout-utils";
+import {
+  isBlankText,
+  TEXT_ALIGNS,
+  TEXT_ALIGN_LABELS,
+  TEXT_SCALE_STEPS,
+  TEXT_SCALE_LABELS,
+  textScaleFor,
+  textScaleStepOf,
+} from "@/templates/layout-utils";
 import type { CardDraft } from "../reducer";
 
 /**
@@ -15,9 +23,11 @@ import type { CardDraft } from "../reducer";
  * 왼쪽 **요소 선택기**(헤드라인·본문·사진·카드)가 축이다. 무엇을 고르느냐에 따라 그 옆이
  * 통째로 바뀐다. 캔버스를 눌러도 같이 바뀐다 — 두 입구가 같은 상태를 가리킨다.
  *
- * 시안(`src/app/lab2/Editor.tsx`)에는 있었지만 여기서 **뺀 것**: 글자 크기·정렬·글 위치·
- * 사진 배율·형광·역할 배지·다시 쓰기·빼기. `CardDraft` 가 받지 않는 값이라 조작해도
- * 저장될 곳이 없다 — 눌리는데 아무 일도 안 나는 버튼을 두지 않는다.
+ * 시안(`src/app/lab2/Editor.tsx`)에는 있었지만 여기서 **뺀 것**: 글 위치(대신 캔버스의 손잡이로
+ * 옮긴다)·사진 배율·형광·역할 배지·다시 쓰기·빼기. `CardDraft` 가 받지 않는 값이라 조작해도
+ * 저장될 곳이 없다 — 눌리는데 아무 일도 안 나는 버튼을 두지 않는다. 글자 크기·정렬은 이제
+ * `CardDraft.textScale`·`textAlign`으로 받으므로 헤드라인·본문을 고른 동안 아래에 컨트롤을 둔다
+ * — 카드 전체에 한 번에 적용되는 값이라 두 탭에서 같은 컨트롤·같은 값을 보여 준다.
  *
  * 액센트 색을 쓰지 않는다. 선택 상태는 검정 채움(`bg-ink text-surface`)과 굵기로만 만든다.
  */
@@ -192,6 +202,31 @@ export function EditToolbar({
             {/* 손잡이는 글을 고르는 동안에만 뜬다(CardCanvas). 여기 말고는 알 길이 없어 한 줄 둔다 —
                 컨트롤을 새로 만들지 않는다. 위치는 손잡이로만 바꾼다. */}
             <span className="text-[14px] text-ink-2">손잡이를 끌어 글 위치를 위아래로 옮겨요</span>
+            <Divider />
+            {/* 크기·정렬은 헤드라인·본문이 아니라 카드 전체에 한 번 적용된다(CardDraft.textScale·
+                textAlign) — 헤드라인 탭에서 고르든 본문 탭에서 고르든 같은 값을 보고 같은 값을
+                바꾼다. */}
+            <span className="flex items-center gap-2.5">
+              <span className="text-[14px] text-ink-2">크기</span>
+              <Group>
+                {TEXT_SCALE_STEPS.map((step) => (
+                  <Opt
+                    key={step}
+                    label={TEXT_SCALE_LABELS[step]}
+                    on={textScaleStepOf(card.textScale) === step}
+                    onClick={() => onPatch({ textScale: textScaleFor(step) })}
+                  />
+                ))}
+              </Group>
+            </span>
+            <span className="flex items-center gap-2.5">
+              <span className="text-[14px] text-ink-2">정렬</span>
+              <Group>
+                {TEXT_ALIGNS.map((a) => (
+                  <Opt key={a} label={TEXT_ALIGN_LABELS[a]} on={card.textAlign === a} onClick={() => onPatch({ textAlign: a })} />
+                ))}
+              </Group>
+            </span>
             <Counter len={len} max={max} />
             {/* 되돌리기가 없어 실수로 지우면 복구는 다시 입력뿐이다 — 그래도 그 복구가 한 번의
                 입력으로 충분하므로 확인 절차는 두지 않는다. 이미 비어 있으면 "추가"로 바뀌어

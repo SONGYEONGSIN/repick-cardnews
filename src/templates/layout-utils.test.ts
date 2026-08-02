@@ -5,10 +5,14 @@ import {
   scrimStops,
   textYSpacers,
   isBlankText,
+  textScaleFor,
+  textScaleStepOf,
   DEFAULT_FOCAL,
   DEFAULT_SCRIM,
   DEFAULT_BAND_CARDNEWS,
   DEFAULT_BAND_INFO,
+  DEFAULT_TEXT_SCALE,
+  DEFAULT_TEXT_ALIGN,
 } from "@/templates/layout-utils";
 
 describe("objectPosition", () => {
@@ -133,5 +137,44 @@ describe("기본값", () => {
   it("밴드 기본값은 카드뉴스 0.45 · 정보전달 0.35다", () => {
     expect(DEFAULT_BAND_CARDNEWS).toBe(0.45);
     expect(DEFAULT_BAND_INFO).toBe(0.35);
+  });
+  it("글자 크기 기본 배수는 1(보통)이다", () => {
+    expect(DEFAULT_TEXT_SCALE).toBe(1);
+  });
+  it("정렬 기본값은 왼쪽이다", () => {
+    expect(DEFAULT_TEXT_ALIGN).toBe("left");
+  });
+});
+
+// textScaleFor: 글자 크기 단계(작게/보통/크게) → 배수. CardDraft.textScale 에는 이 함수가 만든
+// 값만 들어온다 — 출력·캔버스가 역할·레이아웃별 실제 글꼴 크기에 이 배수를 곱해 세 단계를 만든다.
+describe("textScaleFor", () => {
+  it("보통은 지금 크기 그대로인 1이다", () => {
+    expect(textScaleFor("md")).toBe(1);
+  });
+  it("작게는 0.85다", () => {
+    expect(textScaleFor("sm")).toBe(0.85);
+  });
+  it("크게는 1.2다", () => {
+    expect(textScaleFor("lg")).toBe(1.2);
+  });
+  it("보통 배수는 기본값 상수와 같다", () => {
+    expect(textScaleFor("md")).toBe(DEFAULT_TEXT_SCALE);
+  });
+});
+
+// textScaleStepOf: textScaleFor의 역함수 — 저장된 배수가 툴바에서 어느 단계로 눌려 있는지 판정한다.
+describe("textScaleStepOf", () => {
+  it("0.85면 작게다", () => {
+    expect(textScaleStepOf(0.85)).toBe("sm");
+  });
+  it("1이면 보통이다", () => {
+    expect(textScaleStepOf(1)).toBe("md");
+  });
+  it("1.2면 크게다", () => {
+    expect(textScaleStepOf(1.2)).toBe("lg");
+  });
+  it("세 값 중 어디에도 안 맞으면 보통으로 본다", () => {
+    expect(textScaleStepOf(0.99)).toBe("md");
   });
 });

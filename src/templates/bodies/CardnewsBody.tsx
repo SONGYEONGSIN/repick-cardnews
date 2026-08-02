@@ -1,6 +1,6 @@
 import type { CardnewsCard } from "@/lib/schema";
 import type { Theme } from "@/templates/themes";
-import { isBlankText } from "@/templates/layout-utils";
+import { isBlankText, type TextAlign } from "@/templates/layout-utils";
 
 /**
  * 편집으로 글을 지우면(값이 "" 또는 공백만) 저장 이미지에서 그 요소를 통째로 뺀다 —
@@ -16,12 +16,21 @@ export function CardnewsBody({
   theme: t,
   onPhoto = false,
   compact = false,
+  textScale,
+  textAlign,
 }: {
   card: CardnewsCard;
   theme: Theme;
   onPhoto?: boolean;
   /** split 레이아웃처럼 글 영역이 좁을 때 타이포를 줄여 클리핑을 막는다 */
   compact?: boolean;
+  /**
+   * 헤드라인·본문(및 단계·버튼 문구·핸들) 글자 크기 배수. 역할·레이아웃별로 이미 다른 실제
+   * 글꼴 크기에 이 배수를 그대로 곱한다 — layout-utils의 textScaleFor(단계)가 만든 값만 온다.
+   */
+  textScale: number;
+  /** 헤드라인·본문(및 cta 알약·핸들) 정렬. 카드 전체에 한 번에 적용된다. */
+  textAlign: TextAlign;
 }) {
   const fg = onPhoto ? t.onPhoto : t.fg;
   // cta 알약(아래 action 배지)에서만 쓰인다 — 역할 배지(RoleTag)는 지웠다
@@ -32,10 +41,11 @@ export function CardnewsBody({
     <h1
       style={{
         fontFamily: t.displayFont,
-        fontSize: compact ? 56 : 72,
+        fontSize: Math.round((compact ? 56 : 72) * textScale),
         lineHeight: 1.22,
         margin: 0,
         color: fg,
+        textAlign,
       }}
     >
       {children}
@@ -44,11 +54,12 @@ export function CardnewsBody({
   const Body = ({ children }: { children: React.ReactNode }) => (
     <p
       style={{
-        fontSize: compact ? 30 : 34,
+        fontSize: Math.round((compact ? 30 : 34) * textScale),
         lineHeight: 1.5,
         marginTop: compact ? 20 : 28,
         opacity: 0.92,
         color: fg,
+        textAlign,
       }}
     >
       {children}
@@ -93,10 +104,12 @@ export function CardnewsBody({
                   display: "flex",
                   gap: 16,
                   alignItems: "center",
-                  fontSize: compact ? 26 : 30,
+                  fontSize: Math.round((compact ? 26 : 30) * textScale),
                   color: fg,
                 }}
               >
+                {/* 원 지름은 글자 크기 배수를 곱하지 않는다 — 지금 지름·글자 비율(1.4~1.5배)이면
+                    lg(1.2배)까지도 숫자가 원 밖으로 밀리지 않는다(위 fontSize 참고). */}
                 <span
                   style={{
                     width: compact ? 38 : 44,
@@ -121,7 +134,7 @@ export function CardnewsBody({
     );
   }
   return (
-    <div style={{ textAlign: "center" }}>
+    <div style={{ textAlign }}>
       {hasText(card.heading) && <Heading>{card.heading}</Heading>}
       {hasText(card.action) && (
         <div
@@ -129,7 +142,7 @@ export function CardnewsBody({
             marginTop: 40,
             display: "inline-block",
             fontFamily: t.displayFont,
-            fontSize: compact ? 34 : 40,
+            fontSize: Math.round((compact ? 34 : 40) * textScale),
             color: tagFg,
             background: tagBg,
             padding: compact ? "14px 32px" : "18px 40px",
@@ -139,7 +152,9 @@ export function CardnewsBody({
           {card.action}
         </div>
       )}
-      {hasText(card.handle) && <p style={{ marginTop: 28, fontSize: 30, opacity: 0.8, color: fg }}>{card.handle}</p>}
+      {hasText(card.handle) && (
+        <p style={{ marginTop: 28, fontSize: Math.round(30 * textScale), opacity: 0.8, color: fg }}>{card.handle}</p>
+      )}
     </div>
   );
 }

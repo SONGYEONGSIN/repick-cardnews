@@ -4,7 +4,15 @@ import { useEffect, useRef } from "react";
 import { Move } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import type { Photo } from "@/lib/photos";
-import { isBlankText, objectPosition, scrimGradient, textYSpacers, type Focal } from "@/templates/layout-utils";
+import {
+  isBlankText,
+  objectPosition,
+  scrimGradient,
+  textScaleStepOf,
+  textYSpacers,
+  type Focal,
+  type TextScaleStep,
+} from "@/templates/layout-utils";
 import { THEMES, type ThemeId } from "@/templates/themes";
 import type { CardDraft } from "../reducer";
 import type { EditTarget } from "./EditToolbar";
@@ -92,6 +100,31 @@ function clamp01(v: number): number {
 function pct(ratio: number): string {
   return `${ratio * 100}%`;
 }
+
+/**
+ * 글자 크기 3단계 → 캔버스 전용 Tailwind 클래스. 값은 layout-utils.textScaleFor 의 배수
+ * (작게 0.85·보통 1·크게 1.2)를 이 파일의 기존 캔버스 기준 크기(헤드라인 26/36px, 본문 16/18px,
+ * 버튼 문구 15px)에 곱해 반올림한 것 — 출력(CardnewsBody)이 실제 글꼴 크기에 같은 배수를 곱하는
+ * 것과 같은 계산이다(같은 배수, 같은 곱셈 — 캔버스와 출력이 절대 px 기준은 다르지만 배수의
+ * 출처는 하나다). Tailwind JIT 는 런타임에 조립한 클래스명을 인식하지 못하므로(파일 상단
+ * "인라인 style" 주석과 같은 이유) 세 단계 전부를 리터럴 문자열로 박아 두고 golden step 으로만
+ * 고른다.
+ */
+const HEADING_SCALE_CLASS: Record<TextScaleStep, string> = {
+  sm: "text-[22px] font-black leading-tight tracking-tight sm:text-[31px] font-[family-name:var(--card-display-font)]",
+  md: "text-[26px] font-black leading-tight tracking-tight sm:text-[36px] font-[family-name:var(--card-display-font)]",
+  lg: "text-[31px] font-black leading-tight tracking-tight sm:text-[43px] font-[family-name:var(--card-display-font)]",
+};
+const BODY_SCALE_CLASS: Record<TextScaleStep, string> = {
+  sm: "text-[14px] leading-relaxed opacity-[0.92] sm:text-[15px]",
+  md: "text-[16px] leading-relaxed opacity-[0.92] sm:text-[18px]",
+  lg: "text-[19px] leading-relaxed opacity-[0.92] sm:text-[22px]",
+};
+const ACTION_SCALE_CLASS: Record<TextScaleStep, string> = {
+  sm: "text-[13px]",
+  md: "text-[15px]",
+  lg: "text-[18px]",
+};
 
 /**
  * 편집 결과를 한 줄 텍스트로 정규화한다.
@@ -361,22 +394,31 @@ export function CardCanvas({
   const onPhoto = card.layout === "full-bleed";
   // 헤드라인·본문이 같이 쓰는 글 색. CardnewsBody 의 `fg = onPhoto ? t.onPhoto : t.fg` 와 같다.
   const fg = onPhoto ? theme.onPhoto : theme.fg;
-  const headingClass =
-    "text-[26px] font-black leading-tight tracking-tight sm:text-[36px] font-[family-name:var(--card-display-font)]";
+  // 글자 크기 단계 — card.textScale(배수)을 textScaleStepOf 로 역산해 어느 클래스 세트를 쓸지 고른다.
+  const scaleStep = textScaleStepOf(card.textScale);
+  // 정렬 — CardnewsBody 가 헤드라인·본문·cta 알약·핸들에 같은 값을 곱씹는 것과 같다(card.textAlign).
+  // text-left/text-center 는 Tailwind 기본 유틸이라 그대로 클래스로 쓴다(연속값이 아니다).
+  const alignTextClass = card.textAlign === "center" ? "text-center" : "text-left";
+  // cta 알약은 self-start(왼쪽 붙음)/self-center(가운데)로 자리를 잡는다 — CardnewsBody 가 cta
+  // 알약을 textAlign:center 인 부모 안의 inline-block 으로 가운데 놓는 것과 같은 결과를
+  // flex 자식의 cross-axis 정렬(self-*)로 낸다.
+  const alignSelfClass = card.textAlign === "center" ? "self-center" : "self-start";
+  const headingClass = `${HEADING_SCALE_CLASS[scaleStep]} ${alignTextClass}`;
   // opacity-[0.92] 는 CardnewsBody 의 Body 컴포넌트가 쓰는 고정 불투명도(테마 값이 아니라
   // 상수라 인라인이 아니라 클래스로 둔다)
-  const bodyClass = "text-[16px] leading-relaxed opacity-[0.92] sm:text-[18px]";
+  const bodyClass = `${BODY_SCALE_CLASS[scaleStep]} ${alignTextClass}`;
   // 헤드라인·본문이 비었을 때 쓰는 자리 표시 크기 — headingClass·bodyClass(56~72px·30~34px)를
   // 그대로 쓰면 빈 칸이 실제 글만큼 커 보여 textY 배치가 출력과 어긋난다(파일 상단 주석 참고).
+  // 자리 표시는 크기·정렬 조작 대상이 아니라 고정 크기로 둔다(위 이유와 같다 — 실제 스타일을
+  // 반영하면 안 된다).
   const textPlaceholderClass = "text-[13px] italic";
   // cta 알약이 비었을 때 쓰는 자리 표시 — 테마 배경 대신 점선 테두리만 그려 "눌러도 안 나온
   // 채워진 버튼"처럼 보이지 않게 한다. actionClass 와 크기(px-4 py-2 text-[15px])는 맞춘다 —
   // 알약은 이미 작아 헤드라인·본문만큼 부풀지 않는다.
-  const actionPlaceholderClass =
-    "self-start rounded-full border border-dashed border-hair px-4 py-2 text-[13px] italic text-ink-2";
+  const actionPlaceholderClass = `${alignSelfClass} rounded-full border border-dashed border-hair px-4 py-2 text-[13px] italic text-ink-2`;
   // 버튼 문구는 늘 편집 가능하므로 선택 링 대신 포커스 링으로 지금 어디 있는지 알린다.
   // 배경·글자색은 THEMES 값이라 클래스가 아니라 style(actionStyle)로 준다.
-  const actionClass = `self-start rounded-full px-4 py-2 text-[15px] font-bold font-[family-name:var(--card-display-font)] focus:ring-2 focus:ring-offset-2 ${
+  const actionClass = `${alignSelfClass} rounded-full px-4 py-2 ${ACTION_SCALE_CLASS[scaleStep]} font-bold font-[family-name:var(--card-display-font)] focus:ring-2 focus:ring-offset-2 ${
     onPhoto ? "focus:ring-surface focus:ring-offset-ink" : "focus:ring-ink focus:ring-offset-surface"
   }`;
   const actionStyle: React.CSSProperties = {
