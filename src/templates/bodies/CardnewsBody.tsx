@@ -1,5 +1,15 @@
 import type { CardnewsCard } from "@/lib/schema";
 import type { Theme } from "@/templates/themes";
+import { isBlankText } from "@/templates/layout-utils";
+
+/**
+ * 편집으로 글을 지우면(값이 "" 또는 공백만) 저장 이미지에서 그 요소를 통째로 뺀다 —
+ * 빈 태그를 남기면 여백만 남는다. 새 "숨김" 필드를 두지 않고 "글이 비면 안 그린다"만으로
+ * 삭제를 표현한다(별도 플래그 없음 — CardCanvas.tsx 상단 주석 참고).
+ */
+function hasText(value: string | undefined): value is string {
+  return value !== undefined && !isBlankText(value);
+}
 
 export function CardnewsBody({
   card,
@@ -47,25 +57,27 @@ export function CardnewsBody({
   if (card.role === "hook") {
     return (
       <>
-        <Heading>{card.heading}</Heading>
-        {card.sub && <Body>{card.sub}</Body>}
+        {hasText(card.heading) && <Heading>{card.heading}</Heading>}
+        {hasText(card.sub) && <Body>{card.sub}</Body>}
       </>
     );
   }
   if (card.role === "problem" || card.role === "evidence") {
     return (
       <>
-        <Heading>{card.heading}</Heading>
-        <Body>{card.body}</Body>
+        {hasText(card.heading) && <Heading>{card.heading}</Heading>}
+        {hasText(card.body) && <Body>{card.body}</Body>}
       </>
     );
   }
   if (card.role === "solution") {
+    // 개별 단계도 같은 규칙을 적용한다 — 빈 단계는 목록에서 빠지고, 남은 단계만 1번부터 다시 매긴다.
+    const steps = (card.steps ?? []).filter(hasText);
     return (
       <>
-        <Heading>{card.heading}</Heading>
-        <Body>{card.body}</Body>
-        {card.steps && (
+        {hasText(card.heading) && <Heading>{card.heading}</Heading>}
+        {hasText(card.body) && <Body>{card.body}</Body>}
+        {steps.length > 0 && (
           <div
             style={{
               marginTop: compact ? 18 : 24,
@@ -74,7 +86,7 @@ export function CardnewsBody({
               gap: compact ? 10 : 14,
             }}
           >
-            {card.steps.map((s, i) => (
+            {steps.map((s, i) => (
               <div
                 key={i}
                 style={{
@@ -110,22 +122,24 @@ export function CardnewsBody({
   }
   return (
     <div style={{ textAlign: "center" }}>
-      <Heading>{card.heading}</Heading>
-      <div
-        style={{
-          marginTop: 40,
-          display: "inline-block",
-          fontFamily: t.displayFont,
-          fontSize: compact ? 34 : 40,
-          color: tagFg,
-          background: tagBg,
-          padding: compact ? "14px 32px" : "18px 40px",
-          borderRadius: 20,
-        }}
-      >
-        {card.action}
-      </div>
-      {card.handle && <p style={{ marginTop: 28, fontSize: 30, opacity: 0.8, color: fg }}>{card.handle}</p>}
+      {hasText(card.heading) && <Heading>{card.heading}</Heading>}
+      {hasText(card.action) && (
+        <div
+          style={{
+            marginTop: 40,
+            display: "inline-block",
+            fontFamily: t.displayFont,
+            fontSize: compact ? 34 : 40,
+            color: tagFg,
+            background: tagBg,
+            padding: compact ? "14px 32px" : "18px 40px",
+            borderRadius: 20,
+          }}
+        >
+          {card.action}
+        </div>
+      )}
+      {hasText(card.handle) && <p style={{ marginTop: 28, fontSize: 30, opacity: 0.8, color: fg }}>{card.handle}</p>}
     </div>
   );
 }

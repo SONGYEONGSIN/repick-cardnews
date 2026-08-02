@@ -89,6 +89,10 @@ export function WorkbenchScreen({
   const [selected, setSelected] = useState(0);
   const [target, setTarget] = useState<EditTarget>("heading");
   const [adding, setAdding] = useState(false);
+  // 툴바의 "추가" 버튼이 캔버스의 빈 칸에 포커스를 옮겨 달라는 신호. 값 자체는 의미 없고
+  // 매 클릭마다 늘어나기만 한다(CardCanvas 상단 주석 참고) — 같은 칸을 연달아 눌러도 신호가
+  // 매번 달라져야 CardCanvas 의 effect 가 다시 돈다.
+  const [focusToken, setFocusToken] = useState(0);
 
   const slots = slotPhotos(state);
 
@@ -359,6 +363,7 @@ export function WorkbenchScreen({
                   onSelect={setTarget}
                   onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
                   onSwapPhoto={() => setAdding(true)}
+                  onRequestFocus={() => setFocusToken((n) => n + 1)}
                 />
                 {/* 카드 상자 + 캡션을 한 덩어리로 묶는다 — 이 안의 gap(`gap-1`)만 좁혀서 캡션이
                     카드 바로 아래 붙게 하고, section 의 `gap-2`(위 SectionHead·EditToolbar 사이)
@@ -376,6 +381,7 @@ export function WorkbenchScreen({
                       photo={photo}
                       target={target}
                       themeId={state.themeId}
+                      focusToken={focusToken}
                       onSelect={setTarget}
                       onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
                     />

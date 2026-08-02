@@ -50,6 +50,15 @@ export function scrimGradient(strength: number, textY: number): string {
   return `linear-gradient(to bottom, ${stops})`;
 }
 
+/**
+ * 공백만 남은 글도 "비었다"고 본다 — 스페이스바만 누르고 지운 것도 삭제와 같은 결과라야 한다.
+ * 헤드라인·본문·버튼 문구를 저장 이미지에서 뺄지(CardnewsBody), 캔버스에 자리 표시를 보일지
+ * (CardCanvas) 판정하는 데 공용으로 쓴다.
+ */
+export function isBlankText(text: string): boolean {
+  return text.trim().length === 0;
+}
+
 export type TextYSpacers = { top: number; bottom: number };
 
 /**

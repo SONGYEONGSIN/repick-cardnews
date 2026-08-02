@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Move } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import type { Photo } from "@/lib/photos";
-import { objectPosition, scrimGradient, textYSpacers, type Focal } from "@/templates/layout-utils";
+import { isBlankText, objectPosition, scrimGradient, textYSpacers, type Focal } from "@/templates/layout-utils";
 import { THEMES, type ThemeId } from "@/templates/themes";
 import type { CardDraft } from "../reducer";
 import type { EditTarget } from "./EditToolbar";
@@ -61,6 +61,17 @@ import { TextYHandle } from "./TextYHandle";
  * 둬서 그 결함을 구조적으로 막는다. 이 자동 축소가 실제로 동작하려면 부모(`WorkbenchScreen`
  * 의 카드 상자)가 `stretch` 대신 `items-center` 로 이 요소를 누르지 않아야 한다(그쪽 주석
  * 참고) — 아니면 flex 기본값(`stretch`)이 높이를 다시 확정값으로 만들어 버린다.
+ *
+ * 빈 글(헤드라인·본문·버튼 문구): 저장 이미지(`CardnewsBody`)는 비면 요소를 통째로 안 그리지만,
+ * 캔버스는 다시 입력할 자리가 남아야 하므로 흐린 자리 표시("헤드라인 없음 — 눌러서 입력")를
+ * 보인다 — 캔버스와 출력이 여기서만 의도적으로 갈린다(초점 핸들·`TextYHandle` 과 같은 이유,
+ * 편집을 위한 표시는 저장 이미지에 없다). `textY` 배치(`textYSpacers`)는 `blockRef` 가 잰
+ * 실제 높이로 계산하므로, 자리 표시가 헤드라인·본문의 실제 글꼴 크기(56~72px·30~34px)로 뜨면
+ * 글 덩어리가 부풀어 출력과 어긋난다 — 그래서 자리 표시는 실제 글꼴 크기를 쓰지 않고 작은
+ * 고정 크기(`text-[13px]`)로만 그린다. 자리 표시 글자는 또한 `position:absolute`(`EditableText`
+ * 의 오버레이)로 편집칸 위에 얹을 뿐 제 몫의 높이를 요구하지 않는다 — 작은 글꼴이 `contentEditable`
+ * 특유의 빈 줄 높이(브라우저가 빈 편집 영역에도 커서를 위해 남기는 한 줄)까지 줄이고, absolute
+ * 배치가 그 위에 얹힌 자리 표시 글자를 부모 높이 계산에서 뺀다 — 두 방어가 함께 작동한다.
  */
 
 /** 방향키 한 번에 5%. 스무 번이면 끝에서 끝까지 가고, 한 칸이 눈에 보인다. */
@@ -101,6 +112,11 @@ function normalize(text: string): string {
  * `editing`(고칠 수 있는가)과 `ringClass`(선택 표시)를 나눠 받는다 — 헤드라인·본문은 툴바에서
  * 고른 동안만 편집 가능하고 선택 링이 뜨지만, cta 의 버튼 문구는 툴바에 대응하는 대상이 없어
  * (다섯 번째 대상을 만들지 않는다) 늘 편집 가능하고 링 대신 포커스 표시만 쓴다.
+ *
+ * 비었으면(`isBlankText`) 실제 글 대신 `placeholderClassName`(작은 고정 크기)로 자리 표시를
+ * 그린다 — 큰 실제 글꼴을 그대로 쓰면 글 덩어리가 부풀어 `textY` 배치가 출력과 어긋난다(파일
+ * 상단 주석 참고). 자리 표시 글자 자체는 `position:absolute` 오버레이라 편집칸의 레이아웃
+ * 높이에 더해지지 않는다.
  */
 function EditableText({
   value,
@@ -108,22 +124,33 @@ function EditableText({
   ringClass,
   label,
   className,
+  placeholderClassName,
+  placeholder,
   style,
   onCommit,
   onActivate,
+  elRef,
 }: {
   value: string;
   editing: boolean;
   ringClass: string;
   label: string;
   className: string;
+  /** 비었을 때 쓰는 스타일 — 실제 글꼴보다 작게 둬서 자리 표시가 글 덩어리 높이를 부풀리지 않는다 */
+  placeholderClassName: string;
+  /** 비었을 때 보이는 안내 문구. 저장 이미지에는 나오지 않는다(캔버스 전용) */
+  placeholder: string;
   /** 테마 색(헤드라인·본문·cta 알약) 전용 — 값은 항상 호출부에서 THEMES 로 채운다 */
   style?: React.CSSProperties;
   onCommit: (text: string) => void;
   onActivate?: () => void;
+  /** 툴바의 "추가" 버튼이 이 칸에 포커스를 옮길 때만 쓴다(heading·body) */
+  elRef?: React.RefObject<HTMLDivElement | null>;
 }) {
-  return (
+  const blank = isBlankText(value);
+  const editable = (
     <div
+      ref={elRef}
       role="textbox"
       aria-label={label}
       aria-multiline="false"
@@ -135,10 +162,22 @@ function EditableText({
       // 편집 중에는 DOM 이 진실이다. 빠져나갈 때 한 번만 상태로 올린다 —
       // 글자마다 올리면 카드 전체가 다시 그려져 커서가 튄다.
       onBlur={(e) => onCommit(normalize(e.currentTarget.innerText))}
-      style={style}
-      className={`pointer-events-auto cursor-text rounded outline-none ${ringClass} ${className}`}
+      style={blank ? undefined : style}
+      className={`pointer-events-auto cursor-text rounded outline-none ${ringClass} ${blank ? placeholderClassName : className}`}
     >
-      {value}
+      {blank ? "" : value}
+    </div>
+  );
+  if (!blank) return editable;
+  return (
+    <div className="relative">
+      {editable}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex items-center text-[13px] text-ink-2 italic"
+      >
+        {placeholder}
+      </span>
     </div>
   );
 }
@@ -258,6 +297,7 @@ export function CardCanvas({
   photo,
   target,
   themeId,
+  focusToken,
   onSelect,
   onPatch,
 }: {
@@ -265,6 +305,13 @@ export function CardCanvas({
   photo: Photo | undefined;
   target: EditTarget;
   themeId: ThemeId;
+  /**
+   * 툴바의 "추가" 버튼을 누를 때마다 하나씩 늘어나는 신호. 값 자체엔 의미가 없다 — 이미 빈
+   * 값이라 `onPatch` 만으로는 아무 변화가 없는데(EditToolbar 상단 주석: 눌러도 아무 일도
+   * 안 나는 버튼을 두지 않는다), 그 자리에 포커스를 옮기는 게 실제 효과다. 0 은 "아직 요청
+   * 없음"이라 첫 렌더에서는 포커스를 옮기지 않는다.
+   */
+  focusToken: number;
   onSelect: (t: EditTarget) => void;
   onPatch: (patch: Partial<Omit<CardDraft, "id" | "photoId">>) => void;
 }) {
@@ -276,6 +323,16 @@ export function CardCanvas({
   const blockRef = useRef<HTMLDivElement>(null);
   const topSpacerRef = useRef<HTMLDivElement>(null);
   const bottomSpacerRef = useRef<HTMLDivElement>(null);
+  // 추가 버튼이 포커스를 옮길 대상. body 는 역할에 따라 없을 수 있어 ref 만 미리 만들어 두고
+  // 실제로 그 칸을 그릴 때만 EditableText 에 넘긴다(안 그리면 focus() 도 no-op).
+  const headingRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (focusToken === 0) return;
+    if (target === "heading") headingRef.current?.focus();
+    else if (target === "body") bodyRef.current?.focus();
+  }, [focusToken]);
 
   /**
    * 손잡이가 쓸 치수. **남는 공간은 두 여백이 실제로 차지한 높이의 합**이라 패딩을 따로 헤아릴
@@ -309,6 +366,14 @@ export function CardCanvas({
   // opacity-[0.92] 는 CardnewsBody 의 Body 컴포넌트가 쓰는 고정 불투명도(테마 값이 아니라
   // 상수라 인라인이 아니라 클래스로 둔다)
   const bodyClass = "text-[16px] leading-relaxed opacity-[0.92] sm:text-[18px]";
+  // 헤드라인·본문이 비었을 때 쓰는 자리 표시 크기 — headingClass·bodyClass(56~72px·30~34px)를
+  // 그대로 쓰면 빈 칸이 실제 글만큼 커 보여 textY 배치가 출력과 어긋난다(파일 상단 주석 참고).
+  const textPlaceholderClass = "text-[13px] italic";
+  // cta 알약이 비었을 때 쓰는 자리 표시 — 테마 배경 대신 점선 테두리만 그려 "눌러도 안 나온
+  // 채워진 버튼"처럼 보이지 않게 한다. actionClass 와 크기(px-4 py-2 text-[15px])는 맞춘다 —
+  // 알약은 이미 작아 헤드라인·본문만큼 부풀지 않는다.
+  const actionPlaceholderClass =
+    "self-start rounded-full border border-dashed border-hair px-4 py-2 text-[13px] italic text-ink-2";
   // 버튼 문구는 늘 편집 가능하므로 선택 링 대신 포커스 링으로 지금 어디 있는지 알린다.
   // 배경·글자색은 THEMES 값이라 클래스가 아니라 style(actionStyle)로 준다.
   const actionClass = `self-start rounded-full px-4 py-2 text-[15px] font-bold font-[family-name:var(--card-display-font)] focus:ring-2 focus:ring-offset-2 ${
@@ -382,6 +447,9 @@ export function CardCanvas({
           onCommit={commitHeading}
           label="헤드라인"
           className={headingClass}
+          placeholderClassName={textPlaceholderClass}
+          placeholder="헤드라인 없음 — 눌러서 입력"
+          elRef={headingRef}
           // 인라인 style 8/11 — 헤드라인 색(onPhoto ? theme.onPhoto : theme.fg)
           style={{ color: fg }}
         />
@@ -395,6 +463,9 @@ export function CardCanvas({
             onCommit={bodyEdit.commit}
             label="본문"
             className={bodyClass}
+            placeholderClassName={textPlaceholderClass}
+            placeholder="본문 없음 — 눌러서 입력"
+            elRef={bodyRef}
             // 인라인 style 9/11 — 본문 색. 헤드라인과 같은 fg 값(불투명도는 opacity-[0.92] 클래스)
             style={{ color: fg }}
           />
@@ -408,6 +479,8 @@ export function CardCanvas({
             onCommit={actionEdit.commit}
             label="버튼 문구 (최대 40자)"
             className={actionClass}
+            placeholderClassName={actionPlaceholderClass}
+            placeholder="버튼 문구 없음 — 눌러서 입력"
             // 인라인 style 10/11 — cta 알약 배경·글자색(actionStyle, 위 선언부 주석 참고)
             style={actionStyle}
           />

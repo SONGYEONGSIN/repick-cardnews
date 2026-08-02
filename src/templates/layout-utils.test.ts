@@ -4,6 +4,7 @@ import {
   scrimGradient,
   scrimStops,
   textYSpacers,
+  isBlankText,
   DEFAULT_FOCAL,
   DEFAULT_SCRIM,
   DEFAULT_BAND_CARDNEWS,
@@ -104,6 +105,26 @@ describe("textYSpacers", () => {
 function round2Sum(a: number, b: number): number {
   return Math.round((a + b) * 100) / 100;
 }
+
+// isBlankText: 헤드라인·본문을 지웠는지 판정한다. 공백만 남은 글도 "비었다"로 본다 —
+// 사용자가 스페이스바만 눌러도 지운 것과 같은 결과여야 한다(CardnewsBody·CardCanvas 공용).
+describe("isBlankText", () => {
+  it("빈 문자열은 비었다", () => {
+    expect(isBlankText("")).toBe(true);
+  });
+  it("공백만 있으면 비었다", () => {
+    expect(isBlankText("   ")).toBe(true);
+  });
+  it("줄바꿈만 있으면 비었다", () => {
+    expect(isBlankText("\n\n")).toBe(true);
+  });
+  it("정상 글은 비지 않았다", () => {
+    expect(isBlankText("수원 갈비")).toBe(false);
+  });
+  it("앞뒤 공백이 있는 정상 글도 비지 않았다", () => {
+    expect(isBlankText("  수원 갈비  ")).toBe(false);
+  });
+});
 
 describe("기본값", () => {
   it("스크림 기본값은 대비를 확보하는 0.72다", () => {

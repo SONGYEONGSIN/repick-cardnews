@@ -3,6 +3,7 @@
 import { Image as ImageIcon } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { CARD_LAYOUTS, LAYOUT_LABELS } from "@/lib/layout-assign";
+import { isBlankText } from "@/templates/layout-utils";
 import type { CardDraft } from "../reducer";
 
 /**
@@ -111,12 +112,16 @@ export function EditToolbar({
   onSelect,
   onPatch,
   onSwapPhoto,
+  onRequestFocus,
 }: {
   card: CardDraft;
   target: EditTarget;
   onSelect: (t: EditTarget) => void;
   onPatch: (patch: Partial<Omit<CardDraft, "id" | "photoId">>) => void;
   onSwapPhoto: () => void;
+  /** 헤드라인·본문이 이미 비어 있을 때 "추가" 버튼이 부르는 콜백 — 값은 이미 ""라 onPatch로는
+      아무 변화가 없다. 캔버스의 그 칸에 포커스를 옮기는 게 실제 효과다(CardCanvas 참고). */
+  onRequestFocus: () => void;
 }) {
   const copy = card.copy;
   // hook·cta 에는 본문이 없다. 없는 카드에서는 본문 탭 자체를 띄우지 않는다.
@@ -138,8 +143,25 @@ export function EditToolbar({
   const active: EditTarget = tabs.some((p) => p.id === target) ? target : "card";
 
   const isText = active === "heading" || active === "body";
+  const activeText = active === "body" ? (body ?? "") : copy.heading;
+  const textBlank = isBlankText(activeText);
   const len = active === "body" ? (body?.length ?? 0) : copy.heading.length;
   const max = active === "body" ? 120 : 40;
+
+  /**
+   * "지우기" — heading 은 다섯 역할 전부에 있어 그대로 지운다. body 는 problem·evidence·
+   * solution 에만 있어 `"body" in copy` 로 좁힌 **안쪽에서** 패치를 만든다(CardCanvas의
+   * bodyEdit 과 같은 이유 — 바깥에서 만들면 hook·cta 유니온에 없는 body 가 섞인다). `active`가
+   * "body" 인 시점엔 탭이 이미 `body !== undefined` 로만 떴으므로 실제로는 늘 참이지만,
+   * 타입은 그 사실을 모르니 단언(`as`) 대신 이 안쪽 `in` 체크로 좁힌다.
+   */
+  function clearActiveText() {
+    if (active === "heading") {
+      onPatch({ copy: { ...copy, heading: "" } });
+    } else if (active === "body" && "body" in copy) {
+      onPatch({ copy: { ...copy, body: "" } });
+    }
+  }
 
   return (
     <div className="flex flex-col rounded-xl border border-hair">
@@ -171,6 +193,12 @@ export function EditToolbar({
                 컨트롤을 새로 만들지 않는다. 위치는 손잡이로만 바꾼다. */}
             <span className="text-[14px] text-ink-2">손잡이를 끌어 글 위치를 위아래로 옮겨요</span>
             <Counter len={len} max={max} />
+            {/* 되돌리기가 없어 실수로 지우면 복구는 다시 입력뿐이다 — 그래도 그 복구가 한 번의
+                입력으로 충분하므로 확인 절차는 두지 않는다. 이미 비어 있으면 "추가"로 바뀌어
+                지우기를 다시 누를 일이 없다. */}
+            <span className="ml-auto">
+              <Btn onClick={textBlank ? onRequestFocus : clearActiveText}>{textBlank ? "추가" : "지우기"}</Btn>
+            </span>
           </>
         )}
 
