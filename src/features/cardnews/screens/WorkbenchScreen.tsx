@@ -203,77 +203,85 @@ export function WorkbenchScreen({
         </>
       }
     >
-      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9">
-        <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
+      {/*
+        xl(1280px) 이상에서 두 칸으로 나눈다 — 왼쪽 = 설정(세트 바·순서 레일·카피 만들기),
+        오른쪽 = 결과(카드 섹션 타이틀·오류·툴바·캔버스). lg(1024px)에서 반으로 나누면 왼쪽이
+        460px 안팎이라 레일 칩 다섯 개가 가로로 못 들어간다(칩 152px×5+간격 ≈ 800px) — 그래서
+        lg 은 지금처럼 쌓인 채로 두고 xl 부터만 칸을 나눈다.
 
-        <section className="flex flex-col gap-4">
-          <SectionHead
-            title="넘겨 보는 순서"
-            aside={`${slots.length}장 · ${CARDNEWS_MIN}~${CARDNEWS_MAX}장으로 만들어요`}
-          />
-          {items.length > 0 && (
-            <>
-              <WorkbenchRail
-                items={items}
-                tray={tray}
-                active={active}
-                orderCount={state.order.length}
-                dropOpen={dropOpen}
-                locked={state.busy}
-                onPick={pick}
-                onMove={moveTo}
-                onRemove={(photoId) => dispatch({ type: "REMOVE_PHOTO", photoId })}
-                onSwapIn={swapIn}
-                onToggleDrop={() => setAdding((v) => !v)}
-              />
-              {/* 잠긴 이유를 잠긴 컨트롤 바로 옆에서 말한다 — 비활성만 보이면 고장으로 읽힌다 */}
-              <p className="text-[13px] text-ink-2">
-                {state.busy ? (
-                  "카피를 쓰는 중에는 사진을 바꿀 수 없어요. 지금 바꾸면 옛 사진을 보고 쓴 글이 다른 사진에 붙어요."
-                ) : (
-                  <>
-                    {/* 카피가 나오기 전에는 "카피는 자리에 남는다"는 말이 성립하지 않는다 —
-                        카드 순서는 hook→cta 로 스키마가 고정하므로 바뀌는 것은 늘 사진뿐이다 */}
-                    {state.cards.length > 0
-                      ? "칩을 누르면 그 카드를 고쳐요. 고른 칩의 화살표는 사진을 앞뒤 카드로 옮겨요 — 카피는 자리에 남아요."
-                      : "고른 칩의 화살표로 사진 차례를 바꿔요."}{" "}
-                    빼기를 누르면 그 사진을 지워요.
-                    {tray.length > 0 && (
-                      <>
-                        {" "}
-                        안 쓴 사진을 누르면 지금 고른 <span className="tabular-nums">{active + 1}</span>번 자리에
-                        들어가요.
-                      </>
-                    )}
-                  </>
-                )}
-              </p>
-            </>
-          )}
-          {dropOpen && (
-            <Dropzone
-              hint={`카드뉴스는 사진 ${CARDNEWS_MIN}~${CARDNEWS_MAX}장으로 만들어요. 더 올리면 안 쓴 사진으로 남겨 뒀다가 바꿔 낄 수 있어요.`}
-              onPhotos={(photos) => {
-                dispatch({ type: "ADD_PHOTOS", photos });
-                setAdding(false);
-              }}
-              // Dropzone 이 넘겨주는 문구도 늘 한국어는 아니다 — 파일 읽기가 던진 영문
-              // DOMException 이 그대로 올라올 수 있어 생성 오류와 같은 필터를 거친다.
-              onError={(error) =>
-                dispatch({
-                  type: "SET_ERROR",
-                  error: inKorean(error, "사진을 읽지 못했어요. 다른 사진으로 다시 해 주세요."),
-                })
-              }
+        비율은 4:7(왼쪽 36% · 오른쪽 64%)이다. 카드는 세로 비율(`aspect-[4/5]`)이라 높이
+        (`h-[min(70vh,760px)]`)로 크기가 정해지고, 그 폭(높이×4/5)이 오른쪽 칸(캔버스 wrapper
+        padding 32px 포함)보다 좁아지면 `max-w-full` 때문에 실제로 작아진다 — 반반(50:50)으로
+        나누면 1280px 화면에서 오른쪽 칸이 그 폭보다 좁아져 카드가 작아진다. 4:7 은 1280px 에서도
+        오른쪽 칸에 여유를 남겨 카드 크기를 지금과 같게 유지한다(수치는 2col-report.md 참고).
+      */}
+      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:grid xl:grid-cols-[4fr_7fr] xl:items-start">
+        {/* 왼쪽 = 설정. 세트 바 → 순서 레일 → 카피 만들기 순서는 좁은 화면의 쌓인 순서와 같다. */}
+        <div className="flex flex-col gap-8 lg:gap-9 xl:min-w-0">
+          <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
+
+          <section className="flex flex-col gap-4">
+            <SectionHead
+              title="넘겨 보는 순서"
+              aside={`${slots.length}장 · ${CARDNEWS_MIN}~${CARDNEWS_MAX}장으로 만들어요`}
             />
-          )}
-        </section>
-
-        <section className="flex flex-col gap-4">
-          <SectionHead
-            title={card ? `${active + 1}번 · ${ROLE_LABELS[card.copy.role]}` : "카드"}
-            aside={card ? "1080 × 1350" : undefined}
-          />
+            {items.length > 0 && (
+              <>
+                <WorkbenchRail
+                  items={items}
+                  tray={tray}
+                  active={active}
+                  orderCount={state.order.length}
+                  dropOpen={dropOpen}
+                  locked={state.busy}
+                  onPick={pick}
+                  onMove={moveTo}
+                  onRemove={(photoId) => dispatch({ type: "REMOVE_PHOTO", photoId })}
+                  onSwapIn={swapIn}
+                  onToggleDrop={() => setAdding((v) => !v)}
+                />
+                {/* 잠긴 이유를 잠긴 컨트롤 바로 옆에서 말한다 — 비활성만 보이면 고장으로 읽힌다 */}
+                <p className="text-[13px] text-ink-2">
+                  {state.busy ? (
+                    "카피를 쓰는 중에는 사진을 바꿀 수 없어요. 지금 바꾸면 옛 사진을 보고 쓴 글이 다른 사진에 붙어요."
+                  ) : (
+                    <>
+                      {/* 카피가 나오기 전에는 "카피는 자리에 남는다"는 말이 성립하지 않는다 —
+                          카드 순서는 hook→cta 로 스키마가 고정하므로 바뀌는 것은 늘 사진뿐이다 */}
+                      {state.cards.length > 0
+                        ? "칩을 누르면 그 카드를 고쳐요. 고른 칩의 화살표는 사진을 앞뒤 카드로 옮겨요 — 카피는 자리에 남아요."
+                        : "고른 칩의 화살표로 사진 차례를 바꿔요."}{" "}
+                      빼기를 누르면 그 사진을 지워요.
+                      {tray.length > 0 && (
+                        <>
+                          {" "}
+                          안 쓴 사진을 누르면 지금 고른 <span className="tabular-nums">{active + 1}</span>번 자리에
+                          들어가요.
+                        </>
+                      )}
+                    </>
+                  )}
+                </p>
+              </>
+            )}
+            {dropOpen && (
+              <Dropzone
+                hint={`카드뉴스는 사진 ${CARDNEWS_MIN}~${CARDNEWS_MAX}장으로 만들어요. 더 올리면 안 쓴 사진으로 남겨 뒀다가 바꿔 낄 수 있어요.`}
+                onPhotos={(photos) => {
+                  dispatch({ type: "ADD_PHOTOS", photos });
+                  setAdding(false);
+                }}
+                // Dropzone 이 넘겨주는 문구도 늘 한국어는 아니다 — 파일 읽기가 던진 영문
+                // DOMException 이 그대로 올라올 수 있어 생성 오류와 같은 필터를 거친다.
+                onError={(error) =>
+                  dispatch({
+                    type: "SET_ERROR",
+                    error: inKorean(error, "사진을 읽지 못했어요. 다른 사진으로 다시 해 주세요."),
+                  })
+                }
+              />
+            )}
+          </section>
 
           <GenerateRow
             busy={state.busy}
@@ -281,6 +289,20 @@ export function WorkbenchScreen({
             hasCards={state.cards.length > 0}
             status={status}
             onGenerate={() => void generate()}
+          />
+        </div>
+
+        {/*
+          오른쪽 = 결과. xl 이상에서 스크롤을 따라오도록 고정한다 — 왼쪽 설정을 훑는 동안 카드가
+          눈에 남아야 한다. `max-h` + `overflow-y-auto` 로 자체 스크롤을 두는 이유는, 카드가
+          화면보다 길 때 고정을 그대로 두면 아래쪽(캡션·카드 하단)이 뷰포트 밖으로 밀려 닿을
+          방법이 없어지기 때문이다 — 위아래로 top 오프셋(2.25rem)만큼씩 숨 쉴 자리를 남기고,
+          넘치면 이 칸 안에서만 스크롤한다.
+        */}
+        <section className="flex flex-col gap-4 xl:sticky xl:top-9 xl:min-w-0 xl:max-h-[calc(100vh-4.5rem)] xl:overflow-y-auto">
+          <SectionHead
+            title={card ? `${active + 1}번 · ${ROLE_LABELS[card.copy.role]}` : "카드"}
+            aside={card ? "1080 × 1350" : undefined}
           />
 
           {state.error && (
