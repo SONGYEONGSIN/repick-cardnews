@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type Dispatch } from "react";
-import { ArrowLeft, Check, CircleAlert, Download, FolderDown, RotateCcw } from "lucide-react";
+import { ArrowLeft, Check, CircleAlert, Download, FolderDown, RotateCcw, Smartphone } from "lucide-react";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { CardRenderer } from "@/templates/CardRenderer";
 import { outputDir } from "@/lib/paths";
@@ -10,6 +10,7 @@ import { toRenderCards } from "../render";
 import type { CardnewsAction, CardnewsState } from "../reducer";
 import { ROLE_LABELS } from "./WorkbenchRail";
 import { inKorean } from "./errors";
+import { SharePanel, type ShareResult } from "./SharePanel";
 
 /**
  * 화면 3 — 내보내기. `src/app/lab2/Export.tsx` 시안에서 캡션·해시태그·인스타 올리기
@@ -25,15 +26,19 @@ export function ExportScreen({
   onPrev,
   onDownload,
   onSave,
+  onCaptureImages,
 }: {
   state: CardnewsState;
   dispatch: Dispatch<CardnewsAction>;
   onPrev: () => void;
   onDownload: () => Promise<void>;
   onSave: () => Promise<{ dir: string; paths: string[] }>;
+  onCaptureImages: (count: number) => Promise<string[]>;
 }) {
   // 어디에 저장됐는지는 저장할 값이 아니라 이 화면을 보는 동안의 확인 표시다 — reducer 에 넣지 않는다.
   const [saved, setSaved] = useState<{ dir: string; count: number } | null>(null);
+  // 폰으로 보내기 결과(QR·링크·만료)도 같은 이유로 지역 상태다.
+  const [share, setShare] = useState<ShareResult | null>(null);
   // 되돌릴 수 없는 조작이라 확인을 한 번 거친다 — 이 화면 안의 지역 상태로, window.confirm 은 쓰지 않는다.
   const [resetConfirm, setResetConfirm] = useState(false);
 
@@ -75,6 +80,27 @@ export function ExportScreen({
           <LineButton disabled={state.busy} onClick={() => void run(onDownload)}>
             <Download size={15} aria-hidden="true" />
             내려받기
+          </LineButton>
+          <LineButton
+            disabled={state.busy}
+            onClick={() =>
+              void run(async () => {
+                const images = await onCaptureImages(state.cards.length);
+                const res = await fetch("/api/share", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ keyword: state.keyword, images }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                  throw new Error(typeof data.error === "string" ? data.error : "폰으로 보내지 못했어요");
+                }
+                setShare({ link: data.link, expiresAt: data.expiresAt });
+              })
+            }
+          >
+            <Smartphone size={15} aria-hidden="true" />
+            폰으로 보내기
           </LineButton>
           <SolidButton
             disabled={state.busy}
@@ -128,6 +154,8 @@ export function ExportScreen({
             </span>
           </p>
         )}
+
+        {share && <SharePanel share={share} />}
 
         <section className="flex flex-col gap-4">
           <SectionHead

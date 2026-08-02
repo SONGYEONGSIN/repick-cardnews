@@ -11,7 +11,7 @@ import { cardnewsReducer, initialCardnewsState } from "./reducer";
 
 export function CardnewsFlow() {
   const [state, dispatch] = useReducer(cardnewsReducer, initialCardnewsState);
-  const { registerRef, download, saveToFolder } = useExport();
+  const { registerRef, download, saveToFolder, captureImages } = useExport();
 
   const go = (step: number) => dispatch({ type: "SET_STEP", step });
 
@@ -37,6 +37,7 @@ export function CardnewsFlow() {
               templateIds: state.cards.map((c) => c.layout),
             })
           }
+          onCaptureImages={captureImages}
         />
       )}
 

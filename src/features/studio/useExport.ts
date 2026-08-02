@@ -32,6 +32,15 @@ export function useExport() {
     [capture],
   );
 
+  /** 폰으로 보내기 / 인스타 게시가 `/api/share` 로 보낼 base64 PNG 목록. */
+  const captureImages = useCallback(
+    async (count: number): Promise<string[]> => {
+      const blobs = await capture(count);
+      return Promise.all(blobs.map(blobToBase64));
+    },
+    [capture],
+  );
+
   const saveToFolder = useCallback(
     async (args: {
       count: number;
@@ -59,5 +68,5 @@ export function useExport() {
     [capture],
   );
 
-  return { registerRef, download, saveToFolder };
+  return { registerRef, download, saveToFolder, captureImages };
 }

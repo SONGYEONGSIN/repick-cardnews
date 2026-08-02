@@ -136,7 +136,8 @@ export function StudioFrame({
         )}
 
         <p className="mt-auto border-t border-hair pt-4 text-[13px] leading-relaxed text-ink-2">
-          사진은 이 기기를 벗어나지 않아요. 카피는 로컬 Claude 가 씁니다.
+          사진은 이 집 네트워크를 벗어나지 않아요. 폰으로 보낼 때도 같은 와이파이 안에서만 오가요. 카피는
+          로컬 Claude 가 씁니다.
         </p>
       </aside>
 
