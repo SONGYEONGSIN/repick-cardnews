@@ -166,6 +166,10 @@ export function EditToolbar({
         {isText && (
           <>
             <span className="text-[14px] text-ink-2">카드에서 글자를 직접 눌러 고쳐요</span>
+            <Divider />
+            {/* 손잡이는 글을 고르는 동안에만 뜬다(CardCanvas). 여기 말고는 알 길이 없어 한 줄 둔다 —
+                컨트롤을 새로 만들지 않는다. 위치는 손잡이로만 바꾼다. */}
+            <span className="text-[14px] text-ink-2">손잡이를 끌어 글 위치를 위아래로 옮겨요</span>
             <Counter len={len} max={max} />
           </>
         )}

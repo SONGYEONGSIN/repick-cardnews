@@ -1,11 +1,14 @@
 "use client";
 
+import { useRef } from "react";
 import { Move } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import type { Photo } from "@/lib/photos";
-import { objectPosition, type Focal } from "@/templates/layout-utils";
+import { objectPosition, scrimGradient, textYSpacers, type Focal } from "@/templates/layout-utils";
 import type { CardDraft } from "../reducer";
 import type { EditTarget } from "./EditToolbar";
+import type { TextBounds } from "./text-drag";
+import { TextYHandle } from "./TextYHandle";
 
 /**
  * 캔버스 — 카드 자체가 편집 표면이다.
@@ -17,17 +20,21 @@ import type { EditTarget } from "./EditToolbar";
  * 잡는 껍데기 안에 **사진 버튼과 초점 핸들을 형제로** 두고, 글 블록은 그 위에 `pointer-events`
  * 를 되살린 층으로 얹는다.
  *
- * 출력(`src/templates`)과 **같은 식을 쓴다**: 크롭 기준점은 `objectPosition(focal)`, full-bleed
- * 는 어두운 가림막 위 밝은 글(템플릿의 `onPhoto` 반전). 캔버스가 결과와 다르게 보이면 편집
- * 표면으로서 쓸모가 없다.
+ * 출력(`src/templates`)과 **같은 식을 쓴다**: 크롭 기준점은 `objectPosition(focal)`, 글 자리는
+ * `textYSpacers(textY)` 로 만든 신축 여백 비율, 글 배경은 `scrimGradient(scrim, textY)`,
+ * full-bleed 는 어두운 가림막 위 밝은 글(템플릿의 `onPhoto` 반전). 캔버스가 결과와 다르게
+ * 보이면 편집 표면으로서 쓸모가 없다.
  *
- * 인라인 `style` 은 **네 곳뿐**이다. 넷 다 0~1 연속값이라 Tailwind 클래스로 표현할 수 없다
- * (JIT 은 런타임 값으로 클래스를 만들지 못한다):
+ * 인라인 `style` 은 **여섯 곳뿐**이다. 여섯 다 0~1 연속값이 들어가 Tailwind 클래스로 표현할 수
+ * 없다(JIT 은 런타임 값으로 클래스를 만들지 못한다):
  *   1. 초점 핸들 위치 — `card.focal`
  *   2. 사진 크롭 기준점 — `card.focal`
- *   3. 글 배경 진하기 — `card.scrim`
+ *   3. 글 배경 그라디언트 — `card.scrim` + `card.textY`
  *   4. split 사진 높이 — `card.band`
- * 색은 전부 토큰 클래스에서 오고, 인라인으로는 숫자(위치·불투명도·높이)만 넘긴다.
+ *   5. 글 위 신축 여백 몫 — `card.textY`
+ *   6. 글 아래 신축 여백 몫 — `card.textY`
+ * 색 리터럴은 컴포넌트에 없다 — 토큰 클래스이거나 `layout-utils` 가 만든 문자열이고, 인라인으로는
+ * 숫자(위치·높이·여백 몫)만 넘긴다. 일곱 번째는 두지 않는다.
  */
 
 /** 방향키 한 번에 5%. 스무 번이면 끝에서 끝까지 가고, 한 칸이 눈에 보인다. */
@@ -128,7 +135,7 @@ function FocalHandle({ focal, onFocal }: { focal: Focal; onFocal: (focal: Focal)
       // 이름에 현재 값을 담는다 — 방향키로 값이 바뀌면 포커스된 요소의 이름이 다시 읽힌다
       aria-label={`사진 초점 — 가로 ${Math.round(focal.x * 100)}%, 세로 ${Math.round(focal.y * 100)}%. 방향키로 옮겨요`}
       onKeyDown={handleKey}
-      // 인라인 style 1/4 — 초점은 0~1 연속값이라 자리를 Tailwind 클래스로 표현할 수 없다
+      // 인라인 style 1/6 — 초점은 0~1 연속값이라 자리를 Tailwind 클래스로 표현할 수 없다
       style={{ left: pct(focal.x), top: pct(focal.y) }}
       className={`pointer-events-none absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-ink bg-surface ${FOCUS_RING}`}
     >
@@ -181,7 +188,7 @@ function PhotoSurface({
 
   return (
     <div
-      // 인라인 style 4/4 — split 사진 높이는 card.band(0~1 연속값) 라 클래스로 표현할 수 없다
+      // 인라인 style 4/6 — split 사진 높이는 card.band(0~1 연속값) 라 클래스로 표현할 수 없다
       style={bandRatio === undefined ? undefined : { height: pct(bandRatio) }}
       className={`${wrapperClass} overflow-hidden bg-hair-soft`}
     >
@@ -205,7 +212,7 @@ function PhotoSurface({
             src={photo.thumbUrl}
             alt={photo.name}
             draggable={false}
-            // 인라인 style 2/4 — 크롭 기준점. 출력 템플릿과 같은 objectPosition(focal) 을 쓴다
+            // 인라인 style 2/6 — 크롭 기준점. 출력 템플릿과 같은 objectPosition(focal) 을 쓴다
             style={{ objectPosition: objectPosition(focal) }}
             className="h-full w-full object-cover"
           />
@@ -230,6 +237,34 @@ export function CardCanvas({
   onPatch: (patch: Partial<Omit<CardDraft, "id" | "photoId">>) => void;
 }) {
   const copy = card.copy;
+
+  // 글 덩어리와 그 위아래 신축 여백. 끌 때 치수를 재려면 세 조각을 다 잡고 있어야 한다 —
+  // 한 번에 한 레이아웃만 그리므로 ref 한 벌이면 된다.
+  const blockRef = useRef<HTMLDivElement>(null);
+  const topSpacerRef = useRef<HTMLDivElement>(null);
+  const bottomSpacerRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * 손잡이가 쓸 치수. **남는 공간은 두 여백이 실제로 차지한 높이의 합**이라 패딩을 따로 헤아릴
+   * 필요가 없고, 위 여백의 위 끝이 곧 글 영역(패딩 안쪽)의 위 끝이다.
+   * ref 로만 잰다 — `document` 조회를 쓰지 않는다.
+   */
+  const measureText = (): TextBounds | null => {
+    const top = topSpacerRef.current;
+    const bottom = bottomSpacerRef.current;
+    const block = blockRef.current;
+    if (!top || !bottom || !block) return null;
+    const topRect = top.getBoundingClientRect();
+    return {
+      contentTop: topRect.top,
+      freeSpace: topRect.height + bottom.getBoundingClientRect().height,
+      blockHeight: block.getBoundingClientRect().height,
+    };
+  };
+
+  // 글을 고르는 중일 때만 손잡이를 띄운다 — 사진 초점 핸들이 사진 대상일 때만 뜨는 것과 같은 규칙.
+  const textSelected = target === "heading" || target === "body";
+  const spacers = textYSpacers(card.textY);
 
   // full-bleed 만 글이 가림막 위에 놓인다. 출력 템플릿의 `onPhoto` 와 같은 반전을 쓴다 —
   // 어두운 가림막 + 밝은 글. 반대로 두면 글 배경을 낮췄을 때 검정 글이 사진에 묻힌다.
@@ -262,17 +297,25 @@ export function CardCanvas({
       ? { value: copy.action, commit: (text: string) => onPatch({ copy: { ...copy, action: text } }) }
       : undefined;
 
-  const textLayer = (containerClass: string, scrim?: number) => (
-    <div className={containerClass}>
+  /**
+   * 글 층. 세 레이아웃이 **같은 구조**를 쓴다 — 출력 템플릿 셋이 그렇듯 글 덩어리 위아래에
+   * 신축 여백을 두고 남는 공간만 `textY` 비율로 나눈다. 좌표로 자르는 게 아니라 남는 공간을
+   * 나누므로 글이 길어져도 카드 밖으로 밀려나지 않는다.
+   */
+  const textLayer = (scrim?: number) => (
+    <div className="pointer-events-none relative flex flex-1 flex-col p-7">
       {scrim !== undefined && (
         <span
           aria-hidden="true"
-          // 인라인 style 3/4 — 글 배경 진하기는 card.scrim(0~1 연속값). 색 자체는 토큰 클래스에서 온다
-          style={{ opacity: scrim }}
-          className="absolute inset-0 bg-ink"
+          // 인라인 style 3/6 — 글 배경. 진하기(card.scrim)도 앵커(card.textY)도 0~1 연속값이라
+          // 클래스로 표현할 수 없다. 색 리터럴은 layout-utils 의 scrimGradient 가 만든다
+          style={{ background: scrimGradient(scrim, card.textY) }}
+          className="absolute inset-0"
         />
       )}
-      <div className="relative flex flex-col gap-3">
+      {/* 인라인 style 5/6 — 위 여백이 가져갈 몫(card.textY). 나머지 세 속성은 클래스로 둔다 */}
+      <div ref={topSpacerRef} style={{ flexGrow: spacers.top }} className="min-h-0 shrink-0 basis-0" />
+      <div ref={blockRef} className="relative flex flex-col gap-3">
         <EditableText
           // 값을 key 에 넣어 카피가 밖에서 바뀌면(다시 만들기 등) 새로 마운트한다 —
           // contentEditable 은 값이 DOM 에 남아 갱신되지 않는다. 편집 중에는 value 가 그대로라
@@ -309,7 +352,12 @@ export function CardCanvas({
             className={actionClass}
           />
         )}
+        {textSelected && (
+          <TextYHandle textY={card.textY} measure={measureText} onTextY={(textY) => onPatch({ textY })} />
+        )}
       </div>
+      {/* 인라인 style 6/6 — 아래 여백이 가져갈 몫(1 − card.textY). 두 몫의 합은 늘 1 이다 */}
+      <div ref={bottomSpacerRef} style={{ flexGrow: spacers.bottom }} className="min-h-0 shrink-0 basis-0" />
     </div>
   );
 
@@ -330,19 +378,18 @@ export function CardCanvas({
       {card.layout === "full-bleed" && (
         <>
           {photoSurface("absolute inset-0")}
-          {textLayer("pointer-events-none relative mt-auto p-7", card.scrim)}
+          {textLayer(card.scrim)}
         </>
       )}
 
       {card.layout === "split" && (
         <>
           {photoSurface("relative w-full flex-none", card.band)}
-          {textLayer("pointer-events-none relative flex flex-1 flex-col p-7")}
+          {textLayer()}
         </>
       )}
 
-      {card.layout === "text-only" &&
-        textLayer("pointer-events-none relative flex flex-1 flex-col justify-center p-7")}
+      {card.layout === "text-only" && textLayer()}
     </div>
   );
 }
