@@ -8,7 +8,6 @@ import { outputDir } from "@/lib/paths";
 import { mmdd } from "@/features/studio/useGenerate";
 import { toRenderCards } from "../render";
 import type { CardnewsAction, CardnewsState } from "../reducer";
-import { ROLE_LABELS } from "./WorkbenchRail";
 import { inKorean } from "./errors";
 import { FileSavePanel } from "./FileSavePanel";
 import { SharePanel, type ShareResult } from "./SharePanel";
@@ -217,10 +216,7 @@ export function ExportScreen({
                           </span>
                         </span>
                       </div>
-                      <p className="flex items-baseline gap-2">
-                        <span className="text-[13px] font-bold tabular-nums text-ink-2">{i + 1}</span>
-                        <span className="truncate text-[14px] font-bold">{ROLE_LABELS[draft.copy.role]}</span>
-                      </p>
+                      <p className="text-[13px] font-bold tabular-nums text-ink-2">{i + 1}</p>
                     </li>
                   );
                 })}

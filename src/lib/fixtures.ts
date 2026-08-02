@@ -19,7 +19,7 @@ export const cardnewsFixture: CardnewsSpec = {
   type: "cardnews",
   keyword: "카드뉴스 설계",
   cards: [
-    { role: "hook", heading: "이제 카드뉴스는 설득하는 구조가 됩니다", sub: "한 장씩 전환 흐름 만들기", badge: "6/7" },
+    { role: "hook", heading: "이제 카드뉴스는 설득하는 구조가 됩니다", sub: "한 장씩 전환 흐름 만들기" },
     { role: "problem", heading: "대부분 첫 장에서 이탈합니다", body: "정보를 나열만 하면 스크롤은 멈추지 않아요." },
     { role: "evidence", heading: "반응 좋은 카드뉴스는 공통점이 있어요", body: "호기심 → 공감 → 신뢰 → 행동의 흐름을 탑니다." },
     { role: "solution", heading: "첫 장부터 이렇게 설계하세요", body: "5장 구조로 나눠 설득선을 만드세요.", steps: ["1장 궁금증", "2장 문제제기", "3장 증거", "4장 해결책", "5장 CTA"] },

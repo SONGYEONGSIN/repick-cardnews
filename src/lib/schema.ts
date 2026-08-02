@@ -15,7 +15,6 @@ const HookCard = z.object({
   role: z.literal("hook"),
   heading: z.string().min(1).max(40),
   sub: z.string().max(40).optional(),
-  badge: z.string().max(20).optional(),
 });
 const ProblemCard = z.object({ role: z.literal("problem"), heading: z.string().min(1).max(40), body: z.string().min(1).max(120) });
 const EvidenceCard = z.object({ role: z.literal("evidence"), heading: z.string().min(1).max(40), body: z.string().min(1).max(120) });

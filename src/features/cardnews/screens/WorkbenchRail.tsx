@@ -19,7 +19,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, ImageOff, Plus, Trash2 } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import type { Photo } from "@/lib/photos";
-import type { CardnewsCard } from "@/lib/schema";
 import type { CardDraft } from "../reducer";
 
 /**
@@ -52,15 +51,6 @@ import type { CardDraft } from "../reducer";
 
 /** 칩 하나가 가리키는 것. 카피 생성 전에는 카드가 없고, 사진이 모자란 카드에는 사진이 없다. */
 export type RailItem = { key: string; photo: Photo | undefined; card: CardDraft | undefined };
-
-/** 카드 역할의 한국어 이름. 레일 행과 편집 섹션 제목이 같은 말을 써야 해서 여기서 함께 export 한다. */
-export const ROLE_LABELS: Record<CardnewsCard["role"], string> = {
-  hook: "후크",
-  problem: "문제",
-  evidence: "근거",
-  solution: "해법",
-  cta: "행동",
-};
 
 /**
  * 사진 빼기. 되돌리기가 없으므로(조각 2) **손잡이·고르기 버튼과 같은 줄에 두지 않는다** — 드래그는

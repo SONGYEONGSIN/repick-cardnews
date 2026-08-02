@@ -8,7 +8,7 @@ import { requestSpec } from "@/features/studio/useGenerate";
 import type { CardnewsSpec } from "@/lib/schema";
 import { CardCanvas } from "../parts/CardCanvas";
 import { EditToolbar, type EditTarget } from "../parts/EditToolbar";
-import { ROLE_LABELS, WorkbenchRail, type RailItem } from "./WorkbenchRail";
+import { WorkbenchRail, type RailItem } from "./WorkbenchRail";
 import { WorkbenchSetBar } from "./WorkbenchSetBar";
 import { inKorean } from "./errors";
 import {
@@ -337,7 +337,7 @@ export function WorkbenchScreen({
 
           <section className="flex flex-col gap-4 xl:min-h-0 xl:flex-1 xl:gap-2">
             <SectionHead
-              title={card ? `${active + 1}번 · ${ROLE_LABELS[card.copy.role]}` : "카드"}
+              title={card ? `${active + 1}번 카드` : "카드"}
               aside={card ? "1080 × 1350" : undefined}
             />
 
