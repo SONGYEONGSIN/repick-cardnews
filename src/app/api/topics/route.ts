@@ -1,0 +1,115 @@
+/**
+ * GET /api/topics — 요즘 뜨는 것에서 카드뉴스 주제 후보를 뽑는다.
+ *
+ * 1. 유튜브 인기 급상승(한국, 생활 정보 카테고리만 — `@/lib/youtube-trending`)에서 후보를 가져온다.
+ * 2. Claude가 30~40대 맘의 생활 정보로 바꿀 만한 것만 추리고, 그 안에서 자체 순위(rank)도
+ *    매긴다(`@/lib/topic-curation`) — 데이터랩이 없을 때 이 순위가 유일한 정렬 근거다.
+ * 3. **네이버 데이터랩 설정이 있을 때만** 검색 비중으로 순위를 다시 매긴다(`@/lib/naver-datalab`).
+ *    없으면 조용히 건너뛴다 — 오류가 아니다(`@/lib/topics-config`의 필수/선택 구분 참고).
+ * 4. 상위 10개 안팎을 돌려준다. **응답에 순위가 어느 근거(`rankedBy`)로 매겨졌는지 반드시
+ *    담는다** — 데이터랩을 쓰지 않고 검색량 기준인 척하면 안 된다.
+ *
+ * `/api/publish`와 같은 이유로 이 PC 브라우저에서만 호출할 수 있다(`@/lib/local-guard`).
+ * 오래 걸린다(Claude 호출 포함) — 자세한 예상 소요 시간은 topics-pipeline-report.md 참고.
+ */
+import { checkTopicsConfig } from "@/lib/topics-config";
+import { isLocalHost } from "@/lib/local-guard";
+import { fetchYoutubeTrendingCandidates, friendlyYoutubeError } from "@/lib/youtube-trending";
+import { curateTopicsWithClaude, friendlyTopicCurationError, type CuratedTopic } from "@/lib/topic-curation";
+import { rankKeywordsByNaverDatalab, friendlyNaverDatalabError } from "@/lib/naver-datalab";
+
+/** "상위 10개 안팎을 돌려준다"(사용자 지시). */
+const TOP_N = 10;
+
+type RankedBy = "naver-datalab" | "claude";
+
+const NOTE_BY_BASIS: Record<RankedBy, string> = {
+  "naver-datalab":
+    "네이버 데이터랩에서 30~40대 여성 기준 상대 검색 비중을 조회해 정렬했어요(절대 검색량이 아니라 후보끼리의 상대 비교예요).",
+  claude:
+    "네이버 데이터랩 설정이 없어 Claude가 판단한 관련성 순서로 정렬했어요(실제 검색 비중은 반영되지 않았어요).",
+};
+
+type TopicResult = { keyword: string; reason: string };
+
+/** 결과가 상한보다 적을 때(0개 포함) 부족하다는 사실을 정직하게 알린다. 화면이 빈 배열만
+ * 받고 "왜 없지?"로 헷갈리지 않게 한다. */
+function buildScarcityMessage(count: number): string | undefined {
+  if (count >= TOP_N) return undefined;
+  if (count === 0) {
+    return "오늘은 유튜브 인기 급상승 중 생활 정보로 다듬을 만한 주제가 없었어요. 잠시 후 다시 시도해 주세요.";
+  }
+  return `오늘은 생활 정보로 다듬을 만한 후보가 ${count}개뿐이었어요.`;
+}
+
+function sortByRankAsc(topics: CuratedTopic[]): CuratedTopic[] {
+  return [...topics].sort((a, b) => a.rank - b.rank);
+}
+
+/** 유튜브 카테고리 일부가 실패해도 파이프라인은 계속 간다(`@/lib/youtube-trending`) — 그
+ * 사실을 감추지 않고 건너뛴 카테고리 이름을 응답에 그대로 담는다. */
+function respond(topics: TopicResult[], rankedBy: RankedBy, skippedYoutubeCategories: string[]) {
+  const message = buildScarcityMessage(topics.length);
+  return Response.json({
+    topics,
+    rankedBy,
+    note: NOTE_BY_BASIS[rankedBy],
+    ...(message ? { message } : {}),
+    ...(skippedYoutubeCategories.length > 0 ? { skippedYoutubeCategories } : {}),
+  });
+}
+
+export async function GET(req: Request) {
+  if (!isLocalHost(req.headers.get("host"))) {
+    return Response.json({ error: "트렌드 주제 가져오기는 이 컴퓨터의 브라우저에서만 할 수 있어요." }, { status: 403 });
+  }
+
+  const configCheck = checkTopicsConfig(process.env);
+  if (!configCheck.ready) {
+    return Response.json(
+      { error: `트렌드 주제를 가져올 설정이 없어요: ${configCheck.missing.join(", ")}` },
+      { status: 400 },
+    );
+  }
+  const { config } = configCheck;
+
+  let youtubeResult;
+  try {
+    youtubeResult = await fetchYoutubeTrendingCandidates(config.youtubeApiKey);
+  } catch (e) {
+    return Response.json({ error: friendlyYoutubeError(e) }, { status: 502 });
+  }
+  const skippedYoutubeCategories = youtubeResult.skippedCategories.map((c) => c.label);
+
+  let curated: CuratedTopic[];
+  try {
+    curated = await curateTopicsWithClaude(youtubeResult.candidates);
+  } catch (e) {
+    return Response.json({ error: friendlyTopicCurationError(e) }, { status: 502 });
+  }
+
+  if (curated.length === 0) {
+    return respond([], "claude", skippedYoutubeCategories);
+  }
+
+  if (!config.naver) {
+    const topics = sortByRankAsc(curated)
+      .slice(0, TOP_N)
+      .map(({ keyword, reason }) => ({ keyword, reason }));
+    return respond(topics, "claude", skippedYoutubeCategories);
+  }
+
+  let ranked;
+  try {
+    ranked = await rankKeywordsByNaverDatalab(
+      curated.map((t) => t.keyword),
+      config.naver,
+    );
+  } catch (e) {
+    return Response.json({ error: friendlyNaverDatalabError(e) }, { status: 502 });
+  }
+
+  const reasonByKeyword = new Map(curated.map((t) => [t.keyword, t.reason]));
+  const topics = ranked.slice(0, TOP_N).map((r) => ({ keyword: r.keyword, reason: reasonByKeyword.get(r.keyword) ?? "" }));
+  return respond(topics, "naver-datalab", skippedYoutubeCategories);
+}
