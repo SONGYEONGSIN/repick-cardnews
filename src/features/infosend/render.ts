@@ -10,6 +10,9 @@ export function toRenderCard(state: InfoState): RenderCard | null {
     focal: state.focal,
     scrim: 0,
     band: state.band,
+    // split 레이아웃(SplitPhotoCard)의 현재 justifyContent:center 와 같은 값 — RenderCard.textY 를
+    // 필수 필드로 좁히는 대가로 채운 한 줄이며 동작은 바뀌지 않는다.
+    textY: 0.5,
     badge: "",
     copy: state.spec,
   };
