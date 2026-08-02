@@ -204,27 +204,31 @@ export function WorkbenchScreen({
       }
     >
       {/*
-        xl(1280px) 이상에서 두 칸으로 나눈다 — 왼쪽 = 설정(세트 바·순서 레일·카피 만들기),
-        오른쪽 = 결과(카드 섹션 타이틀·오류·툴바·캔버스). lg(1024px)에서 반으로 나누면 왼쪽이
-        460px 안팎이라 레일 칩 다섯 개가 가로로 못 들어간다(칩 152px×5+간격 ≈ 800px) — 그래서
-        lg 은 지금처럼 쌓인 채로 두고 xl 부터만 칸을 나눈다.
+        xl(1280px) 이상에서 두 칸으로 나눈다. 순서 레일이 **세로 목록**이라(`WorkbenchRail`)
+        왼쪽은 좁아도 된다 — 썸네일 56px + 글 한두 줄이면 240px로 충분하고, 옛 가로 칩처럼
+        폭을 다섯 개어치(1000px 안팎) 내줄 필요가 없다. 그래서 왼쪽을 고정 240px 로 좁히고
+        **오른쪽이 남는 폭을 전부 가져간다**(`1fr`) — 이게 이 개편의 핵심이다. 카드는 세로 비율
+        (`aspect-[4/5]`)이라 높이(`h-[min(70vh,760px)]`, `CardCanvas` 소관, 여기서 안 건드린다)로
+        크기가 정해지고 폭은 거기 따라온다 — 옛 550px 고정 칸은 이 높이가 필요로 하는 폭(뷰포트
+        높이가 넉넉한 화면에서는 최대 608px + 캔버스 wrapper 좌우 패딩 32px = 640px)보다 좁아서
+        카드를 찌그러뜨릴 수 있었다(폭만 550으로 잘리고 높이는 그대로라 4:5가 깨진다). 오른쪽을
+        `1fr`로 풀어 그 바닥을 없앤다. 다만 오른쪽 칸이 무한정 넓어져도 카드·툴바·캡션은 그만큼
+        커질 필요가 없으므로(`폭도 남는 만큼만 쓴다`), 오른쪽 칸 **안쪽 내용물**에 `max-w-[720px]`
+        을 두고 가운데 정렬한다 — 640px(카드가 필요로 하는 최대 폭)에 80px 여유를 더한 값이다.
+        lg(1024px)에서 반으로 나누면 왼쪽 240px 는 넉넉해도 옛 세로 레일이 필요로 하는 세로 공간과
+        부딪히지 않지만, 시안 확정 전까지는 옛 기준(칩이 다섯 개 못 들어가던 문제)을 그대로 이어받아
+        `xl` 부터만 칸을 나눈다 — 그 아래 폭에서는 지금처럼 위아래로 쌓인다.
 
-        오른쪽은 비율이 아니라 **상한(550px)**이다. 카드는 세로 비율(`aspect-[4/5]`)이라 높이
-        (`h-[min(70vh,760px)]`)로 크기가 정해지고 폭은 거기 따라온다(뷰포트 900px 기준 504px) —
-        화면이 넓어져도 카드는 안 커진다. 오른쪽을 비율(fr)로 잡으면 화면이 넓을수록 카드 둘레의
-        빈 여백만 커진다(이 작업을 시작한 "오른쪽이 통째로 빈다" 문제를 오른쪽 칸 안으로 옮겨
-        놓을 뿐이다). 550px 은 카드가 필요로 하는 최소 536px(카드 504px + 캔버스 wrapper 좌우
-        패딩 32px)에 14px 여유를 더한 값이다 — 왼쪽(`1fr`)이 남는 폭을 전부 가져가 화면이
-        넓어질수록 레일이 더 넓게 펼쳐진다. 칸 사이 간격도 `xl` 부터는 `gap-3`(12px)로 좁힌다 —
-        아래로 쌓일 때(`lg` 이하)의 세로 간격(`lg:gap-9`)은 그대로 두고 `column-gap`만 xl 그리드에서
-        줄인다. 1920px 에서 레일(칩 5개+추가 버튼, 자연 폭 997px)이 가로 스크롤 없이 다 보이도록
-        맞춘 값이다(수치는 2col-report.md §12 참고).
+        오른쪽 칸 안에는 두 덩어리가 세로로 쌓인다: 위 = 세트 바(테마·핸들), 아래 = 결과(섹션
+        타이틀·오류·툴바·캔버스). 왼쪽(순서 레일 한 덩어리)은 이 두 줄을 합친 높이만큼
+        `row-span-2`로 세로로 이어진다 — DOM 순서는 [왼쪽 레일 전체] → [세트 바] → [결과]이고,
+        `xl` 그리드는 이 순서를 셀 배치로만 재배열한다(그리드 배치는 탭 순서를 안 바꾼다). 그래서
+        좁은 화면에서 위아래로 쌓일 때도 같은 DOM 순서(레일 → 카피 만들기 → 세트 바 → 결과)가
+        그대로 읽힌다.
       */}
-      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:grid xl:grid-cols-[1fr_550px] xl:gap-x-3 xl:items-start">
-        {/* 왼쪽 = 설정. 세트 바 → 순서 레일 → 카피 만들기 순서는 좁은 화면의 쌓인 순서와 같다. */}
-        <div className="flex flex-col gap-8 lg:gap-9 xl:min-w-0">
-          <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
-
+      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:grid xl:grid-cols-[240px_1fr] xl:items-start xl:gap-x-8 xl:gap-y-6">
+        {/* 왼쪽 = 순서 레일 + 카피 만들기. 두 줄(세트 바·결과) 높이만큼 이어진다. */}
+        <div className="flex flex-col gap-8 lg:gap-9 xl:col-start-1 xl:row-start-1 xl:row-span-2 xl:min-w-0">
           <section className="flex flex-col gap-4">
             <SectionHead
               title="넘겨 보는 순서"
@@ -254,8 +258,8 @@ export function WorkbenchScreen({
                       {/* 카피가 나오기 전에는 "카피는 자리에 남는다"는 말이 성립하지 않는다 —
                           카드 순서는 hook→cta 로 스키마가 고정하므로 바뀌는 것은 늘 사진뿐이다 */}
                       {state.cards.length > 0
-                        ? "칩을 누르면 그 카드를 고쳐요. 고른 칩의 화살표는 사진을 앞뒤 카드로 옮겨요 — 카피는 자리에 남아요."
-                        : "고른 칩의 화살표로 사진 차례를 바꿔요."}{" "}
+                        ? "행을 누르면 그 카드를 고쳐요. 고른 행의 화살표는 사진을 앞뒤 카드로 옮겨요 — 카피는 자리에 남아요."
+                        : "고른 행의 화살표로 사진 차례를 바꿔요."}{" "}
                       빼기를 누르면 그 사진을 지워요.
                       {tray.length > 0 && (
                         <>
@@ -297,14 +301,19 @@ export function WorkbenchScreen({
           />
         </div>
 
+        {/* 오른쪽 위 = 세트 바(테마·핸들). 고르면 바로 아래 카드에 반영되는 자리라야 한다. */}
+        <div className="xl:col-start-2 xl:row-start-1 xl:mx-auto xl:w-full xl:max-w-[720px]">
+          <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
+        </div>
+
         {/*
-          오른쪽 = 결과. xl 이상에서 스크롤을 따라오도록 고정한다 — 왼쪽 설정을 훑는 동안 카드가
-          눈에 남아야 한다. `max-h` + `overflow-y-auto` 로 자체 스크롤을 두는 이유는, 카드가
+          오른쪽 아래 = 결과. xl 이상에서 스크롤을 따라오도록 고정한다 — 왼쪽 레일을 훑는 동안
+          카드가 눈에 남아야 한다. `max-h` + `overflow-y-auto` 로 자체 스크롤을 두는 이유는, 카드가
           화면보다 길 때 고정을 그대로 두면 아래쪽(캡션·카드 하단)이 뷰포트 밖으로 밀려 닿을
           방법이 없어지기 때문이다 — 위아래로 top 오프셋(2.25rem)만큼씩 숨 쉴 자리를 남기고,
           넘치면 이 칸 안에서만 스크롤한다.
         */}
-        <section className="flex flex-col gap-4 xl:sticky xl:top-9 xl:min-w-0 xl:max-h-[calc(100vh-4.5rem)] xl:overflow-y-auto">
+        <section className="flex flex-col gap-4 xl:col-start-2 xl:row-start-2 xl:sticky xl:top-9 xl:mx-auto xl:w-full xl:max-w-[720px] xl:max-h-[calc(100vh-4.5rem)] xl:overflow-y-auto">
           <SectionHead
             title={card ? `${active + 1}번 · ${ROLE_LABELS[card.copy.role]}` : "카드"}
             aside={card ? "1080 × 1350" : undefined}
