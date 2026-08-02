@@ -1,9 +1,10 @@
-import { objectPosition, type Focal } from "@/templates/layout-utils";
+import { objectPosition, textYSpacers, type Focal } from "@/templates/layout-utils";
 
 export function SplitPhotoCard({
   photoUrl,
   focal,
   band,
+  textY,
   badge,
   accent,
   children,
@@ -11,11 +12,13 @@ export function SplitPhotoCard({
   photoUrl: string | null;
   focal: Focal;
   band: number;
+  textY: number;
   badge: string;
   accent: string;
   children: React.ReactNode;
 }) {
   const photoHeight = Math.round(1350 * band);
+  const spacers = textYSpacers(textY);
   return (
     <>
       <div style={{ position: "relative", height: photoHeight, flex: "0 0 auto", overflow: "hidden" }}>
@@ -55,14 +58,15 @@ export function SplitPhotoCard({
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
           padding: 72,
           paddingBottom: 96,
           borderTop: `6px solid ${accent}`,
           minHeight: 0,
         }}
       >
+        <div style={{ flexGrow: spacers.top, flexShrink: 0, flexBasis: 0, minHeight: 0 }} />
         {children}
+        <div style={{ flexGrow: spacers.bottom, flexShrink: 0, flexBasis: 0, minHeight: 0 }} />
       </div>
     </>
   );

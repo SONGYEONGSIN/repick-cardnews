@@ -64,6 +64,7 @@ export function CardRenderer({
           photoUrl={card.photoUrl}
           focal={card.focal}
           band={card.band}
+          textY={card.textY}
           badge={card.badge}
           accent={theme.accent}
         >
@@ -71,7 +72,7 @@ export function CardRenderer({
         </SplitPhotoCard>
       )}
       {card.layout === "text-only" && (
-        <TextOnlyCard badge={card.badge} accent={theme.accent}>
+        <TextOnlyCard textY={card.textY} badge={card.badge} accent={theme.accent}>
           {body}
         </TextOnlyCard>
       )}

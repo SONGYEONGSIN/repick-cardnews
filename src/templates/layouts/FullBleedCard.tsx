@@ -1,5 +1,5 @@
 import type { Theme } from "@/templates/themes";
-import { objectPosition, scrimGradient, type Focal } from "@/templates/layout-utils";
+import { objectPosition, scrimGradient, textYSpacers, type Focal } from "@/templates/layout-utils";
 
 export function FullBleedCard({
   theme,
@@ -18,6 +18,7 @@ export function FullBleedCard({
   badge: string;
   children: React.ReactNode;
 }) {
+  const spacers = textYSpacers(textY);
   return (
     <>
       {photoUrl && (
@@ -43,7 +44,6 @@ export function FullBleedCard({
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          justifyContent: "flex-end",
           padding: 72,
           paddingBottom: 96,
         }}
@@ -64,7 +64,9 @@ export function FullBleedCard({
             {badge}
           </div>
         )}
+        <div style={{ flexGrow: spacers.top, flexShrink: 0, flexBasis: 0, minHeight: 0 }} />
         {children}
+        <div style={{ flexGrow: spacers.bottom, flexShrink: 0, flexBasis: 0, minHeight: 0 }} />
       </div>
     </>
   );

@@ -3,6 +3,7 @@ import {
   objectPosition,
   scrimGradient,
   scrimStops,
+  textYSpacers,
   DEFAULT_FOCAL,
   DEFAULT_SCRIM,
   DEFAULT_BAND_CARDNEWS,
@@ -72,6 +73,37 @@ describe("scrimGradient", () => {
     expect(scrimGradient(0.333, 1)).toContain("rgba(0,0,0,0.33)");
   });
 });
+
+// textYSpacers: 글 덩어리 위/아래에 두는 신축 여백의 flex-grow 비율. flex-basis 0 인 두 스페이서에
+// 이 값을 그대로 꽂으면, textY=1 일 때 위 스페이서만 자라 flex-end 와 같아지고
+// textY=0 일 때 아래 스페이서만 자라 flex-start 와 같아진다 — 좌표를 높이로 잘라내지 않는다.
+describe("textYSpacers", () => {
+  it("textY=1 이면 위 여백만 자란다(지금의 flex-end 와 동일)", () => {
+    expect(textYSpacers(1)).toEqual({ top: 1, bottom: 0 });
+  });
+
+  it("textY=0 이면 아래 여백만 자란다(flex-start 와 동일)", () => {
+    expect(textYSpacers(0)).toEqual({ top: 0, bottom: 1 });
+  });
+
+  it("textY=0.5 이면 위아래 여백이 같다(지금의 justify-content:center 와 동일)", () => {
+    expect(textYSpacers(0.5)).toEqual({ top: 0.5, bottom: 0.5 });
+  });
+
+  it("두 여백의 합은 항상 1이다", () => {
+    const { top, bottom } = textYSpacers(0.333);
+    expect(round2Sum(top, bottom)).toBe(1);
+  });
+
+  it("범위를 벗어난 값은 0~1로 가둔다", () => {
+    expect(textYSpacers(2)).toEqual(textYSpacers(1));
+    expect(textYSpacers(-1)).toEqual(textYSpacers(0));
+  });
+});
+
+function round2Sum(a: number, b: number): number {
+  return Math.round((a + b) * 100) / 100;
+}
 
 describe("기본값", () => {
   it("스크림 기본값은 대비를 확보하는 0.72다", () => {

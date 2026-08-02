@@ -49,3 +49,17 @@ export function scrimGradient(strength: number, textY: number): string {
     .join(", ");
   return `linear-gradient(to bottom, ${stops})`;
 }
+
+export type TextYSpacers = { top: number; bottom: number };
+
+/**
+ * 글 덩어리 위/아래에 두는 신축 여백의 flex-grow 비율. 이 값을 flex-basis:0 인 두 스페이서
+ * div에 그대로 꽂으면(top=flexGrow, bottom=flexGrow) 남는 공간만 textY 비율대로 나뉜다.
+ * 좌표로 잘라내는 대신 남는 공간을 나누므로 글이 길어도 카드 밖으로 넘치지 않는다.
+ * textY=1 → 위 스페이서만 자라 지금의 justifyContent:flex-end 와 같다.
+ * textY=0 → 아래 스페이서만 자라 flex-start 와 같다.
+ */
+export function textYSpacers(textY: number): TextYSpacers {
+  const top = clamp01(textY);
+  return { top: round2(top), bottom: round2(1 - top) };
+}
