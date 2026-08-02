@@ -42,6 +42,10 @@ export function ExportScreen({
   const [share, setShare] = useState<ShareResult | null>(null);
   // 인스타그램 게시 성공 표시 — `saved`와 같은 이유로 지역 상태다.
   const [published, setPublished] = useState(false);
+  // `/api/publish` 를 실제로 부르는 동안에만 값이 있다 — `InstagramPublishPanel` 이 이 값이
+  // 있을 때만 `/api/publish-progress` 를 몇 초 간격으로 물어본다. 요청이 끝나면(성공/실패)
+  // 곧바로 null 로 되돌려 폴링을 멈춘다.
+  const [publishToken, setPublishToken] = useState<string | null>(null);
   // 되돌릴 수 없는 조작이라 확인을 한 번 거친다 — 이 화면 안의 지역 상태로, window.confirm 은 쓰지 않는다.
   const [resetConfirm, setResetConfirm] = useState(false);
 
@@ -81,16 +85,21 @@ export function ExportScreen({
         throw new Error(typeof shareData.error === "string" ? shareData.error : "공유 링크를 만들지 못했어요");
       }
 
-      const publishRes = await fetch("/api/publish", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token: shareData.token, caption }),
-      });
-      const publishData = await publishRes.json();
-      if (!publishRes.ok) {
-        throw new Error(typeof publishData.error === "string" ? publishData.error : "인스타그램 게시에 실패했어요");
+      setPublishToken(shareData.token);
+      try {
+        const publishRes = await fetch("/api/publish", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ token: shareData.token, caption }),
+        });
+        const publishData = await publishRes.json();
+        if (!publishRes.ok) {
+          throw new Error(typeof publishData.error === "string" ? publishData.error : "인스타그램 게시에 실패했어요");
+        }
+        setPublished(true);
+      } finally {
+        setPublishToken(null);
       }
-      setPublished(true);
     });
   }
 
@@ -189,7 +198,13 @@ export function ExportScreen({
 
         {share && <SharePanel share={share} />}
 
-        <InstagramPublishPanel busy={state.busy} published={published} onPublish={publishToInstagram} />
+        <InstagramPublishPanel
+          busy={state.busy}
+          published={published}
+          onPublish={publishToInstagram}
+          token={publishToken}
+          imageCount={state.cards.length}
+        />
 
         <section className="flex flex-col gap-4">
           <SectionHead

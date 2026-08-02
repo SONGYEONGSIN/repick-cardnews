@@ -5,12 +5,14 @@ import {
   friendlyVerifyError,
   publishCarousel,
   verifyInstagramConnection,
+  maxPublishWaitMs,
   InstagramApiError,
   InstagramTimeoutError,
   InstagramAccountMismatchError,
   CAROUSEL_MIN_ITEMS,
   CAROUSEL_MAX_ITEMS,
   type InstagramConfig,
+  type PublishStageProgress,
 } from "@/lib/instagram";
 
 const config: InstagramConfig = {
@@ -215,6 +217,78 @@ describe("publishCarousel", () => {
     await expect(
       publishCarousel({ config, imageUrls: ["https://x/1.png"], caption: "" }, noWaitSleep),
     ).rejects.toBeInstanceOf(InstagramApiError);
+  });
+
+  it("onProgress 콜백을 주면 사진별 준비 → 묶기 → 게시 순서로 단계를 알려준다", async () => {
+    const mockFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      const body = bodyToString(init?.body);
+      if (method === "POST" && url.endsWith("/media") && body.includes("is_carousel_item")) {
+        return jsonResponse(200, { id: "item" });
+      }
+      if (method === "GET" && url.includes("status_code")) {
+        return jsonResponse(200, { status_code: "FINISHED" });
+      }
+      if (method === "POST" && url.endsWith("/media") && body.includes("media_type=CAROUSEL")) {
+        return jsonResponse(200, { id: "carousel-1" });
+      }
+      if (method === "POST" && url.endsWith("/media_publish")) {
+        return jsonResponse(200, { id: "media-1" });
+      }
+      throw new Error(`unexpected call: ${method} ${url}`);
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const events: PublishStageProgress[] = [];
+    const mediaId = await publishCarousel(
+      { config, imageUrls: ["https://x/1.png", "https://x/2.png"], caption: "" },
+      noWaitSleep,
+      (progress) => events.push(progress),
+    );
+
+    expect(mediaId).toBe("media-1");
+    expect(events).toEqual([
+      { stage: "preparing", index: 1, total: 2 },
+      { stage: "preparing", index: 2, total: 2 },
+      { stage: "bundling" },
+      { stage: "publishing" },
+    ]);
+  });
+
+  it("onProgress 콜백을 생략해도 기존과 동일하게 동작한다", async () => {
+    const mockFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      const body = bodyToString(init?.body);
+      if (method === "POST" && url.endsWith("/media") && body.includes("is_carousel_item")) {
+        return jsonResponse(200, { id: "item" });
+      }
+      if (method === "GET" && url.includes("status_code")) {
+        return jsonResponse(200, { status_code: "FINISHED" });
+      }
+      if (method === "POST" && url.endsWith("/media") && body.includes("media_type=CAROUSEL")) {
+        return jsonResponse(200, { id: "carousel-1" });
+      }
+      if (method === "POST" && url.endsWith("/media_publish")) {
+        return jsonResponse(200, { id: "media-1" });
+      }
+      throw new Error(`unexpected call: ${method} ${url}`);
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const mediaId = await publishCarousel({ config, imageUrls: ["https://x/1.png"], caption: "" }, noWaitSleep);
+    expect(mediaId).toBe("media-1");
+  });
+});
+
+describe("maxPublishWaitMs", () => {
+  it("아이템 수 + 1(캐러셀 묶기) 만큼 단일 컨테이너 상한(5분)을 곱한 값이다", () => {
+    // 실측(2026-08-02): waitUntilReady 타임아웃까지 sleep() 이 정확히 5회 호출됨(=5분).
+    const fiveMinutesMs = 5 * 60 * 1000;
+    expect(maxPublishWaitMs(1)).toBe(2 * fiveMinutesMs);
+    expect(maxPublishWaitMs(5)).toBe(6 * fiveMinutesMs);
+    expect(maxPublishWaitMs(CAROUSEL_MAX_ITEMS)).toBe((CAROUSEL_MAX_ITEMS + 1) * fiveMinutesMs);
   });
 });
 

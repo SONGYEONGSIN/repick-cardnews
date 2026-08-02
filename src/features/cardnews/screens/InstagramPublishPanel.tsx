@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Check, CircleAlert, Send } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
+import { maxPublishWaitMs } from "@/lib/instagram";
+import type { PublishProgress } from "@/lib/publish-progress-store";
 
 /**
  * "인스타그램에 올리기" 패널. 연결 여부는 이 컴포넌트가 마운트 시 `GET /api/instagram-status`
@@ -24,7 +26,25 @@ import { LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFra
  * 없다. 그래서 `/api/instagram-status`가 `ready:false`와 함께 내려주는 `connected`로
  * "연결도 아직 안 됨"(`not-ready`)과 "연결은 됐는데 공개 주소가 없어 게시 준비만 덜 됨"
  * (`connected-not-ready`)을 구분한다 — 뒤쪽 상태에서만 "연결 확인" 버튼을 켠다.
+ *
+ * **게시 진행 상황**: `/api/publish` 호출이 도는 동안(`token` prop이 채워져 있는 동안)만
+ * `GET /api/publish-progress`를 몇 초 간격으로 물어본다 — 서버가 3단계(사진 준비 → 묶기 →
+ * 게시) 중 어디에 있는지 기록해 둔 것을 그대로 읽어와 "N장 중 M장 준비 중"처럼 숫자로
+ * 보여준다. `token`이 null이 되면(요청이 끝나면) 폴링을 멈춘다.
  */
+/** 진행 상황을 몇 초 간격으로 물어볼지 — "몇 초 간격"이라는 요구를 만족하는 값. */
+const PROGRESS_POLL_INTERVAL_MS = 3_000;
+
+/** 서버가 기록한 진행 상황을 한국어 문구로 바꾼다. `done`은 화면에 보일 일이 거의 없다 —
+ * `/api/publish` 요청 자체가 거의 동시에 끝나 `publishing` 상태를 먼저 꺼버리기 때문이다. */
+function progressLabel(progress: PublishProgress | null): string | null {
+  if (!progress) return null;
+  if (progress.stage === "preparing") return `${progress.total}장 중 ${progress.index}장 준비 중`;
+  if (progress.stage === "bundling") return "사진을 한 세트로 묶는 중";
+  if (progress.stage === "publishing") return "인스타그램에 올리는 중";
+  return null;
+}
+
 type ConnectionStatus =
   | { state: "loading" }
   | { state: "ready" }
@@ -65,17 +85,24 @@ export function InstagramPublishPanel({
   busy,
   published,
   onPublish,
+  token,
+  imageCount,
 }: {
   /** 다른 내보내기 작업(다운로드·저장 등)이 진행 중이어도 버튼을 눌러선 안 된다. */
   busy: boolean;
   /** 지난번 게시가 성공했는지 — 지역 상태를 부모(`ExportScreen`)가 들고 있다가 넘긴다. */
   published: boolean;
   onPublish: (caption: string) => Promise<void>;
+  /** `/api/publish` 요청이 실제로 도는 동안만 값이 있다 — 이 값이 있을 때만 진행 상황을 폴링한다. */
+  token: string | null;
+  /** 이번에 게시할 사진 장수 — 최대 소요 시간 안내에 쓴다. */
+  imageCount: number;
 }) {
   const [status, setStatus] = useState<ConnectionStatus>({ state: "loading" });
   const [caption, setCaption] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [verify, setVerify] = useState<VerifyResult>({ state: "idle" });
+  const [progress, setProgress] = useState<PublishProgress | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +127,34 @@ export function InstagramPublishPanel({
     };
   }, []);
 
+  // 게시가 실제로 도는 동안(`token`이 있는 동안)만 몇 초 간격으로 진행 상황을 물어본다.
+  // 요청이 끝나 `token`이 null이 되면 다음 effect 정리에서 폴링을 멈추고 표시도 지운다.
+  useEffect(() => {
+    if (!token) {
+      setProgress(null);
+      return;
+    }
+    let cancelled = false;
+    async function poll() {
+      try {
+        const res = await fetch(`/api/publish-progress?token=${encodeURIComponent(token as string)}`);
+        const data = await res.json();
+        if (!cancelled && data.progress) setProgress(data.progress);
+      } catch {
+        // 한 번 실패했다고 화면을 에러로 바꾸지 않는다 — 다음 폴링에서 다시 시도한다.
+      }
+    }
+    void poll();
+    const interval = setInterval(() => void poll(), PROGRESS_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [token]);
+
   const canPublish = status.state === "ready" && !busy && !publishing;
+  const maxWaitMinutes = Math.round(maxPublishWaitMs(imageCount) / 60_000);
+  const label = progressLabel(progress);
 
   async function handleClick() {
     if (!canPublish) return;
@@ -212,9 +266,9 @@ export function InstagramPublishPanel({
             </label>
 
             {publishing && (
-              <p className="text-[13px] text-ink-2">
-                게시하는 중이에요. 인스타그램이 사진을 준비할 때까지 최대 몇 분 걸릴 수 있어요 — 창을 닫지
-                말고 기다려 주세요.
+              <p role="status" className="text-[13px] text-ink-2">
+                게시하는 중이에요{label ? ` — ${label}` : ""}. 사진 처리 속도에 따라 최대 {maxWaitMinutes}분까지
+                걸릴 수 있어요 — 창을 닫지 말고 기다려 주세요.
               </p>
             )}
 

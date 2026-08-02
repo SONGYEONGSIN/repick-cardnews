@@ -46,6 +46,19 @@ export const CAROUSEL_MIN_ITEMS = 2;
 /** 캐러셀 최대 장수. */
 export const CAROUSEL_MAX_ITEMS = 10;
 
+/**
+ * 사진 `itemCount`장을 캐러셀로 게시할 때 이론상 최악의 총 대기 시간(ms). 아이템 컨테이너
+ * `itemCount`개 + 캐러셀(묶기) 컨테이너 1개, 총 `itemCount + 1`개가 각각 `waitUntilReady`의
+ * 상한(`POLL_INTERVAL_MS × POLL_MAX_ATTEMPTS`)까지 걸릴 수 있다고 가정한 합이다 — 아이템별
+ * 상한이 따로 걸리는 구조라서 전체 소요는 단일 컨테이너 상한(5분)보다 길어질 수 있다.
+ *
+ * 실측(2026-08-02, 사진 5장 게시): 이 값은 30분이지만 실제로는 6.6분 만에 끝났다 — 이
+ * 함수가 돌려주는 값은 "화면이 보여줄 정직한 상한"이지, 보통 걸리는 시간이 아니다.
+ */
+export function maxPublishWaitMs(itemCount: number): number {
+  return (itemCount + 1) * POLL_INTERVAL_MS * POLL_MAX_ATTEMPTS;
+}
+
 /** Graph API 가 비-2xx 로 응답했다. `body`는 로그·번역용이며 그대로 클라이언트에 보내지 않는다. */
 export class InstagramApiError extends Error {
   readonly body: unknown;
@@ -290,22 +303,41 @@ export type PublishCarouselArgs = {
 };
 
 /**
+ * 게시 3단계 중 지금 어디에 있는지. `preparing`의 `total`은 캐러셀에 담긴 사진 장수 —
+ * 화면이 "N장 중 M장 준비 중"처럼 보여줄 때 쓴다. 이 세 값 자체로는 "끝났음(성공/실패)"을
+ * 표현하지 못한다 — 그건 이 함수를 부르는 쪽(호출부)이 `publishCarousel()`의 반환/예외로
+ * 이미 알 수 있는 정보라 여기 포함하지 않는다(`@/lib/publish-progress-store`가 그 값을 더해
+ * 완결된 진행 상태 타입을 만든다).
+ */
+export type PublishStageProgress =
+  | { stage: "preparing"; index: number; total: number }
+  | { stage: "bundling" }
+  | { stage: "publishing" };
+
+/**
  * 캐러셀 게시 3단계(아이템 컨테이너 → 캐러셀 컨테이너 → 게시)를 수행하고 게시물 id 를 돌려준다.
- * `sleep` 은 테스트 주입용(생략하면 실제로 기다린다) — 상한은 항상 지켜진다.
+ * `sleep` 은 테스트 주입용(생략하면 실제로 기다린다) — 상한은 항상 지켜진다. `onProgress` 는
+ * 관찰용 콜백(생략 가능) — 호출 순서·시점만 알려줄 뿐 3단계·폴링 간격·상한 동작 자체는
+ * 하나도 바꾸지 않는다.
  */
 export async function publishCarousel(
   { config, imageUrls, caption }: PublishCarouselArgs,
   sleep: (ms: number) => Promise<void> = defaultSleep,
+  onProgress?: (progress: PublishStageProgress) => void,
 ): Promise<string> {
   const itemIds: string[] = [];
-  for (const imageUrl of imageUrls) {
-    const itemId = await createCarouselItemContainer(config, imageUrl);
+  const total = imageUrls.length;
+  for (let i = 0; i < imageUrls.length; i++) {
+    onProgress?.({ stage: "preparing", index: i + 1, total });
+    const itemId = await createCarouselItemContainer(config, imageUrls[i]);
     await waitUntilReady(config, itemId, sleep);
     itemIds.push(itemId);
   }
 
+  onProgress?.({ stage: "bundling" });
   const containerId = await createCarouselContainer(config, itemIds, caption);
   await waitUntilReady(config, containerId, sleep);
 
+  onProgress?.({ stage: "publishing" });
   return publishCarouselContainer(config, containerId);
 }

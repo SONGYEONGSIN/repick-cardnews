@@ -9,6 +9,7 @@ import {
   CAROUSEL_MIN_ITEMS,
   CAROUSEL_MAX_ITEMS,
 } from "@/lib/instagram";
+import { recordPublishProgress, clearPublishProgress } from "@/lib/publish-progress-store";
 
 /**
  * POST /api/publish — 공유 토큰이 가리키는 카드 이미지들을 인스타그램 캐러셀로 게시한다.
@@ -77,14 +78,19 @@ export async function POST(req: Request) {
 
   const imageUrls = buildCarouselImageUrls(configCheck.config.publicBaseUrl, parsed.data.token, entry.images.length);
 
+  // 게시가 도는 동안 어디까지 갔는지 이 토큰 아래 기록해 둔다 — 화면(`/api/publish-progress`)이
+  // 몇 초 간격으로 읽어간다. 끝나면(성공이든 실패든) `finally`에서 반드시 지운다 — 정리를
+  // 빼먹으면 서버 메모리에 무한정 쌓인다.
   try {
-    const mediaId = await publishCarousel({
-      config: configCheck.config,
-      imageUrls,
-      caption: parsed.data.caption,
-    });
+    const mediaId = await publishCarousel(
+      { config: configCheck.config, imageUrls, caption: parsed.data.caption },
+      undefined,
+      (progress) => recordPublishProgress(parsed.data.token, progress, Date.now()),
+    );
     return Response.json({ mediaId });
   } catch (e) {
     return Response.json({ error: friendlyPublishError(e) }, { status: 502 });
+  } finally {
+    clearPublishProgress(parsed.data.token);
   }
 }
