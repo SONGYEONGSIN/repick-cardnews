@@ -81,7 +81,7 @@ describe("GET /api/topics 데이터랩 없음 — Claude 순위로 정렬", () =
 
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.rankedBy).toBe("claude");
+    expect(data.rankedBy).toBe("claude-no-naver-config");
     expect(data.topics).toEqual([
       { keyword: "제철요리", reason: "이유2" },
       { keyword: "육아팁", reason: "이유1" },
@@ -197,7 +197,7 @@ describe("GET /api/topics 데이터랩 있음 — 검색 비중으로 정렬", (
     expect(data.topics.map((t: { keyword: string }) => t.keyword)).toEqual(["육아팁", "제철요리"]);
   });
 
-  it("네이버 호출이 실패하면(설정은 있음) 조용히 건너뛰지 않고 502로 알린다", async () => {
+  it("네이버 호출이 실패해도(설정은 있음) 전체를 502로 죽이지 않고 Claude 순위로 폴백한다", async () => {
     process.env.YOUTUBE_API_KEY = "yt-key";
     process.env.NAVER_CLIENT_ID = "naver-id";
     process.env.NAVER_CLIENT_SECRET = "naver-secret";
@@ -210,17 +210,32 @@ describe("GET /api/topics 데이터랩 있음 — 검색 비중으로 정렬", (
           items: [{ id: `video-${categoryId}`, snippet: { title: `제목-${categoryId}`, channelTitle: "채널", categoryId } }],
         });
       }
-      return jsonResponse(400, { errorMessage: "bad request" });
+      // 데이터랩 자격 증명 인증 실패(실측 401 NID AUTH) 재현.
+      return jsonResponse(401, { errorCode: "024", errorMessage: "NID AUTH Result Invalid (1000)" });
     });
     vi.stubGlobal("fetch", mockFetch);
 
-    vi.mocked(runClaudeCli).mockResolvedValueOnce({ topics: [{ keyword: "키워드", reason: "이유", rank: 1 }] });
+    vi.mocked(runClaudeCli).mockResolvedValueOnce({
+      topics: [
+        { keyword: "육아팁", reason: "이유1", rank: 2 },
+        { keyword: "제철요리", reason: "이유2", rank: 1 },
+      ],
+    });
 
     const res = await GET(makeRequest("localhost:3500"));
 
-    expect(res.status).toBe(502);
+    // Claude 가 이미 만든 결과를 버리지 않는다 — 200 + 폴백 순위로 그대로 돌려준다.
+    expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.error).toContain("네이버");
+    expect(data.rankedBy).toBe("claude-naver-unavailable");
+    expect(data.topics).toEqual([
+      { keyword: "제철요리", reason: "이유2" },
+      { keyword: "육아팁", reason: "이유1" },
+    ]);
+    // "설정이 없어서"가 아니라 "연결하지 못해서"임을 구분해서 알린다. 원문·키 값은 담기지 않는다.
+    expect(data.note).toContain("연결하지 못");
+    expect(data.note).not.toContain("024");
+    expect(data.note).not.toContain("naver-secret");
   });
 });
 
