@@ -11,6 +11,7 @@ import type { CardnewsAction, CardnewsState } from "../reducer";
 import { ROLE_LABELS } from "./WorkbenchRail";
 import { inKorean } from "./errors";
 import { SharePanel, type ShareResult } from "./SharePanel";
+import { InstagramPublishPanel } from "./InstagramPublishPanel";
 
 /**
  * 화면 3 — 내보내기. `src/app/lab2/Export.tsx` 시안에서 캡션·해시태그·인스타 올리기
@@ -39,6 +40,8 @@ export function ExportScreen({
   const [saved, setSaved] = useState<{ dir: string; count: number } | null>(null);
   // 폰으로 보내기 결과(QR·링크·만료)도 같은 이유로 지역 상태다.
   const [share, setShare] = useState<ShareResult | null>(null);
+  // 인스타그램 게시 성공 표시 — `saved`와 같은 이유로 지역 상태다.
+  const [published, setPublished] = useState(false);
   // 되돌릴 수 없는 조작이라 확인을 한 번 거친다 — 이 화면 안의 지역 상태로, window.confirm 은 쓰지 않는다.
   const [resetConfirm, setResetConfirm] = useState(false);
 
@@ -60,6 +63,35 @@ export function ExportScreen({
     } finally {
       dispatch({ type: "SET_BUSY", busy: false });
     }
+  }
+
+  // 캡처 → `/api/share`(토큰 발급) → `/api/publish`(인스타그램 캐러셀 게시) 순서.
+  // `/api/publish` 는 실패 시 이미 한국어 메시지를 돌려주므로(`friendlyPublishError`), `run()`
+  // 이 그 메시지를 그대로 `inKorean()`에 넣어도 한글이라 통과한다 — 영문으로 갈아 끼워지지 않는다.
+  async function publishToInstagram(caption: string) {
+    await run(async () => {
+      const images = await onCaptureImages(state.cards.length);
+      const shareRes = await fetch("/api/share", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ keyword: state.keyword, images }),
+      });
+      const shareData = await shareRes.json();
+      if (!shareRes.ok) {
+        throw new Error(typeof shareData.error === "string" ? shareData.error : "공유 링크를 만들지 못했어요");
+      }
+
+      const publishRes = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: shareData.token, caption }),
+      });
+      const publishData = await publishRes.json();
+      if (!publishRes.ok) {
+        throw new Error(typeof publishData.error === "string" ? publishData.error : "인스타그램 게시에 실패했어요");
+      }
+      setPublished(true);
+    });
   }
 
   return (
@@ -156,6 +188,8 @@ export function ExportScreen({
         )}
 
         {share && <SharePanel share={share} />}
+
+        <InstagramPublishPanel busy={state.busy} published={published} onPublish={publishToInstagram} />
 
         <section className="flex flex-col gap-4">
           <SectionHead
