@@ -372,6 +372,7 @@ export function WorkbenchScreen({
                       card={card}
                       photo={photo}
                       target={target}
+                      themeId={state.themeId}
                       onSelect={setTarget}
                       onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
                     />

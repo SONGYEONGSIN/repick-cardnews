@@ -5,6 +5,7 @@ import { Move } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import type { Photo } from "@/lib/photos";
 import { objectPosition, scrimGradient, textYSpacers, type Focal } from "@/templates/layout-utils";
+import { THEMES, type ThemeId } from "@/templates/themes";
 import type { CardDraft } from "../reducer";
 import type { EditTarget } from "./EditToolbar";
 import type { TextBounds } from "./text-drag";
@@ -22,19 +23,32 @@ import { TextYHandle } from "./TextYHandle";
  *
  * 출력(`src/templates`)과 **같은 식을 쓴다**: 크롭 기준점은 `objectPosition(focal)`, 글 자리는
  * `textYSpacers(textY)` 로 만든 신축 여백 비율, 글 배경은 `scrimGradient(scrim, textY)`,
- * full-bleed 는 어두운 가림막 위 밝은 글(템플릿의 `onPhoto` 반전). 캔버스가 결과와 다르게
- * 보이면 편집 표면으로서 쓸모가 없다.
+ * full-bleed 는 어두운 가림막 위 밝은 글(템플릿의 `onPhoto` 반전), 색·글꼴은 `themeId` 로 받은
+ * `THEMES[themeId]` — `CardnewsBody`·`CardFrame`·`layouts/*` 가 각 값을 쓰는 자리를 그대로
+ * 따라간다(카드 바탕 `bg`, 글 색 `fg`/`onPhoto`, cta 알약과 split 구분선의 `accent`, 헤드라인·
+ * cta 알약의 `displayFont`). 캔버스가 결과와 다르게 보이면 편집 표면으로서 쓸모가 없다.
  *
- * 인라인 `style` 은 **여섯 곳뿐**이다. 여섯 다 0~1 연속값이 들어가 Tailwind 클래스로 표현할 수
- * 없다(JIT 은 런타임 값으로 클래스를 만들지 못한다):
+ * 인라인 `style` 은 **열한 곳**이다. 앞 여섯은 0~1 연속값이라 Tailwind 클래스로 표현할 수 없고
+ * (JIT 은 런타임 값으로 클래스를 만들지 못한다), 뒤 다섯은 `themeId` 로 고른 테마 값이라 같은
+ * 이유로 클래스가 될 수 없다(어느 테마가 골렸는지는 실행 중에만 안다):
  *   1. 초점 핸들 위치 — `card.focal`
  *   2. 사진 크롭 기준점 — `card.focal`
  *   3. 글 배경 그라디언트 — `card.scrim` + `card.textY`
  *   4. split 사진 높이 — `card.band`
  *   5. 글 위 신축 여백 몫 — `card.textY`
  *   6. 글 아래 신축 여백 몫 — `card.textY`
- * 색 리터럴은 컴포넌트에 없다 — 토큰 클래스이거나 `layout-utils` 가 만든 문자열이고, 인라인으로는
- * 숫자(위치·높이·여백 몫)만 넘긴다. 일곱 번째는 두지 않는다.
+ *   7. 카드 바탕색 + 표시 글꼴 변수 — `theme.bg`, `theme.displayFont`(CSS 커스텀 프로퍼티로
+ *      내려 `font-[family-name:var(--card-display-font)]` 유틸이 상속해 쓴다)
+ *   8. 헤드라인 색 — `onPhoto ? theme.onPhoto : theme.fg`
+ *   9. 본문 색 — 8과 같은 값(불투명도만 `opacity-[0.92]` 클래스로 따로 준다)
+ *  10. cta 알약 배경·글자색 — `onPhoto ? theme.onPhoto : theme.accent` / `onPhoto ? 없음 : theme.bg`.
+ *      `CardnewsBody`는 onPhoto 일 때 글자색으로 테마 밖 리터럴("#111111")을 쓰는데, 이 파일은
+ *      테마 값만 인라인으로 허용되므로 그 리터럴을 옮기지 않는다 — 대신 색을 비워 전역 ink
+ *      토큰(항상 어두움)을 상속시켜 같은 대비를 얻는다. 세 테마 모두 `onPhoto` 가 흰색이라
+ *      결과는 사실상 같다.
+ *  11. split 구분선 색 — `theme.accent`(두께 `border-t-[6px]`는 고정값이라 클래스로 둔다)
+ * 색 리터럴은 컴포넌트에 없다 — 전부 토큰 클래스이거나 `layout-utils`/`THEMES` 가 만든 값이고,
+ * 인라인으로는 그 값만 그대로 넘긴다.
  *
  * 크기: `xl` 미만은 뷰포트 비율(`h-[min(70vh,760px)]`)로 정한다. `xl` 이상은 높이·폭 **둘 다**
  * `auto`(`xl:h-auto`, 폭은 원래도 `auto` — 이 컴포넌트는 어느 폭에서도 `w-*` 클래스를 두지
@@ -94,6 +108,7 @@ function EditableText({
   ringClass,
   label,
   className,
+  style,
   onCommit,
   onActivate,
 }: {
@@ -102,6 +117,8 @@ function EditableText({
   ringClass: string;
   label: string;
   className: string;
+  /** 테마 색(헤드라인·본문·cta 알약) 전용 — 값은 항상 호출부에서 THEMES 로 채운다 */
+  style?: React.CSSProperties;
   onCommit: (text: string) => void;
   onActivate?: () => void;
 }) {
@@ -118,6 +135,7 @@ function EditableText({
       // 편집 중에는 DOM 이 진실이다. 빠져나갈 때 한 번만 상태로 올린다 —
       // 글자마다 올리면 카드 전체가 다시 그려져 커서가 튄다.
       onBlur={(e) => onCommit(normalize(e.currentTarget.innerText))}
+      style={style}
       className={`pointer-events-auto cursor-text rounded outline-none ${ringClass} ${className}`}
     >
       {value}
@@ -147,7 +165,7 @@ function FocalHandle({ focal, onFocal }: { focal: Focal; onFocal: (focal: Focal)
       // 이름에 현재 값을 담는다 — 방향키로 값이 바뀌면 포커스된 요소의 이름이 다시 읽힌다
       aria-label={`사진 초점 — 가로 ${Math.round(focal.x * 100)}%, 세로 ${Math.round(focal.y * 100)}%. 방향키로 옮겨요`}
       onKeyDown={handleKey}
-      // 인라인 style 1/6 — 초점은 0~1 연속값이라 자리를 Tailwind 클래스로 표현할 수 없다
+      // 인라인 style 1/11 — 초점은 0~1 연속값이라 자리를 Tailwind 클래스로 표현할 수 없다
       style={{ left: pct(focal.x), top: pct(focal.y) }}
       className={`pointer-events-none absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-ink bg-surface ${FOCUS_RING}`}
     >
@@ -200,7 +218,7 @@ function PhotoSurface({
 
   return (
     <div
-      // 인라인 style 4/6 — split 사진 높이는 card.band(0~1 연속값) 라 클래스로 표현할 수 없다
+      // 인라인 style 4/11 — split 사진 높이는 card.band(0~1 연속값) 라 클래스로 표현할 수 없다
       style={bandRatio === undefined ? undefined : { height: pct(bandRatio) }}
       className={`${wrapperClass} overflow-hidden bg-hair-soft`}
     >
@@ -224,7 +242,7 @@ function PhotoSurface({
             src={photo.thumbUrl}
             alt={photo.name}
             draggable={false}
-            // 인라인 style 2/6 — 크롭 기준점. 출력 템플릿과 같은 objectPosition(focal) 을 쓴다
+            // 인라인 style 2/11 — 크롭 기준점. 출력 템플릿과 같은 objectPosition(focal) 을 쓴다
             style={{ objectPosition: objectPosition(focal) }}
             className="h-full w-full object-cover"
           />
@@ -239,15 +257,18 @@ export function CardCanvas({
   card,
   photo,
   target,
+  themeId,
   onSelect,
   onPatch,
 }: {
   card: CardDraft;
   photo: Photo | undefined;
   target: EditTarget;
+  themeId: ThemeId;
   onSelect: (t: EditTarget) => void;
   onPatch: (patch: Partial<Omit<CardDraft, "id" | "photoId">>) => void;
 }) {
+  const theme = THEMES[themeId];
   const copy = card.copy;
 
   // 글 덩어리와 그 위아래 신축 여백. 끌 때 치수를 재려면 세 조각을 다 잡고 있어야 한다 —
@@ -281,16 +302,32 @@ export function CardCanvas({
   // full-bleed 만 글이 가림막 위에 놓인다. 출력 템플릿의 `onPhoto` 와 같은 반전을 쓴다 —
   // 어두운 가림막 + 밝은 글. 반대로 두면 글 배경을 낮췄을 때 검정 글이 사진에 묻힌다.
   const onPhoto = card.layout === "full-bleed";
-  const headingClass = `text-[26px] font-black leading-tight tracking-tight sm:text-[36px] ${
-    onPhoto ? "text-surface" : ""
+  // 헤드라인·본문이 같이 쓰는 글 색. CardnewsBody 의 `fg = onPhoto ? t.onPhoto : t.fg` 와 같다.
+  const fg = onPhoto ? theme.onPhoto : theme.fg;
+  const headingClass =
+    "text-[26px] font-black leading-tight tracking-tight sm:text-[36px] font-[family-name:var(--card-display-font)]";
+  // opacity-[0.92] 는 CardnewsBody 의 Body 컴포넌트가 쓰는 고정 불투명도(테마 값이 아니라
+  // 상수라 인라인이 아니라 클래스로 둔다)
+  const bodyClass = "text-[16px] leading-relaxed opacity-[0.92] sm:text-[18px]";
+  // 버튼 문구는 늘 편집 가능하므로 선택 링 대신 포커스 링으로 지금 어디 있는지 알린다.
+  // 배경·글자색은 THEMES 값이라 클래스가 아니라 style(actionStyle)로 준다.
+  const actionClass = `self-start rounded-full px-4 py-2 text-[15px] font-bold font-[family-name:var(--card-display-font)] focus:ring-2 focus:ring-offset-2 ${
+    onPhoto ? "focus:ring-surface focus:ring-offset-ink" : "focus:ring-ink focus:ring-offset-surface"
   }`;
-  const bodyClass = `text-[16px] leading-relaxed sm:text-[18px] ${onPhoto ? "text-surface" : "text-ink-2"}`;
-  // 버튼 문구는 늘 편집 가능하므로 선택 링 대신 포커스 링으로 지금 어디 있는지 알린다
-  const actionClass = `self-start rounded-full px-4 py-2 text-[15px] font-bold focus:ring-2 focus:ring-offset-2 ${
-    onPhoto
-      ? "bg-surface text-ink focus:ring-surface focus:ring-offset-ink"
-      : "bg-ink text-surface focus:ring-ink focus:ring-offset-surface"
-  }`;
+  const actionStyle: React.CSSProperties = {
+    // cta 알약 배경 — CardnewsBody 의 tagBg 와 같다
+    background: onPhoto ? theme.onPhoto : theme.accent,
+    // cta 알약 글자색 — !onPhoto 는 tagBg 와 같은 tagFg(theme.bg). onPhoto 는 CardnewsBody 가
+    // 테마 밖 리터럴("#111111")을 쓰므로 여기선 비워 전역 ink 토큰을 상속시킨다(위 파일 주석 10번).
+    color: onPhoto ? undefined : theme.bg,
+  };
+  // 카드 바탕색 + 표시 글꼴 변수. `--card-display-font` 는 React.CSSProperties 에 없는 키라
+  // 타입을 단언 없이 넓혀서 쓴다 — 헤드라인·cta 알약의 font-[family-name:var(--card-display-font)]
+  // 유틸이 이 값을 상속해 읽는다.
+  const containerStyle: React.CSSProperties & { "--card-display-font": string } = {
+    background: theme.bg,
+    "--card-display-font": theme.displayFont,
+  };
 
   // heading 은 다섯 역할 전부에 있어 유니온을 그대로 펼쳐도 된다.
   const commitHeading = (text: string) => onPatch({ copy: { ...copy, heading: text } });
@@ -314,18 +351,23 @@ export function CardCanvas({
    * 신축 여백을 두고 남는 공간만 `textY` 비율로 나눈다. 좌표로 자르는 게 아니라 남는 공간을
    * 나누므로 글이 길어져도 카드 밖으로 밀려나지 않는다.
    */
-  const textLayer = (scrim?: number) => (
-    <div className="pointer-events-none relative flex flex-1 flex-col p-7">
+  const textLayer = (scrim?: number, splitDivider?: boolean) => (
+    <div
+      // 인라인 style 11/11 — split 구분선 색(theme.accent). 두께(border-t-[6px])는 고정값이라
+      // 클래스로 둔다. splitDivider 가 아니면 스타일을 아예 안 준다(SplitPhotoCard 와 동일 조건).
+      style={splitDivider ? { borderTopColor: theme.accent } : undefined}
+      className={`pointer-events-none relative flex flex-1 flex-col p-7 ${splitDivider ? "border-t-[6px]" : ""}`}
+    >
       {scrim !== undefined && (
         <span
           aria-hidden="true"
-          // 인라인 style 3/6 — 글 배경. 진하기(card.scrim)도 앵커(card.textY)도 0~1 연속값이라
+          // 인라인 style 3/11 — 글 배경. 진하기(card.scrim)도 앵커(card.textY)도 0~1 연속값이라
           // 클래스로 표현할 수 없다. 색 리터럴은 layout-utils 의 scrimGradient 가 만든다
           style={{ background: scrimGradient(scrim, card.textY) }}
           className="absolute inset-0"
         />
       )}
-      {/* 인라인 style 5/6 — 위 여백이 가져갈 몫(card.textY). 나머지 세 속성은 클래스로 둔다 */}
+      {/* 인라인 style 5/11 — 위 여백이 가져갈 몫(card.textY). 나머지 세 속성은 클래스로 둔다 */}
       <div ref={topSpacerRef} style={{ flexGrow: spacers.top }} className="min-h-0 shrink-0 basis-0" />
       <div ref={blockRef} className="relative flex flex-col gap-3">
         <EditableText
@@ -340,6 +382,8 @@ export function CardCanvas({
           onCommit={commitHeading}
           label="헤드라인"
           className={headingClass}
+          // 인라인 style 8/11 — 헤드라인 색(onPhoto ? theme.onPhoto : theme.fg)
+          style={{ color: fg }}
         />
         {bodyEdit && (
           <EditableText
@@ -351,6 +395,8 @@ export function CardCanvas({
             onCommit={bodyEdit.commit}
             label="본문"
             className={bodyClass}
+            // 인라인 style 9/11 — 본문 색. 헤드라인과 같은 fg 값(불투명도는 opacity-[0.92] 클래스)
+            style={{ color: fg }}
           />
         )}
         {actionEdit && (
@@ -362,13 +408,15 @@ export function CardCanvas({
             onCommit={actionEdit.commit}
             label="버튼 문구 (최대 40자)"
             className={actionClass}
+            // 인라인 style 10/11 — cta 알약 배경·글자색(actionStyle, 위 선언부 주석 참고)
+            style={actionStyle}
           />
         )}
         {textSelected && (
           <TextYHandle textY={card.textY} measure={measureText} onTextY={(textY) => onPatch({ textY })} />
         )}
       </div>
-      {/* 인라인 style 6/6 — 아래 여백이 가져갈 몫(1 − card.textY). 두 몫의 합은 늘 1 이다 */}
+      {/* 인라인 style 6/11 — 아래 여백이 가져갈 몫(1 − card.textY). 두 몫의 합은 늘 1 이다 */}
       <div ref={bottomSpacerRef} style={{ flexGrow: spacers.bottom }} className="min-h-0 shrink-0 basis-0" />
     </div>
   );
@@ -386,7 +434,11 @@ export function CardCanvas({
   );
 
   return (
-    <div className="relative flex aspect-[4/5] h-[min(70vh,760px)] max-w-full flex-col overflow-hidden rounded-2xl border border-hair bg-surface xl:h-auto xl:max-h-full">
+    <div
+      // 인라인 style 7/11 — 카드 바탕색 + 표시 글꼴 변수(containerStyle, 위 선언부 주석 참고)
+      style={containerStyle}
+      className="relative flex aspect-[4/5] h-[min(70vh,760px)] max-w-full flex-col overflow-hidden rounded-2xl border border-hair xl:h-auto xl:max-h-full"
+    >
       {card.layout === "full-bleed" && (
         <>
           {photoSurface("absolute inset-0")}
@@ -397,7 +449,7 @@ export function CardCanvas({
       {card.layout === "split" && (
         <>
           {photoSurface("relative w-full flex-none", card.band)}
-          {textLayer()}
+          {textLayer(undefined, true)}
         </>
       )}
 
