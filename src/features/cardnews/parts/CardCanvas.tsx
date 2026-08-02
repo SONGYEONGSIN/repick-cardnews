@@ -35,6 +35,10 @@ import { TextYHandle } from "./TextYHandle";
  *   6. 글 아래 신축 여백 몫 — `card.textY`
  * 색 리터럴은 컴포넌트에 없다 — 토큰 클래스이거나 `layout-utils` 가 만든 문자열이고, 인라인으로는
  * 숫자(위치·높이·여백 몫)만 넘긴다. 일곱 번째는 두지 않는다.
+ *
+ * 크기: `xl` 미만은 뷰포트 비율(`h-[min(70vh,760px)]`)로 정하고, `xl` 이상은 `WorkbenchScreen`
+ * 이 세트 바·툴바를 뺀 남는 높이를 flex 로 계산해 준 상자를 `xl:h-full` 로 채운다 — 세로 비율은
+ * `aspect-[4/5]` 가, 폭 상한은 `max-w-full` 이 그대로 지킨다.
  */
 
 /** 방향키 한 번에 5%. 스무 번이면 끝에서 끝까지 가고, 한 칸이 눈에 보인다. */
@@ -374,7 +378,7 @@ export function CardCanvas({
   );
 
   return (
-    <div className="relative flex aspect-[4/5] h-[min(70vh,760px)] max-w-full flex-col overflow-hidden rounded-2xl border border-hair bg-surface">
+    <div className="relative flex aspect-[4/5] h-[min(70vh,760px)] max-w-full flex-col overflow-hidden rounded-2xl border border-hair bg-surface xl:h-full">
       {card.layout === "full-bleed" && (
         <>
           {photoSurface("absolute inset-0")}

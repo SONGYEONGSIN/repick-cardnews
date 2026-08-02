@@ -93,10 +93,14 @@ function RemoveButton({
   );
 }
 
-/** 목록 행 공통 썸네일 — 4:5, 폭 56px로 고정한다(가로 칩 120~152px보다 훨씬 좁다). */
+/**
+ * 목록 행 공통 썸네일 — 4:5, 폭 96px. "카드 지도" 로 쓰려면 사진이 알아볼 수 있는 크기여야 한다
+ * (예전 56px는 무슨 사진인지 분간이 안 됐다). 그래도 가로 칩(120~152px)보다는 좁다 — 목록은
+ * 세로로 늘어서므로 폭보다 줄 수가 더 중요하다.
+ */
 function Thumb({ photo, index }: { photo: Photo | undefined; index?: number }) {
   return (
-    <span className="relative block aspect-[4/5] w-14 flex-none overflow-hidden rounded-lg bg-hair-soft">
+    <span className="relative block aspect-[4/5] w-24 flex-none overflow-hidden rounded-lg bg-hair-soft">
       {photo ? (
         // 로컬 dataURL 프리뷰 — next/image 는 이 URL 을 최적화할 수 없다. alt 는 옆 글이 대신한다
         <img src={photo.thumbUrl} alt="" className="h-full w-full object-cover" />

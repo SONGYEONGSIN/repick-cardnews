@@ -205,30 +205,42 @@ export function WorkbenchScreen({
     >
       {/*
         xl(1280px) 이상에서 두 칸으로 나눈다. 순서 레일이 **세로 목록**이라(`WorkbenchRail`)
-        왼쪽은 좁아도 된다 — 썸네일 56px + 글 한두 줄이면 240px로 충분하고, 옛 가로 칩처럼
-        폭을 다섯 개어치(1000px 안팎) 내줄 필요가 없다. 그래서 왼쪽을 고정 240px 로 좁히고
-        **오른쪽이 남는 폭을 전부 가져간다**(`1fr`) — 이게 이 개편의 핵심이다. 카드는 세로 비율
-        (`aspect-[4/5]`)이라 높이(`h-[min(70vh,760px)]`, `CardCanvas` 소관, 여기서 안 건드린다)로
-        크기가 정해지고 폭은 거기 따라온다 — 옛 550px 고정 칸은 이 높이가 필요로 하는 폭(뷰포트
-        높이가 넉넉한 화면에서는 최대 608px + 캔버스 wrapper 좌우 패딩 32px = 640px)보다 좁아서
-        카드를 찌그러뜨릴 수 있었다(폭만 550으로 잘리고 높이는 그대로라 4:5가 깨진다). 오른쪽을
-        `1fr`로 풀어 그 바닥을 없앤다. 다만 오른쪽 칸이 무한정 넓어져도 카드·툴바·캡션은 그만큼
-        커질 필요가 없으므로(`폭도 남는 만큼만 쓴다`), 오른쪽 칸 **안쪽 내용물**에 `max-w-[720px]`
-        을 두고 가운데 정렬한다 — 640px(카드가 필요로 하는 최대 폭)에 80px 여유를 더한 값이다.
-        lg(1024px)에서 반으로 나누면 왼쪽 240px 는 넉넉해도 옛 세로 레일이 필요로 하는 세로 공간과
-        부딪히지 않지만, 시안 확정 전까지는 옛 기준(칩이 다섯 개 못 들어가던 문제)을 그대로 이어받아
-        `xl` 부터만 칸을 나눈다 — 그 아래 폭에서는 지금처럼 위아래로 쌓인다.
+        왼쪽은 좁아도 되지만, 이 목록은 "카드 지도" 라 썸네일(96px, `WorkbenchRail`)이 알아볼
+        크기여야 한다 — 그래서 320px 로 둔다(옛 240px 는 썸네일이 56px일 때 기준이었다. 여전히
+        옛 가로 칩 레일이 필요로 하던 폭(다섯 개어치, 1000px 안팎)보다는 훨씬 좁다).
 
-        오른쪽 칸 안에는 두 덩어리가 세로로 쌓인다: 위 = 세트 바(테마·핸들), 아래 = 결과(섹션
-        타이틀·오류·툴바·캔버스). 왼쪽(순서 레일 한 덩어리)은 이 두 줄을 합친 높이만큼
-        `row-span-2`로 세로로 이어진다 — DOM 순서는 [왼쪽 레일 전체] → [세트 바] → [결과]이고,
-        `xl` 그리드는 이 순서를 셀 배치로만 재배열한다(그리드 배치는 탭 순서를 안 바꾼다). 그래서
-        좁은 화면에서 위아래로 쌓일 때도 같은 DOM 순서(레일 → 카피 만들기 → 세트 바 → 결과)가
-        그대로 읽힌다.
+        **오른쪽이 남는 폭을 전부 가져간다**(`1fr`). 안에서 다시 `mx-auto max-w-[720px]` 로
+        좁히지 않는다 — 예전엔 이게 있어 왼쪽 240px 뒤로 550px 안팎의 죽은 공간이 생겼다(칸은
+        넓은데 내용만 가운데로 떠 있었다). `justify-items-stretch`(그리드 기본값, 여기서는
+        명시한다)가 두 칸 폭을 그대로 채우므로 세트 바·결과가 자동으로 같은 좌우 기준선을
+        공유한다 — 카드만 그 상자 **안에서** `justify-center` 로 가운데 둔다.
+
+        반대로 초광폭(2560px 이상)에서는 요소가 서로 멀리 흩어져 보인다. 그리드 전체에
+        `max-w-[1400px]` 를 두고 가운데 정렬해 막는다 — 320(왼쪽) + 32(칸 간격) + 968(오른쪽),
+        오른쪽 968px 는 세트 바 한 줄과 뷰포트가 아주 넉넉할 때(2560×1440)의 카드 폭(약 800px,
+        아래 높이 설명 참고)을 담고도 남는다. 1920 이하 폭에서는 실제로 쓰는 값이 1400보다 작아
+        이 상한이 걸리지 않는다(폭 스위프 실측은 보고서 참고).
+
+        카드는 세로 비율(`aspect-[4/5]`, `CardCanvas` 소관, 편집 동작은 안 건드린다)을 지키며
+        **남는 높이**에 맞춘다. 옛 `h-[min(70vh,760px)]` 는 뷰포트 비율이라 위 요소(세트 바·툴바)를
+        더하면 화면을 넘길 수 있었다 — 그래서 오른쪽 칸을 세로 flex 로 다시 나눠 세트 바·툴바·
+        캡션은 제 높이만 쓰고(`flex-none`, 기본값), 카드를 담는 칸만 `xl:flex-1`로 남는 높이를
+        전부 가져간다(아래 결과 section 과 카드 상자 참고). 이 flex 가 실제 픽셀 높이를 가지려면
+        조상 사슬에 확정 높이가 있어야 한다 — `StudioFrame` 의 `xl:h-screen`(그 파일 주석 참고)이
+        `<main>` 까지 내려주고, 이 그리드는 그걸 `xl:h-full` + `xl:content-stretch`/`xl:items-stretch`
+        로 두 칸(왼쪽 레일 전체, 오른쪽 세트 바+결과)에 다시 물려준다. `CardCanvas` 는 그 안에서
+        `xl:h-full`(그 파일의 크기 클래스, 인라인 style 은 늘지 않았다)로 채우고 폭은 그대로
+        `aspect-[4/5]` + `max-w-full` 이 따라온다. 왼쪽 레일은 내용이 남는 높이보다 길면
+        `xl:overflow-y-auto` 로 그 칸 안에서만 스크롤한다 — 카드 쪽을 밀어내지 않는다.
+
+        DOM 순서는 [왼쪽 레일 전체] → [카피 만들기] → [세트 바] → [결과]이고, `xl` 그리드/flex
+        는 이 순서를 배치로만 재배열한다(배치는 탭 순서를 안 바꾼다). 그 아래 폭에서는 지금처럼
+        위아래로 쌓인다.
       */}
-      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:grid xl:grid-cols-[240px_1fr] xl:items-start xl:gap-x-8 xl:gap-y-6">
-        {/* 왼쪽 = 순서 레일 + 카피 만들기. 두 줄(세트 바·결과) 높이만큼 이어진다. */}
-        <div className="flex flex-col gap-8 lg:gap-9 xl:col-start-1 xl:row-start-1 xl:row-span-2 xl:min-w-0">
+      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:mx-auto xl:h-full xl:max-w-[1400px] xl:grid xl:grid-cols-[320px_1fr] xl:content-stretch xl:items-stretch xl:justify-items-stretch xl:gap-x-8">
+        {/* 왼쪽 = 순서 레일 + 카피 만들기. 그리드가 stretch 로 오른쪽과 같은 높이를 준다 — 내용이
+            넘치면 이 칸 안에서만 스크롤한다. */}
+        <div className="flex flex-col gap-8 lg:gap-9 xl:col-start-1 xl:min-h-0 xl:min-w-0 xl:overflow-y-auto">
           <section className="flex flex-col gap-4">
             <SectionHead
               title="넘겨 보는 순서"
@@ -301,61 +313,62 @@ export function WorkbenchScreen({
           />
         </div>
 
-        {/* 오른쪽 위 = 세트 바(테마·핸들). 고르면 바로 아래 카드에 반영되는 자리라야 한다. */}
-        <div className="xl:col-start-2 xl:row-start-1 xl:mx-auto xl:w-full xl:max-w-[720px]">
-          <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
-        </div>
-
         {/*
-          오른쪽 아래 = 결과. xl 이상에서 스크롤을 따라오도록 고정한다 — 왼쪽 레일을 훑는 동안
-          카드가 눈에 남아야 한다. `max-h` + `overflow-y-auto` 로 자체 스크롤을 두는 이유는, 카드가
-          화면보다 길 때 고정을 그대로 두면 아래쪽(캡션·카드 하단)이 뷰포트 밖으로 밀려 닿을
-          방법이 없어지기 때문이다 — 위아래로 top 오프셋(2.25rem)만큼씩 숨 쉴 자리를 남기고,
-          넘치면 이 칸 안에서만 스크롤한다.
+          오른쪽 = 세트 바 + 결과. 그리드가 준 칸 높이를 세로 flex 로 다시 나눈다 — 세트 바는
+          제 높이만(`flex-none`, 기본값), 결과 section 은 `xl:flex-1`로 남는 높이를 가져간다.
+          gap 은 아래 폭(비 xl)에서 그리드 대신 쓰던 `gap-8` 을 그대로 두고, xl 에서만 옛
+          `gap-y-6` 값(24px)으로 좁힌다 — 세트 바와 카드 사이는 레일 항목 사이보다 붙어도 된다.
         */}
-        <section className="flex flex-col gap-4 xl:col-start-2 xl:row-start-2 xl:sticky xl:top-9 xl:mx-auto xl:w-full xl:max-w-[720px] xl:max-h-[calc(100vh-4.5rem)] xl:overflow-y-auto">
-          <SectionHead
-            title={card ? `${active + 1}번 · ${ROLE_LABELS[card.copy.role]}` : "카드"}
-            aside={card ? "1080 × 1350" : undefined}
-          />
+        <div className="flex flex-col gap-8 xl:col-start-2 xl:min-h-0 xl:gap-6">
+          {/* 세트 바(테마·핸들). 고르면 바로 아래 카드에 반영되는 자리라야 한다. */}
+          <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
 
-          {state.error && (
-            <p
-              role="alert"
-              className="flex items-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-[14px] font-bold text-surface"
-            >
-              <CircleAlert size={16} aria-hidden="true" className="flex-none" />
-              {state.error}
-            </p>
-          )}
+          <section className="flex flex-col gap-4 xl:min-h-0 xl:flex-1">
+            <SectionHead
+              title={card ? `${active + 1}번 · ${ROLE_LABELS[card.copy.role]}` : "카드"}
+              aside={card ? "1080 × 1350" : undefined}
+            />
 
-          {card ? (
-            <>
-              <EditToolbar
-                card={card}
-                target={target}
-                onSelect={setTarget}
-                onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
-                onSwapPhoto={() => setAdding(true)}
-              />
-              <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8">
-                <CardCanvas
+            {state.error && (
+              <p
+                role="alert"
+                className="flex items-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-[14px] font-bold text-surface"
+              >
+                <CircleAlert size={16} aria-hidden="true" className="flex-none" />
+                {state.error}
+              </p>
+            )}
+
+            {card ? (
+              <>
+                <EditToolbar
                   card={card}
-                  photo={photo}
                   target={target}
                   onSelect={setTarget}
                   onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
+                  onSwapPhoto={() => setAdding(true)}
                 />
+                {/* 카드 상자 — 남는 높이를 전부 받아(`xl:flex-1`) 그 안에서 카드를 가운데 둔다.
+                    `CardCanvas` 자신은 `xl:h-full`(그 파일 소관)로 이 칸을 채운다. */}
+                <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8 xl:min-h-0 xl:flex-1">
+                  <CardCanvas
+                    card={card}
+                    photo={photo}
+                    target={target}
+                    onSelect={setTarget}
+                    onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
+                  />
+                </div>
+                <p className="text-center text-[13px] text-ink-2">고칠 곳을 눌러요. 글은 그 자리에서 바로 고쳐요.</p>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-hair bg-canvas px-6 py-16 text-center">
+                <p className="text-[17px] font-bold">사진을 올리고 카피를 만들면 여기에 카드가 나와요</p>
+                <p className="text-[14px] text-ink-2">카드마다 헤드라인·본문·사진을 여기서 바로 고쳐요.</p>
               </div>
-              <p className="text-center text-[13px] text-ink-2">고칠 곳을 눌러요. 글은 그 자리에서 바로 고쳐요.</p>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-hair bg-canvas px-6 py-16 text-center">
-              <p className="text-[17px] font-bold">사진을 올리고 카피를 만들면 여기에 카드가 나와요</p>
-              <p className="text-[14px] text-ink-2">카드마다 헤드라인·본문·사진을 여기서 바로 고쳐요.</p>
-            </div>
-          )}
-        </section>
+            )}
+          </section>
+        </div>
       </div>
     </StudioFrame>
   );

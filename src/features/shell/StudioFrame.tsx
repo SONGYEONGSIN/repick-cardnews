@@ -36,7 +36,13 @@ export function StudioFrame({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-surface text-ink lg:flex-row">
+    // `xl:h-screen` — 만들기 화면(`WorkbenchScreen`)이 `xl` 이상에서 `<main>` 의 남는 세로 폭을
+    // flex 로 계산하려면(카드가 세트 바·툴바 아래 남는 높이에 맞춰지도록) 이 조상이 **확정된
+    // 높이**를 가져야 한다 — `min-height` 만으로는 `flex-1` 자식의 높이가 확정되지 않는다.
+    // `overflow` 는 기본값(visible)이라 내용이 넘치면 그대로 페이지가 늘어나 스크롤된다(예전과
+    // 동일) — 이 줄은 잘라내지 않고 그저 자식에게 기준 높이를 하나 더 준다. 주제·내보내기
+    // 화면은 이 기준 높이를 쓰는 자식이 없어 보이는 결과가 그대로다.
+    <div className="flex min-h-screen flex-col bg-surface text-ink lg:flex-row xl:h-screen">
       {/* 모바일 — 사이드바를 세울 폭이 없다. 같은 정보를 가로로 압축해 상단에 둔다. */}
       <div className="flex flex-col gap-2.5 border-b border-hair px-5 py-3 lg:hidden">
         <div className="flex justify-center">
