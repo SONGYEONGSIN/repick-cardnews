@@ -7,7 +7,11 @@ import { CardnewsBody } from "@/templates/bodies/CardnewsBody";
 import { FullBleedCard } from "@/templates/layouts/FullBleedCard";
 import { SplitPhotoCard } from "@/templates/layouts/SplitPhotoCard";
 import { TextOnlyCard } from "@/templates/layouts/TextOnlyCard";
-import type { Focal } from "@/templates/layout-utils";
+import { textYSpacers, type Focal, type TextYSpacers } from "@/templates/layout-utils";
+
+function isInfographicCopy(copy: CardnewsCard | InfographicSpec): copy is InfographicSpec {
+  return "type" in copy;
+}
 
 export type RenderCard = {
   layout: CardLayout;
@@ -33,17 +37,21 @@ export function CardRenderer({
 }) {
   const theme = THEMES[themeId];
   const onPhoto = card.layout === "full-bleed" && card.photoUrl !== null;
-  const body =
-    "type" in card.copy ? (
-      <InfographicBody spec={card.copy} theme={theme} onPhoto={onPhoto} compact={card.copy.items.length >= 5} />
-    ) : (
-      <CardnewsBody
-        card={card.copy}
-        theme={theme}
-        onPhoto={onPhoto}
-        compact={card.layout === "split"}
-      />
-    );
+  const body = isInfographicCopy(card.copy) ? (
+    <InfographicBody spec={card.copy} theme={theme} onPhoto={onPhoto} compact={card.copy.items.length >= 5} />
+  ) : (
+    <CardnewsBody
+      card={card.copy}
+      theme={theme}
+      onPhoto={onPhoto}
+      compact={card.layout === "split"}
+    />
+  );
+  // InfographicBody는 아이템 목록에 스스로 flex:1을 걸어 남는 공간을 요구한다 — 스페이서가
+  // 그 공간을 나눠 가지면 자연 높이를 전제하는 스페이서 모델이 깨진다. 0/0은 "여기서는
+  // 스페이서가 자리를 요구하지 않는다"는 뜻이라, InfographicBody 는 지금처럼 남는 공간을 전부
+  // 가져간다 — 오늘과 정확히 같은 모습이다.
+  const spacers: TextYSpacers = isInfographicCopy(card.copy) ? { top: 0, bottom: 0 } : textYSpacers(card.textY);
 
   return (
     <CardFrame theme={theme} handle={handle}>
@@ -54,6 +62,7 @@ export function CardRenderer({
           focal={card.focal}
           scrim={card.scrim}
           textY={card.textY}
+          spacers={spacers}
           badge={card.badge}
         >
           {body}
@@ -64,7 +73,7 @@ export function CardRenderer({
           photoUrl={card.photoUrl}
           focal={card.focal}
           band={card.band}
-          textY={card.textY}
+          spacers={spacers}
           badge={card.badge}
           accent={theme.accent}
         >
@@ -72,7 +81,7 @@ export function CardRenderer({
         </SplitPhotoCard>
       )}
       {card.layout === "text-only" && (
-        <TextOnlyCard textY={card.textY} badge={card.badge} accent={theme.accent}>
+        <TextOnlyCard spacers={spacers} badge={card.badge} accent={theme.accent}>
           {body}
         </TextOnlyCard>
       )}

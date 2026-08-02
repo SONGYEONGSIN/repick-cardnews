@@ -1,17 +1,16 @@
-import { textYSpacers } from "@/templates/layout-utils";
+import type { TextYSpacers } from "@/templates/layout-utils";
 
 export function TextOnlyCard({
-  textY,
+  spacers,
   badge,
   accent,
   children,
 }: {
-  textY: number;
+  spacers: TextYSpacers;
   badge: string;
   accent: string;
   children: React.ReactNode;
 }) {
-  const spacers = textYSpacers(textY);
   return (
     <div
       style={{

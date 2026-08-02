@@ -58,6 +58,11 @@ export type TextYSpacers = { top: number; bottom: number };
  * 좌표로 잘라내는 대신 남는 공간을 나누므로 글이 길어도 카드 밖으로 넘치지 않는다.
  * textY=1 → 위 스페이서만 자라 지금의 justifyContent:flex-end 와 같다.
  * textY=0 → 아래 스페이서만 자라 flex-start 와 같다.
+ *
+ * 이 모델의 전제는 "글 덩어리는 자연 높이이고 스페이서만 남는 공간을 요구한다"이다. 글 덩어리
+ * 자신이 이미 flex-grow 로 남는 공간을 요구하는 컨텐츠(InfographicBody의 아이템 목록 등)를
+ * 감쌀 때는 top/bottom 을 각각 0 으로 호출해라 — 스페이서가 공간을 전혀 요구하지 않아야
+ * 그 컨텐츠가 지금처럼 남는 공간을 전부 가져간다(CardRenderer.tsx 참고).
  */
 export function textYSpacers(textY: number): TextYSpacers {
   const top = clamp01(textY);

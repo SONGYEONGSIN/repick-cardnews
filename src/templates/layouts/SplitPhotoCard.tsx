@@ -1,10 +1,10 @@
-import { objectPosition, textYSpacers, type Focal } from "@/templates/layout-utils";
+import { objectPosition, type Focal, type TextYSpacers } from "@/templates/layout-utils";
 
 export function SplitPhotoCard({
   photoUrl,
   focal,
   band,
-  textY,
+  spacers,
   badge,
   accent,
   children,
@@ -12,13 +12,12 @@ export function SplitPhotoCard({
   photoUrl: string | null;
   focal: Focal;
   band: number;
-  textY: number;
+  spacers: TextYSpacers;
   badge: string;
   accent: string;
   children: React.ReactNode;
 }) {
   const photoHeight = Math.round(1350 * band);
-  const spacers = textYSpacers(textY);
   return (
     <>
       <div style={{ position: "relative", height: photoHeight, flex: "0 0 auto", overflow: "hidden" }}>

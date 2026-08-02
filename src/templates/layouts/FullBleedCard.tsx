@@ -1,5 +1,5 @@
 import type { Theme } from "@/templates/themes";
-import { objectPosition, scrimGradient, textYSpacers, type Focal } from "@/templates/layout-utils";
+import { objectPosition, scrimGradient, type Focal, type TextYSpacers } from "@/templates/layout-utils";
 
 export function FullBleedCard({
   theme,
@@ -7,6 +7,7 @@ export function FullBleedCard({
   focal,
   scrim,
   textY,
+  spacers,
   badge,
   children,
 }: {
@@ -14,11 +15,12 @@ export function FullBleedCard({
   photoUrl: string | null;
   focal: Focal;
   scrim: number;
+  /** scrimGradient 앵커 전용 — 스페이서(레이아웃 배치)는 별도로 `spacers` 로 받는다 */
   textY: number;
+  spacers: TextYSpacers;
   badge: string;
   children: React.ReactNode;
 }) {
-  const spacers = textYSpacers(textY);
   return (
     <>
       {photoUrl && (
