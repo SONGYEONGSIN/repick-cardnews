@@ -14,6 +14,7 @@ const config: InstagramConfig = {
   publicBaseUrl: "https://example.ngrok-free.app",
   businessAccountId: "17841400000000000",
   accessToken: "long-lived-secret-token",
+  graphHost: "graph.instagram.com",
 };
 
 describe("buildCarouselImageUrls", () => {
@@ -72,6 +73,7 @@ describe("friendlyPublishError", () => {
       }),
     );
     expect(msg).toContain("한도");
+    expect(msg).toContain("100");
     expect(msg).not.toContain("publishing limit");
   });
 

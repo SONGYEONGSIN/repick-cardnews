@@ -12,26 +12,34 @@ export type { InstagramConfig };
  * 그래서 그 주소는 반드시 인터넷에서 닿는 공개 주소여야 하고(`PUBLIC_BASE_URL` 기반), 이 함수가
  * 호출되는 순간부터 카드 이미지는 이 PC 를 벗어난다.
  *
- * 확인된 것과 확인 못한 것(정직성 우선 — 실제 API 를 이 환경에서 호출해 검증할 수 없었다):
- * - 3단계 흐름(아이템 컨테이너 → 캐러셀 컨테이너 → 게시)과 상태 확인(`status_code` 폴링)은
- *   Meta 공식 문서에서 반복적으로 보아 온 구조라 확신도가 높다.
- * - `GRAPH_API_VERSION` 의 정확한 최신 값, 개별 에러의 정확한 `error_subcode` 숫자는 이 환경에서
- *   실제로 호출해 확인하지 못했다 — **확인 못함**. 상수 하나만 바꾸면 버전을 맞출 수 있게 뺐고,
- *   에러 분류는 숫자 코드 대신 (문서에서 반복적으로 보이는) 메시지 문구 매칭으로 방어적으로
- *   설계했다. 인증 실패(코드 190, OAuthException)만은 Graph API 전반에서 안정적으로 쓰이는
- *   표준 오류라 코드 값으로도 판정한다.
+ * 확인된 것과 확인 못한 것(정직성 우선):
+ * - 3단계 흐름(아이템 컨테이너 → 캐러셀 컨테이너 → 게시), 엔드포인트·필드명, 상태값
+ *   (`FINISHED`/`IN_PROGRESS`/`ERROR`/`EXPIRED`/`PUBLISHED`), Graph API 버전(`v25.0`), 호스트
+ *   (`graph.instagram.com`), 캐러셀 장수(2~10장), 상태 확인 폴링은 **필수가 아니라 권장**이며
+ *   권장 주기는 "분당 1회, 최대 5분" — 이상은 공식 문서
+ *   (developers.facebook.com/docs/instagram-platform/content-publishing, 2026-08-02 확인)로
+ *   직접 검증됨.
+ * - 개별 에러의 정확한 `error_subcode` 숫자는 확인하지 못했다 — **확인 못함**. 그래서 에러 분류는
+ *   숫자 코드 대신 (문서에서 반복적으로 보이는) 메시지 문구 매칭으로 방어적으로 설계했다. 인증
+ *   실패(코드 190, OAuthException)만은 Graph API 전반에서 안정적으로 쓰이는 표준 오류라 코드
+ *   값으로도 판정한다.
  * - 아이템 컨테이너 각각까지 개별로 상태를 기다려야 하는지, 최종 캐러셀 컨테이너만 기다리면
- *   되는지 문서로 확정하지 못했다 — 안전한 쪽으로 **둘 다** 기다리도록 구현했다(느려질 뿐 틀리진
- *   않는다).
+ *   되는지는 문서가 명시하지 않는다 — **확인 못함**. 안전한 쪽으로 **둘 다** 기다리도록
+ *   구현했다(느려질 뿐 틀리진 않는다). 다만 폴링 자체가 권장 사항일 뿐이라 주기·상한은 문서
+ *   권장치(분당 1회, 최대 5분)를 그대로 따른다 — 과하게 느리게 잡지 않는다.
  */
 
-const GRAPH_API_VERSION = "v21.0"; // 확인 못함 — 최신 버전 번호를 이 환경에서 검증하지 못했다.
-const GRAPH_API_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+const GRAPH_API_VERSION = "v25.0"; // 공식 문서 예제 기준(2026-08-02 확인). 바뀌면 이 상수만 고치면 된다.
 
-/** 컨테이너 준비 상태를 이 간격(ms)마다 확인한다. */
-const POLL_INTERVAL_MS = 2000;
-/** 이 횟수를 넘도록 준비되지 않으면 무한정 기다리지 않고 포기한다(약 30초 상한). */
-const POLL_MAX_ATTEMPTS = 15;
+function graphApiBase(config: InstagramConfig): string {
+  return `https://${config.graphHost}/${GRAPH_API_VERSION}`;
+}
+
+/** 컨테이너 준비 상태를 이 간격(ms)마다 확인한다 — 문서 권장치인 "분당 1회". */
+const POLL_INTERVAL_MS = 60_000;
+/** 이 횟수를 넘도록 준비되지 않으면 무한정 기다리지 않고 포기한다 — 문서 권장 상한 "최대 5분"
+ * 안쪽으로(간격 60초 × 5회 = 첫 확인 이후 최대 4분 대기 후 시간 초과). */
+const POLL_MAX_ATTEMPTS = 5;
 
 /** 캐러셀 최소 장수. Graph API 는 2장 미만이면 CAROUSEL 컨테이너 생성 자체를 거부한다. */
 export const CAROUSEL_MIN_ITEMS = 2;
@@ -108,7 +116,7 @@ export function friendlyPublishError(e: unknown): string {
       return "인스타그램이 이미지 주소에 접근하지 못했어요. 공개 주소 설정을 확인해 주세요.";
     }
     if (isDailyLimit(message)) {
-      return "오늘 게시할 수 있는 한도를 다 썼어요. 24시간 뒤 다시 시도해 주세요.";
+      return "오늘 게시할 수 있는 한도(24시간 기준 100건)를 다 썼어요. 24시간 뒤 다시 시도해 주세요.";
     }
   }
   return "인스타그램 게시에 실패했어요. 잠시 후 다시 시도해 주세요.";
@@ -153,7 +161,7 @@ async function createCarouselItemContainer(config: InstagramConfig, imageUrl: st
     access_token: config.accessToken,
   });
   const result = await callGraphApi(
-    `${GRAPH_API_BASE}/${config.businessAccountId}/media`,
+    `${graphApiBase(config)}/${config.businessAccountId}/media`,
     { method: "POST", body: params },
     MediaContainerResponse,
   );
@@ -168,7 +176,7 @@ async function createCarouselContainer(config: InstagramConfig, childIds: string
     access_token: config.accessToken,
   });
   const result = await callGraphApi(
-    `${GRAPH_API_BASE}/${config.businessAccountId}/media`,
+    `${graphApiBase(config)}/${config.businessAccountId}/media`,
     { method: "POST", body: params },
     MediaContainerResponse,
   );
@@ -178,7 +186,7 @@ async function createCarouselContainer(config: InstagramConfig, childIds: string
 async function publishCarouselContainer(config: InstagramConfig, containerId: string): Promise<string> {
   const params = new URLSearchParams({ creation_id: containerId, access_token: config.accessToken });
   const result = await callGraphApi(
-    `${GRAPH_API_BASE}/${config.businessAccountId}/media_publish`,
+    `${graphApiBase(config)}/${config.businessAccountId}/media_publish`,
     { method: "POST", body: params },
     PublishResponse,
   );
@@ -205,7 +213,7 @@ async function waitUntilReady(
   sleep: (ms: number) => Promise<void>,
 ): Promise<void> {
   for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
-    const url = `${GRAPH_API_BASE}/${containerId}?fields=status_code&access_token=${encodeURIComponent(config.accessToken)}`;
+    const url = `${graphApiBase(config)}/${containerId}?fields=status_code&access_token=${encodeURIComponent(config.accessToken)}`;
     const { status_code } = await callGraphApi(url, undefined, StatusCheckResponse);
     const state = interpretContainerStatus(status_code);
     if (state === "ready") return;
