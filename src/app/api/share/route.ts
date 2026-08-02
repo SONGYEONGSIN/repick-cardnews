@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { createShareToken, SHARE_TOKEN_TTL_MS } from "@/lib/share-token";
 import { saveShare } from "@/lib/share-store";
 import { findLanAddress } from "@/lib/lan-address";
+import { isLocalHost } from "@/lib/local-guard";
 
 /**
  * 폰으로 보내기 / 인스타 게시가 공유하는 기반 — 완성된 카드 PNG 들을 서버 메모리에 올리고
@@ -12,6 +13,11 @@ import { findLanAddress } from "@/lib/lan-address";
  * 라우트가 쓰는 `e.message` 그대로 노출 패턴은 따르지 않는다 — zod v4 의 `ZodError.message`
  * 는 JSON 블롭(영문 필드명 포함)이라 그대로 흘리면 "영어 원문·JSON 유출 금지"를 어긴다.
  * 대신 `parsed.error.issues[0].message`(이 저장소 zod 관례)만 꺼내 쓴다.
+ *
+ * **이 PC 브라우저에서만 부를 수 있다** — 이 경로가 만든 토큰은 곧바로 `/api/publish`(실제
+ * 게시)로 이어질 수 있으므로, 링크 발급 자체도 같은 와이파이의 다른 기기에서는 못 하게
+ * `isLocalHost()`로 막는다. 폰이 여는 `/s/<토큰>`·`/s/<토큰>/<n>.png`는 이 라우트가 아니라
+ * 별도 경로라 이 가드의 영향을 받지 않는다. 판정 기준과 한계는 `@/lib/local-guard` 참고.
  */
 
 const MAX_IMAGES = 6;
@@ -35,6 +41,13 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  if (!isLocalHost(req.headers.get("host"))) {
+    return Response.json(
+      { error: "폰으로 보내기 링크는 이 컴퓨터의 브라우저에서만 만들 수 있어요." },
+      { status: 403 },
+    );
+  }
+
   let json: unknown;
   try {
     json = await req.json();

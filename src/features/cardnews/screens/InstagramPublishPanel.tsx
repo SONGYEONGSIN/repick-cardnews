@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, CircleAlert, Send } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
-import { SectionHead, SolidButton } from "@/features/shell/StudioFrame";
+import { LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 
 /**
  * "인스타그램에 올리기" 패널. 연결 여부는 이 컴포넌트가 마운트 시 `GET /api/instagram-status`
@@ -14,12 +14,23 @@ import { SectionHead, SolidButton } from "@/features/shell/StudioFrame";
  * "폰으로 보내기"(`SharePanel`)와 다른 지점: 그건 같은 와이파이 안에서만 오가지만, 이건 누르는
  * 순간 카드 사진이 인스타그램 서버로 나간다 — 그 사실을 게시 버튼이 나타나기 **전에** 항상
  * 보이도록 적어 둔다.
+ *
+ * "연결 확인" 버튼은 `POST /api/instagram-verify`를 부른다 — 환경변수가 채워졌는지만 보는
+ * `instagram-status`와 달리 실제로 Graph API 를 한 번 호출해 토큰이 유효한지, 계정 ID가
+ * 맞는지 확인하고 연결된 계정 이름(username)을 보여 준다. **화면이 열릴 때 자동으로 부르지
+ * 않고, 사용자가 버튼을 눌렀을 때만** 호출한다.
  */
 type ConnectionStatus =
   | { state: "loading" }
   | { state: "ready" }
   | { state: "not-ready"; missing: string[] }
   | { state: "check-failed" };
+
+type VerifyResult =
+  | { state: "idle" }
+  | { state: "checking" }
+  | { state: "success"; username: string }
+  | { state: "failed"; message: string };
 
 export function InstagramPublishPanel({
   busy,
@@ -35,6 +46,7 @@ export function InstagramPublishPanel({
   const [status, setStatus] = useState<ConnectionStatus>({ state: "loading" });
   const [caption, setCaption] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [verify, setVerify] = useState<VerifyResult>({ state: "idle" });
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +77,25 @@ export function InstagramPublishPanel({
       await onPublish(caption);
     } finally {
       setPublishing(false);
+    }
+  }
+
+  /** 화면이 열릴 때 자동으로 부르지 않는다 — 버튼을 눌렀을 때만 실제 Graph API 를 호출한다. */
+  async function handleVerify() {
+    setVerify({ state: "checking" });
+    try {
+      const res = await fetch("/api/instagram-verify", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setVerify({ state: "success", username: data.username });
+      } else {
+        setVerify({
+          state: "failed",
+          message: typeof data.error === "string" ? data.error : "연결 확인에 실패했어요.",
+        });
+      }
+    } catch {
+      setVerify({ state: "failed", message: "연결 확인에 실패했어요. 잠시 후 다시 시도해 주세요." });
     }
   }
 
@@ -109,6 +140,25 @@ export function InstagramPublishPanel({
               올리기를 누르면 이 카드 사진이 우리 공개 주소를 거쳐 인스타그램 서버로 전달돼요. "폰으로
               보내기"와 달리 이 컴퓨터의 집 네트워크를 벗어나 인터넷으로 나가는 방식이에요.
             </p>
+
+            <div className="flex flex-col gap-2">
+              <LineButton disabled={verify.state === "checking"} onClick={() => void handleVerify()}>
+                {verify.state === "checking" ? "확인하는 중..." : "연결 확인"}
+              </LineButton>
+              {verify.state === "success" && (
+                <p role="status" className="flex items-center gap-2 text-[14px] font-bold">
+                  <Check size={16} aria-hidden="true" className="flex-none" />
+                  연결됨 @{verify.username} — 이 계정이 맞는지 확인해 주세요.
+                </p>
+              )}
+              {verify.state === "failed" && (
+                <p role="alert" className="flex items-center gap-2 text-[14px] text-ink-2">
+                  <CircleAlert size={16} aria-hidden="true" className="flex-none" />
+                  {verify.message}
+                </p>
+              )}
+            </div>
+
             <label className="flex flex-col gap-1.5">
               <span className="text-[13px] font-bold text-ink-2">캡션 (선택)</span>
               <textarea

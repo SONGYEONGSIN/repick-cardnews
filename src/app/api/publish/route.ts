@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { loadShare } from "@/lib/share-store";
 import { checkInstagramConfig } from "@/lib/instagram-config";
+import { isLocalHost } from "@/lib/local-guard";
 import {
   publishCarousel,
   buildCarouselImageUrls,
@@ -20,6 +21,11 @@ import {
  *
  * 설정(공개 주소·비즈니스 계정 ID·액세스 토큰)이 하나라도 없으면 게시를 시도하지 않고 무엇이
  * 없는지 한국어로 알려준다 — 액세스 토큰 값 자체는 어떤 응답에도 담기지 않는다.
+ *
+ * **이 PC 브라우저에서만 부를 수 있다** — 실 토큰이 설정되면 이 경로는 "인스타그램에
+ * 게시"라는 실제 액션을 수행하므로, 같은 와이파이의 다른 기기가 무심코(또는 의도적으로)
+ * 호출하는 것을 `isLocalHost()`로 막는다. 판정 기준과 한계(헤더 위조는 못 막음)는
+ * `@/lib/local-guard` 참고.
  */
 
 const BodySchema = z.object({
@@ -28,6 +34,13 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  if (!isLocalHost(req.headers.get("host"))) {
+    return Response.json(
+      { error: "인스타그램 게시는 이 컴퓨터의 브라우저에서만 할 수 있어요." },
+      { status: 403 },
+    );
+  }
+
   let json: unknown;
   try {
     json = await req.json();

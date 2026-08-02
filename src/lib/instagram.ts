@@ -64,6 +64,22 @@ export class InstagramTimeoutError extends Error {
   }
 }
 
+/**
+ * 토큰 자체는 유효하지만, 그 토큰이 실제로 가리키는 계정(`/me`의 `user_id`)이
+ * `INSTAGRAM_BUSINESS_ACCOUNT_ID`에 설정된 값과 다르다. Graph API가 던지는 오류가 아니라
+ * 우리가 응답을 비교해 직접 판단한 것이라 `InstagramApiError`와 분리했다. `actualUsername`은
+ * 토큰이 실제로 가리키는 계정 이름 — 사용자가 설정값을 고칠 때 참고하라고 담아 둔다(토큰
+ * 값 자체는 담지 않는다).
+ */
+export class InstagramAccountMismatchError extends Error {
+  readonly actualUsername: string;
+  constructor(actualUsername: string) {
+    super("설정된 계정 ID가 토큰이 가리키는 계정과 다릅니다");
+    this.name = "InstagramAccountMismatchError";
+    this.actualUsername = actualUsername;
+  }
+}
+
 type GraphApiErrorBody = {
   error?: {
     message?: string;
@@ -122,6 +138,42 @@ export function friendlyPublishError(e: unknown): string {
   return "인스타그램 게시에 실패했어요. 잠시 후 다시 시도해 주세요.";
 }
 
+/**
+ * 연결 확인(`/api/instagram-verify`) 실패를 한국어 안내로 바꾼다. `friendlyPublishError`와
+ * 갈래가 다르다 — 여기는 캐러셀 게시가 아니라 계정 조회라 "이미지 접근 불가"·"하루 한도"는
+ * 해당 없고, 대신 "설정된 계정 ID가 틀림"(`InstagramAccountMismatchError`)이 있다.
+ */
+export function friendlyVerifyError(e: unknown): string {
+  if (e instanceof InstagramAccountMismatchError) {
+    return `설정된 인스타그램 계정 ID가 이 토큰이 가리키는 계정과 달라요. 토큰은 @${e.actualUsername} 계정을 가리키고 있어요 — INSTAGRAM_BUSINESS_ACCOUNT_ID 값을 확인해 주세요.`;
+  }
+  if (e instanceof InstagramApiError) {
+    const error = isGraphApiErrorBody(e.body) ? e.body.error : undefined;
+    const message = (error?.message ?? "").toLowerCase();
+
+    if (isAuthError(error?.code, message)) {
+      return "인스타그램 연결이 끊어졌어요. 액세스 토큰을 다시 발급받아 주세요.";
+    }
+    return "인스타그램 연결을 확인하지 못했어요. 계정 ID와 토큰을 확인해 주세요.";
+  }
+  return "네트워크 연결을 확인해 주세요. 인스타그램 서버에 닿지 못했어요.";
+}
+
+/**
+ * 지금 설정된 토큰·계정 ID로 실제 Graph API 를 불러 연결이 유효한지 확인하고 계정 이름을
+ * 돌려준다. `/me?fields=user_id,username`(공식 문서, 2026-08-02 확인)를 부른다 — 토큰
+ * 자체가 "누구인지"를 답하는 엔드포인트라 `businessAccountId`를 URL에 넣지 않는다. 대신
+ * 응답의 `user_id`를 설정값과 비교해 다르면(계정 ID를 잘못 넣은 경우) 계정 불일치로 알린다.
+ */
+export async function verifyInstagramConnection(config: InstagramConfig): Promise<{ username: string }> {
+  const url = `${graphApiBase(config)}/me?fields=user_id,username&access_token=${encodeURIComponent(config.accessToken)}`;
+  const { user_id, username } = await callGraphApi(url, undefined, MeResponse);
+  if (user_id !== config.businessAccountId) {
+    throw new InstagramAccountMismatchError(username);
+  }
+  return { username };
+}
+
 /** `/s/<토큰>/<n>.png`(공유 라우트) 를 공개 base URL 로 감싸 인스타그램이 가져갈 주소를 만든다. */
 export function buildCarouselImageUrls(publicBaseUrl: string, token: string, count: number): string[] {
   const base = publicBaseUrl.replace(/\/+$/, "");
@@ -140,6 +192,7 @@ async function parseJson(res: Response): Promise<unknown> {
 const MediaContainerResponse = z.object({ id: z.string() });
 const StatusCheckResponse = z.object({ status_code: z.string() });
 const PublishResponse = z.object({ id: z.string() });
+const MeResponse = z.object({ user_id: z.string(), username: z.string() });
 
 async function callGraphApi<T>(url: string, init: RequestInit | undefined, schema: z.ZodType<T>): Promise<T> {
   const res = await fetch(url, init);

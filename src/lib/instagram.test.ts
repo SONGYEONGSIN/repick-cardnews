@@ -2,9 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   buildCarouselImageUrls,
   friendlyPublishError,
+  friendlyVerifyError,
   publishCarousel,
+  verifyInstagramConnection,
   InstagramApiError,
   InstagramTimeoutError,
+  InstagramAccountMismatchError,
   CAROUSEL_MIN_ITEMS,
   CAROUSEL_MAX_ITEMS,
   type InstagramConfig,
@@ -219,5 +222,85 @@ describe("carousel 상한 상수", () => {
   it("최소 2장, 최대 10장이다", () => {
     expect(CAROUSEL_MIN_ITEMS).toBe(2);
     expect(CAROUSEL_MAX_ITEMS).toBe(10);
+  });
+});
+
+describe("verifyInstagramConnection", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function jsonResponse(status: number, body: unknown) {
+    return { ok: status >= 200 && status < 300, status, json: async () => body };
+  }
+
+  it("Graph API의 /me 에 access_token을 실어 계정 정보(user_id·username)를 조회한다", async () => {
+    const mockFetch = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      expect(url).toContain("/me?fields=user_id,username");
+      expect(url).toContain(`access_token=${config.accessToken}`);
+      return jsonResponse(200, { user_id: config.businessAccountId, username: "repick_official" });
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await verifyInstagramConnection(config);
+
+    expect(result).toEqual({ username: "repick_official" });
+  });
+
+  it("토큰이 가리키는 계정 id가 설정된 계정 id와 다르면 계정 불일치 오류를 던진다", async () => {
+    const mockFetch = vi.fn(async () => jsonResponse(200, { user_id: "different-id", username: "other_account" }));
+    vi.stubGlobal("fetch", mockFetch);
+
+    await expect(verifyInstagramConnection(config)).rejects.toBeInstanceOf(InstagramAccountMismatchError);
+  });
+
+  it("Graph API가 실패 응답을 주면 InstagramApiError로 감싸 던진다", async () => {
+    const mockFetch = vi.fn(async () =>
+      jsonResponse(400, {
+        error: { message: "Error validating access token: Session has expired", type: "OAuthException", code: 190 },
+      }),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    await expect(verifyInstagramConnection(config)).rejects.toBeInstanceOf(InstagramApiError);
+  });
+});
+
+describe("friendlyVerifyError", () => {
+  it("계정 불일치는 실제 연결된 계정 이름과 함께 한국어로 안내한다", () => {
+    const msg = friendlyVerifyError(new InstagramAccountMismatchError("other_account"));
+    expect(msg).toContain("other_account");
+    expect(msg).toContain("계정");
+  });
+
+  it("코드 190(OAuthException)은 연결이 끊어졌다고 안내한다", () => {
+    const msg = friendlyVerifyError(
+      new InstagramApiError("HTTP 400", {
+        error: { message: "Error validating access token: Session has expired", type: "OAuthException", code: 190 },
+      }),
+    );
+    expect(msg).toContain("연결");
+    expect(msg).not.toContain("access token");
+  });
+
+  it("그 밖의 Graph API 실패는 일반 문구로 안내한다", () => {
+    const msg = friendlyVerifyError(
+      new InstagramApiError("HTTP 400", { error: { message: "Unsupported get request", code: 100 } }),
+    );
+    expect(msg).toContain("확인하지 못했");
+  });
+
+  it("Graph API 오류 형태가 아닌 값(네트워크 실패 등)은 네트워크 문구로 안내한다", () => {
+    const msg = friendlyVerifyError(new TypeError("fetch failed"));
+    expect(msg).toContain("네트워크");
+    expect(msg).not.toContain("fetch failed");
+  });
+
+  it("토큰 값은 어떤 안내 문구에도 담기지 않는다", () => {
+    const msg = friendlyVerifyError(
+      new InstagramApiError("HTTP 400", { error: { message: config.accessToken, code: 1 } }),
+    );
+    expect(msg).not.toContain(config.accessToken);
   });
 });
