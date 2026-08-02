@@ -204,22 +204,23 @@ export function WorkbenchScreen({
       }
     >
       {/*
-        xl(1280px) 이상에서 두 칸으로 나눈다. 순서 레일이 **세로 목록**이라(`WorkbenchRail`)
-        왼쪽은 좁아도 되지만, 이 목록은 "카드 지도" 라 썸네일(96px, `WorkbenchRail`)이 알아볼
-        크기여야 한다 — 그래서 320px 로 둔다(옛 240px 는 썸네일이 56px일 때 기준이었다. 여전히
-        옛 가로 칩 레일이 필요로 하던 폭(다섯 개어치, 1000px 안팎)보다는 훨씬 좁다).
+        xl(1280px) 이상에서 두 칸으로 나눈다. **최대 폭 상한도, 전체를 가운데로 묶는 `mx-auto`
+        도 두지 않는다** — 그 둘은 예전에 페이지 좌우에 죽은 여백을 남기던 원인이었다(그 결함을
+        고친 기록은 `fullwidth-report.md`). 좌우 여백은 다른 화면(`TopicScreen`·`ExportScreen`)
+        과 같은 `px-5 sm:px-8 lg:px-10` 뿐이다.
 
-        **오른쪽이 남는 폭을 전부 가져간다**(`1fr`). 안에서 다시 `mx-auto max-w-[720px]` 로
-        좁히지 않는다 — 예전엔 이게 있어 왼쪽 240px 뒤로 550px 안팎의 죽은 공간이 생겼다(칸은
-        넓은데 내용만 가운데로 떠 있었다). `justify-items-stretch`(그리드 기본값, 여기서는
-        명시한다)가 두 칸 폭을 그대로 채우므로 세트 바·결과가 자동으로 같은 좌우 기준선을
-        공유한다 — 카드만 그 상자 **안에서** `justify-center` 로 가운데 둔다.
+        **왼쪽(순서 레일 + 카피 만들기)이 `xl:flex-1` 로 남는 폭을 전부 가져간다.** 화면이
+        넓어질수록 이 레일 행(`WorkbenchRail`, `w-full` 버튼)이 넓어져 읽기 좋아진다 — 폭이
+        늘어난다고 카드를 더 키울 필요는 없다(카드 크기 규칙은 아래 참고).
 
-        반대로 초광폭(2560px 이상)에서는 요소가 서로 멀리 흩어져 보인다. 그리드 전체에
-        `max-w-[1400px]` 를 두고 가운데 정렬해 막는다 — 320(왼쪽) + 32(칸 간격) + 968(오른쪽),
-        오른쪽 968px 는 세트 바 한 줄과 뷰포트가 아주 넉넉할 때(2560×1440)의 카드 폭(약 800px,
-        아래 높이 설명 참고)을 담고도 남는다. 1920 이하 폭에서는 실제로 쓰는 값이 1400보다 작아
-        이 상한이 걸리지 않는다(폭 스위프 실측은 보고서 참고).
+        **오른쪽(세트 바 + 결과)은 `xl:flex-initial`(자라지 않고, 좁으면 줄어들고, 기본 폭은
+        내용 크기) 에 `xl:max-w-[880px]` 로 상한을 둔다.** 오른쪽의 "내용 크기"는 사실상
+        카드의 자연 폭(아래 설명)이므로, 이 조합은 오른쪽 칸이 카드가 실제로 요구하는 폭
+        **이상으로 벌어지지 않게** 막는다 — 커진 여유 폭은 전부 왼쪽으로 넘어간다. 880px 은
+        세로가 아주 넉넉한 화면(예: 뷰포트 높이 1300 안팎)에서 카드가 요구하는 폭에 여유를 더한
+        값이다(실측 근거는 `fullwidth-report.md` "오른쪽 칸 상한" 절) — 세로로 아주 긴 화면에서
+        카드 쪽이 왼쪽 목록을 짜부라뜨리지 않게 막는 안전판이기도 하다(`xl:min-w-0` 이 없으면
+        `flex-initial` 항목이 내용보다 좁아지지 못해 왼쪽이 밀린다).
 
         카드는 세로 비율(`aspect-[4/5]`, `CardCanvas` 소관, 편집 동작은 안 건드린다)을 지키며
         **남는 높이**에 맞춘다. 옛 `h-[min(70vh,760px)]` 는 뷰포트 비율이라 위 요소(세트 바·툴바)를
@@ -227,20 +228,22 @@ export function WorkbenchScreen({
         캡션은 제 높이만 쓰고(`flex-none`, 기본값), 카드를 담는 칸만 `xl:flex-1`로 남는 높이를
         전부 가져간다(아래 결과 section 과 카드 상자 참고). 이 flex 가 실제 픽셀 높이를 가지려면
         조상 사슬에 확정 높이가 있어야 한다 — `StudioFrame` 의 `xl:h-screen`(그 파일 주석 참고)이
-        `<main>` 까지 내려주고, 이 그리드는 그걸 `xl:h-full` + `xl:content-stretch`/`xl:items-stretch`
-        로 두 칸(왼쪽 레일 전체, 오른쪽 세트 바+결과)에 다시 물려준다. `CardCanvas` 는 그 안에서
-        `xl:h-full`(그 파일의 크기 클래스, 인라인 style 은 늘지 않았다)로 채우고 폭은 그대로
-        `aspect-[4/5]` + `max-w-full` 이 따라온다. 왼쪽 레일은 내용이 남는 높이보다 길면
-        `xl:overflow-y-auto` 로 그 칸 안에서만 스크롤한다 — 카드 쪽을 밀어내지 않는다.
+        `<main>` 까지 내려주고, 이 컨테이너는 그걸 `xl:h-full` 로 받아 두 칸(왼쪽 레일 전체, 오른쪽
+        세트 바+결과)에 flex 기본 정렬(`stretch`)로 물려준다. `CardCanvas` 는 그 안에서
+        `xl:h-auto` + `xl:max-h-full`(그 파일의 크기 클래스, 인라인 style 은 늘지 않았다)로,
+        **높이와 폭 둘 다 상한 안에서 비율을 지키며 최대 크기를 스스로 계산한다** — 옛 `xl:h-full`
+        (높이를 확정값으로 못박는 방식)은 오른쪽 칸에 상한이 생기면 폭이 부족한 순간 비율이
+        깨졌다(카드 상자 주석 참고). 왼쪽 레일은 내용이 남는 높이보다 길면 `xl:overflow-y-auto`
+        로 그 칸 안에서만 스크롤한다 — 카드 쪽을 밀어내지 않는다.
 
-        DOM 순서는 [왼쪽 레일 전체] → [카피 만들기] → [세트 바] → [결과]이고, `xl` 그리드/flex
-        는 이 순서를 배치로만 재배열한다(배치는 탭 순서를 안 바꾼다). 그 아래 폭에서는 지금처럼
-        위아래로 쌓인다.
+        DOM 순서는 [왼쪽 레일 전체] → [카피 만들기] → [세트 바] → [결과]이고, `xl` flex 는 이
+        순서를 배치로만 재배열한다(순서 클래스를 안 쓰므로 DOM 순서 그대로 나열된다). 그 아래
+        폭에서는 지금처럼 위아래로 쌓인다.
       */}
-      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:mx-auto xl:h-full xl:max-w-[1400px] xl:grid xl:grid-cols-[320px_1fr] xl:content-stretch xl:items-stretch xl:justify-items-stretch xl:gap-x-8">
-        {/* 왼쪽 = 순서 레일 + 카피 만들기. 그리드가 stretch 로 오른쪽과 같은 높이를 준다 — 내용이
+      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:h-full xl:flex-row xl:gap-x-8">
+        {/* 왼쪽 = 순서 레일 + 카피 만들기. `xl:flex-1` 이 남는 폭을 전부 가져간다 — 내용이
             넘치면 이 칸 안에서만 스크롤한다. */}
-        <div className="flex flex-col gap-8 lg:gap-9 xl:col-start-1 xl:min-h-0 xl:min-w-0 xl:overflow-y-auto">
+        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:min-w-0 xl:flex-1 xl:overflow-y-auto">
           <section className="flex flex-col gap-4">
             <SectionHead
               title="넘겨 보는 순서"
@@ -314,12 +317,15 @@ export function WorkbenchScreen({
         </div>
 
         {/*
-          오른쪽 = 세트 바 + 결과. 그리드가 준 칸 높이를 세로 flex 로 다시 나눈다 — 세트 바는
-          제 높이만(`flex-none`, 기본값), 결과 section 은 `xl:flex-1`로 남는 높이를 가져간다.
-          gap 은 아래 폭(비 xl)에서 그리드 대신 쓰던 `gap-8` 을 그대로 두고, xl 에서만 옛
-          `gap-y-6` 값(24px)으로 좁힌다 — 세트 바와 카드 사이는 레일 항목 사이보다 붙어도 된다.
+          오른쪽 = 세트 바 + 결과. `xl:flex-initial`(자라지 않는다) + `xl:max-w-[880px]` 로 폭
+          상한을 두고, `xl:min-w-0` 으로 내용(특히 카드)보다 좁아질 수 있게 한다 — 세로가 아주
+          긴 화면에서 카드가 이 칸을 억지로 넓히지 못하게 막는 값이다(위 그리드 주석 참고).
+          안쪽은 세로 flex 로 나눈다 — 세트 바는 제 높이만(`flex-none`, 기본값), 결과 section 은
+          `xl:flex-1`로 남는 높이를 가져간다. gap 은 아래 폭(비 xl)에서 쓰던 `gap-8` 을 그대로
+          두고, xl 에서만 옛 `gap-y-6` 값(24px)으로 좁힌다 — 세트 바와 카드 사이는 레일 항목
+          사이보다 붙어도 된다.
         */}
-        <div className="flex flex-col gap-8 xl:col-start-2 xl:min-h-0 xl:gap-6">
+        <div className="flex flex-col gap-8 xl:min-h-0 xl:min-w-0 xl:flex-initial xl:max-w-[880px] xl:gap-6">
           {/* 세트 바(테마·핸들). 고르면 바로 아래 카드에 반영되는 자리라야 한다. */}
           <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
 
@@ -349,8 +355,11 @@ export function WorkbenchScreen({
                   onSwapPhoto={() => setAdding(true)}
                 />
                 {/* 카드 상자 — 남는 높이를 전부 받아(`xl:flex-1`) 그 안에서 카드를 가운데 둔다.
-                    `CardCanvas` 자신은 `xl:h-full`(그 파일 소관)로 이 칸을 채운다. */}
-                <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8 xl:min-h-0 xl:flex-1">
+                    `xl:items-center` 가 flex 기본 정렬(`stretch`)을 끈다 — stretch 면 자식 높이가
+                    이 상자 높이로 확정돼(`CardCanvas` 의 `xl:h-auto` 가 무력화된다) 폭 상한에
+                    걸렸을 때 비율이 깨진다(`CardCanvas` 주석 참고). `items-center` 라야 그 파일이
+                    스스로 계산한 크기 그대로 가운데 놓인다. */}
+                <div className="flex justify-center rounded-2xl bg-canvas px-4 py-8 xl:min-h-0 xl:flex-1 xl:items-center">
                   <CardCanvas
                     card={card}
                     photo={photo}

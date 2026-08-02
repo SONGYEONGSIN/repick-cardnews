@@ -36,9 +36,17 @@ import { TextYHandle } from "./TextYHandle";
  * 색 리터럴은 컴포넌트에 없다 — 토큰 클래스이거나 `layout-utils` 가 만든 문자열이고, 인라인으로는
  * 숫자(위치·높이·여백 몫)만 넘긴다. 일곱 번째는 두지 않는다.
  *
- * 크기: `xl` 미만은 뷰포트 비율(`h-[min(70vh,760px)]`)로 정하고, `xl` 이상은 `WorkbenchScreen`
- * 이 세트 바·툴바를 뺀 남는 높이를 flex 로 계산해 준 상자를 `xl:h-full` 로 채운다 — 세로 비율은
- * `aspect-[4/5]` 가, 폭 상한은 `max-w-full` 이 그대로 지킨다.
+ * 크기: `xl` 미만은 뷰포트 비율(`h-[min(70vh,760px)]`)로 정한다. `xl` 이상은 높이·폭 **둘 다**
+ * `auto`(`xl:h-auto`, 폭은 원래도 `auto` — 이 컴포넌트는 어느 폭에서도 `w-*` 클래스를 두지
+ * 않는다) 로 두고 `aspect-[4/5]` 와 `max-w-full`(모든 폭에서 상시)· `xl:max-h-full` 두 상한이
+ * 동시에 작용하게 한다 — 브라우저가 "세로 비율을 지키며 두 상한(부모가 준 남는 높이, 남는 폭)
+ * 중 더 좁은 쪽에 맞춰 최대 크기"를 스스로 계산한다(비대체 요소의 `aspect-ratio` + 양쪽
+ * `auto` + `max-*` 조합 — `<img>` 의 `max-width/max-height` 축소와 같은 원리). 옛 `xl:h-full`
+ * 은 높이만 확정값으로 못박아 폭이 `max-w-full` 에 걸리면 세로 비율이 깨졌다(`WorkbenchScreen`
+ * 이 오른쪽 칸에 상한을 두면 이 폭 부족이 실제로 일어난다) — 이번엔 두 축을 함께 `auto` 로
+ * 둬서 그 결함을 구조적으로 막는다. 이 자동 축소가 실제로 동작하려면 부모(`WorkbenchScreen`
+ * 의 카드 상자)가 `stretch` 대신 `items-center` 로 이 요소를 누르지 않아야 한다(그쪽 주석
+ * 참고) — 아니면 flex 기본값(`stretch`)이 높이를 다시 확정값으로 만들어 버린다.
  */
 
 /** 방향키 한 번에 5%. 스무 번이면 끝에서 끝까지 가고, 한 칸이 눈에 보인다. */
@@ -378,7 +386,7 @@ export function CardCanvas({
   );
 
   return (
-    <div className="relative flex aspect-[4/5] h-[min(70vh,760px)] max-w-full flex-col overflow-hidden rounded-2xl border border-hair bg-surface xl:h-full">
+    <div className="relative flex aspect-[4/5] h-[min(70vh,760px)] max-w-full flex-col overflow-hidden rounded-2xl border border-hair bg-surface xl:h-auto xl:max-h-full">
       {card.layout === "full-bleed" && (
         <>
           {photoSurface("absolute inset-0")}
