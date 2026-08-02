@@ -152,3 +152,70 @@ describe("POST /api/publish 로컬 전용 가드", () => {
     expect(data.error).toContain("설정");
   });
 });
+
+describe("POST /api/publish 해시태그 검증·결합", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    clearEnv();
+    vi.unstubAllGlobals();
+  });
+
+  it("해시태그가 5개를 넘으면 400과 한국어 사유로 거절한다", async () => {
+    setFullEnv();
+    const token = randomUUID();
+    saveShare(token, { images: [Buffer.from("a"), Buffer.from("b")], keyword: "테스트", issuedAt: Date.now() });
+
+    const res = await POST(
+      makeRequest("localhost:3500", {
+        token,
+        caption: "",
+        hashtags: ["가", "나", "다", "라", "마", "바"],
+      })
+    );
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toMatch(/[가-힣]/);
+    expect(data.error).toContain("5");
+  });
+
+  it("해시태그가 5개면 통과해 캡션 뒤에 합쳐 인스타그램으로 보낸다", async () => {
+    setFullEnv();
+    let carouselCaption: string | null = null;
+    const mockFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      const body = init?.body instanceof URLSearchParams ? init.body.toString() : String(init?.body ?? "");
+      const jsonResponse = (status: number, data: unknown) => ({
+        ok: status >= 200 && status < 300,
+        status,
+        json: async () => data,
+      });
+
+      if (method === "POST" && url.endsWith("/media") && body.includes("is_carousel_item")) {
+        return jsonResponse(200, { id: "item" });
+      }
+      if (method === "GET" && url.includes("status_code")) {
+        return jsonResponse(200, { status_code: "FINISHED" });
+      }
+      if (method === "POST" && url.endsWith("/media") && body.includes("media_type=CAROUSEL")) {
+        carouselCaption = new URLSearchParams(body).get("caption");
+        return jsonResponse(200, { id: "carousel-1" });
+      }
+      if (method === "POST" && url.endsWith("/media_publish")) {
+        return jsonResponse(200, { id: "media-1" });
+      }
+      throw new Error(`unexpected call: ${method} ${url}`);
+    });
+    vi.stubGlobal("fetch", mockFetch);
+    const token = randomUUID();
+    saveShare(token, { images: [Buffer.from("a"), Buffer.from("b")], keyword: "테스트", issuedAt: Date.now() });
+
+    const res = await POST(
+      makeRequest("localhost:3500", { token, caption: "오늘의 카드뉴스", hashtags: ["다이어트", "헬스"] })
+    );
+
+    expect(res.status).toBe(200);
+    expect(carouselCaption).toBe("오늘의 카드뉴스\n\n#다이어트 #헬스");
+  });
+});

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { toDataURL } from "qrcode";
-import { SectionHead } from "@/features/shell/StudioFrame";
+import { Smartphone } from "lucide-react";
+import { LineButton, SectionHead } from "@/features/shell/StudioFrame";
 
 /**
  * `POST /api/share` 응답에서 이 패널이 쓰는 부분만 — `token` 은 필요 없다.
@@ -18,15 +19,28 @@ function remainingLabel(expiresAt: string, now: number): string {
 }
 
 /**
- * "폰으로 보내기" 결과 — QR·링크·남은 시간. `share.link` 가 있을 때만 QR 을 그린다.
- * `qrcode` 는 브라우저 canvas 로 그리므로 이 파일은 클라이언트 컴포넌트다.
+ * "폰으로 보내기" — 내보내는 세 갈래 중 둘째. 사진이 이 컴퓨터를 벗어나 같은 와이파이의
+ * 다른 기기로 가지만, 인터넷으로는 나가지 않는다는 점에서 "인스타그램에 올리기"와 구분된다.
+ *
+ * 트리거 버튼(`onRequest`)은 예전에 `ExportScreen` 헤더에 있었다 — 위치만 이 패널 안으로
+ * 옮겼고, 실제 요청 로직(`/api/share` 호출)은 그대로 `ExportScreen`이 쥐고 있다. `share`가
+ * `null`이면 아직 요청 전, 있으면 결과(QR·링크·만료)를 보여준다. `share.link`가 있을 때만
+ * QR을 그린다 — `qrcode`는 브라우저 canvas로 그리므로 이 파일은 클라이언트 컴포넌트다.
  */
-export function SharePanel({ share }: { share: ShareResult }) {
+export function SharePanel({
+  share,
+  busy,
+  onRequest,
+}: {
+  share: ShareResult | null;
+  busy: boolean;
+  onRequest: () => void;
+}) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (!share.link) return;
+    if (!share?.link) return;
     let cancelled = false;
     toDataURL(share.link).then((url) => {
       if (!cancelled) setQrDataUrl(url);
@@ -34,7 +48,7 @@ export function SharePanel({ share }: { share: ShareResult }) {
     return () => {
       cancelled = true;
     };
-  }, [share.link]);
+  }, [share?.link]);
 
   // 만료까지 남은 시간을 1초마다 다시 계산해 보여 준다.
   useEffect(() => {
@@ -43,21 +57,30 @@ export function SharePanel({ share }: { share: ShareResult }) {
   }, []);
 
   return (
-    <section className="flex max-w-[640px] flex-col gap-4">
+    <section className="flex flex-col gap-4 rounded-xl border border-hair p-6">
       <SectionHead title="폰으로 보내기" aside="같은 와이파이에서만 열려요" />
-      <div role="status" className="flex flex-col gap-4 rounded-xl border border-hair p-6">
-        {share.link ? (
+      <div role="status" className="flex flex-col gap-4">
+        {!share && (
           <>
             <p className="text-[14px] leading-relaxed text-ink-2">
-              폰이 이 컴퓨터와 같은 와이파이에 연결돼 있어야 링크가 열려요.
+              폰이 이 컴퓨터와 같은 와이파이에 연결돼 있어야 링크가 열려요. 인터넷으로는 나가지 않아요.
             </p>
+            <LineButton disabled={busy} onClick={onRequest}>
+              <Smartphone size={15} aria-hidden="true" />
+              폰으로 보내기 링크 만들기
+            </LineButton>
+          </>
+        )}
+        {share?.link && (
+          <>
             {qrDataUrl && (
               <img src={qrDataUrl} alt="폰 카메라로 스캔하면 카드가 열려요" className="h-44 w-44 flex-none" />
             )}
             <p className="break-all rounded bg-hair-soft px-3 py-2 font-mono text-[13px]">{share.link}</p>
             <p className="text-[13px] font-bold text-ink-2">{remainingLabel(share.expiresAt, now)}</p>
           </>
-        ) : (
+        )}
+        {share && !share.link && (
           <p className="text-[14px] leading-relaxed text-ink-2">
             이 컴퓨터의 집 네트워크 주소를 찾지 못해 링크를 만들지 못했어요. 이 컴퓨터가 와이파이(유선이
             아닌)에 연결돼 있는지 확인한 뒤 다시 눌러 주세요.

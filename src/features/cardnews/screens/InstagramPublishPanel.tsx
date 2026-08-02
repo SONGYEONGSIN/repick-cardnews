@@ -8,6 +8,7 @@ import { maxPublishWaitMs } from "@/lib/instagram";
 import { daysRemaining } from "@/lib/instagram-token-refresh";
 import type { PublishProgress } from "@/lib/publish-progress-store";
 import { TokenStatusBlock, type RefreshActionResult, type TokenStatusView } from "./TokenStatusBlock";
+import { HashtagInput } from "./HashtagInput";
 
 /**
  * "인스타그램에 올리기" 패널. 연결 여부는 이 컴포넌트가 마운트 시 `GET /api/instagram-status`
@@ -39,6 +40,13 @@ import { TokenStatusBlock, type RefreshActionResult, type TokenStatusView } from
  * 스스로 갱신하지만(`src/instrumentation.ts`), 화면의 "토큰 갱신" 버튼으로 사용자가 언제든
  * 남은 기간과 무관하게 직접 시도할 수도 있다(`POST` 같은 경로). 이미 만료됐으면 자동/수동
  * 갱신 둘 다 불가능하므로 버튼 대신 대시보드 재발급 안내를 보여준다.
+ *
+ * **해시태그**: 캡션 아래에서 태그를 하나씩(또는 공백·쉼표로 여러 개를 한 번에) 입력받아
+ * 칩으로 쌓는다. 인스타그램이 2025-12부터 게시물당 5개로 제한하므로(`@/lib/hashtags`가
+ * 단일 출처) 5개를 넘기려 하면 추가를 막고 이유를 보여준다 — 이 화면과 `/api/publish`의
+ * zod 검증이 같은 상한을 쓴다. `#`은 붙이든 안 붙이든 정규화된다. 실제로 캡션과 합치는
+ * 것은(줄바꿈 두 번 뒤 `#태그` 나열, `combineCaptionWithHashtags`) 이 화면이 아니라
+ * `/api/publish`가 한다 — 여기는 `caption`·`hashtags`를 구조 그대로 넘길 뿐이다.
  */
 /** 진행 상황을 몇 초 간격으로 물어볼지 — "몇 초 간격"이라는 요구를 만족하는 값. */
 const PROGRESS_POLL_INTERVAL_MS = 3_000;
@@ -100,7 +108,8 @@ export function InstagramPublishPanel({
   busy: boolean;
   /** 지난번 게시가 성공했는지 — 지역 상태를 부모(`ExportScreen`)가 들고 있다가 넘긴다. */
   published: boolean;
-  onPublish: (caption: string) => Promise<void>;
+  /** 캡션과 해시태그(정규화된 배열, `#` 없이)를 구조 그대로 넘긴다 — 합치는 건 서버 몫이다. */
+  onPublish: (caption: string, hashtags: string[]) => Promise<void>;
   /** `/api/publish` 요청이 실제로 도는 동안만 값이 있다 — 이 값이 있을 때만 진행 상황을 폴링한다. */
   token: string | null;
   /** 이번에 게시할 사진 장수 — 최대 소요 시간 안내에 쓴다. */
@@ -108,6 +117,7 @@ export function InstagramPublishPanel({
 }) {
   const [status, setStatus] = useState<ConnectionStatus>({ state: "loading" });
   const [caption, setCaption] = useState("");
+  const [hashtags, setHashtags] = useState<string[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [verify, setVerify] = useState<VerifyResult>({ state: "idle" });
   const [progress, setProgress] = useState<PublishProgress | null>(null);
@@ -195,7 +205,7 @@ export function InstagramPublishPanel({
     if (!canPublish) return;
     setPublishing(true);
     try {
-      await onPublish(caption);
+      await onPublish(caption, hashtags);
     } finally {
       setPublishing(false);
     }
@@ -246,9 +256,9 @@ export function InstagramPublishPanel({
   }
 
   return (
-    <section className="flex max-w-[640px] flex-col gap-4">
+    <section className="flex flex-col gap-4 rounded-xl border border-hair p-6">
       <SectionHead title="인스타그램에 올리기" aside="누르면 사진이 인스타그램 서버로 나가요" />
-      <div role="status" className="flex flex-col gap-4 rounded-xl border border-hair p-6">
+      <div role="status" className="flex flex-col gap-4">
         {status.state === "loading" && (
           <p className="text-[14px] text-ink-2">연결 상태를 확인하는 중이에요.</p>
         )}
@@ -336,6 +346,8 @@ export function InstagramPublishPanel({
                 className={`rounded-lg border border-hair px-3 py-2.5 text-[14px] leading-relaxed transition-colors duration-200 placeholder:text-ink-3 focus:border-ink focus:outline-none disabled:text-ink-disabled ${FOCUS_RING} motion-reduce:transition-none`}
               />
             </label>
+
+            <HashtagInput value={hashtags} onChange={setHashtags} disabled={busy || publishing} />
 
             {publishing && (
               <p role="status" className="text-[13px] text-ink-2">

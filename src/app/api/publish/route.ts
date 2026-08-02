@@ -10,6 +10,7 @@ import {
   CAROUSEL_MAX_ITEMS,
 } from "@/lib/instagram";
 import { recordPublishProgress, clearPublishProgress } from "@/lib/publish-progress-store";
+import { MAX_HASHTAGS, combineCaptionWithHashtags } from "@/lib/hashtags";
 
 /**
  * POST /api/publish — 공유 토큰이 가리키는 카드 이미지들을 인스타그램 캐러셀로 게시한다.
@@ -32,6 +33,13 @@ import { recordPublishProgress, clearPublishProgress } from "@/lib/publish-progr
 const BodySchema = z.object({
   token: z.uuid("잘못된 공유 링크입니다"),
   caption: z.string().trim().max(2200, "캡션은 2200자를 넘을 수 없습니다").default(""),
+  // 인스타그램은 2025-12부터 게시물당 해시태그를 5개로 제한한다(넘으면 탐색·추천에서 빠진다) —
+  // 화면(`InstagramPublishPanel`)이 이미 5개를 넘기지 못하게 막지만, 여기서도 같은 상한을
+  // 다시 검증한다(`@/lib/hashtags`가 단일 출처).
+  hashtags: z
+    .array(z.string().trim().min(1, "빈 해시태그는 보낼 수 없습니다"))
+    .max(MAX_HASHTAGS, `해시태그는 최대 ${MAX_HASHTAGS}개까지만 쓸 수 있습니다`)
+    .default([]),
 });
 
 export async function POST(req: Request) {
@@ -81,9 +89,11 @@ export async function POST(req: Request) {
   // 게시가 도는 동안 어디까지 갔는지 이 토큰 아래 기록해 둔다 — 화면(`/api/publish-progress`)이
   // 몇 초 간격으로 읽어간다. 끝나면(성공이든 실패든) `finally`에서 반드시 지운다 — 정리를
   // 빼먹으면 서버 메모리에 무한정 쌓인다.
+  const caption = combineCaptionWithHashtags(parsed.data.caption, parsed.data.hashtags);
+
   try {
     const mediaId = await publishCarousel(
-      { config: configCheck.config, imageUrls, caption: parsed.data.caption },
+      { config: configCheck.config, imageUrls, caption },
       undefined,
       (progress) => recordPublishProgress(parsed.data.token, progress, Date.now()),
     );
