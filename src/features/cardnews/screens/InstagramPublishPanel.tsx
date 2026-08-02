@@ -5,7 +5,9 @@ import { Check, CircleAlert, Send } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { maxPublishWaitMs } from "@/lib/instagram";
+import { daysRemaining } from "@/lib/instagram-token-refresh";
 import type { PublishProgress } from "@/lib/publish-progress-store";
+import { TokenStatusBlock, type RefreshActionResult, type TokenStatusView } from "./TokenStatusBlock";
 
 /**
  * "인스타그램에 올리기" 패널. 연결 여부는 이 컴포넌트가 마운트 시 `GET /api/instagram-status`
@@ -31,6 +33,12 @@ import type { PublishProgress } from "@/lib/publish-progress-store";
  * `GET /api/publish-progress`를 몇 초 간격으로 물어본다 — 서버가 3단계(사진 준비 → 묶기 →
  * 게시) 중 어디에 있는지 기록해 둔 것을 그대로 읽어와 "N장 중 M장 준비 중"처럼 숫자로
  * 보여준다. `token`이 null이 되면(요청이 끝나면) 폴링을 멈춘다.
+ *
+ * **토큰 만료일**: `GET /api/instagram-refresh-token`으로 저장된 만료일을 읽어 "N월 N일까지 ·
+ * N일 남음"으로 보여준다(`TokenStatusBlock`). 서버가 기동할 때마다 자동으로 30일 이내면
+ * 스스로 갱신하지만(`src/instrumentation.ts`), 화면의 "토큰 갱신" 버튼으로 사용자가 언제든
+ * 남은 기간과 무관하게 직접 시도할 수도 있다(`POST` 같은 경로). 이미 만료됐으면 자동/수동
+ * 갱신 둘 다 불가능하므로 버튼 대신 대시보드 재발급 안내를 보여준다.
  */
 /** 진행 상황을 몇 초 간격으로 물어볼지 — "몇 초 간격"이라는 요구를 만족하는 값. */
 const PROGRESS_POLL_INTERVAL_MS = 3_000;
@@ -103,6 +111,9 @@ export function InstagramPublishPanel({
   const [publishing, setPublishing] = useState(false);
   const [verify, setVerify] = useState<VerifyResult>({ state: "idle" });
   const [progress, setProgress] = useState<PublishProgress | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<TokenStatusView>({ state: "loading" });
+  const [refreshingToken, setRefreshingToken] = useState(false);
+  const [refreshResult, setRefreshResult] = useState<RefreshActionResult>({ state: "idle" });
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +132,30 @@ export function InstagramPublishPanel({
       })
       .catch(() => {
         if (!cancelled) setStatus({ state: "check-failed" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 저장된 토큰 만료일을 읽기 전용으로 물어본다 — 토큰이 아예 없는 상태(`not-ready`)에서도
+  // 해롭지 않게 "unknown"으로 떨어질 뿐이라, 연결 상태와 무관하게 마운트 시 한 번만 부른다.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/instagram-refresh-token")
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.expired) {
+          setTokenStatus({ state: "expired" });
+        } else if (typeof data.expiresAt === "string" && typeof data.daysRemaining === "number") {
+          setTokenStatus({ state: "valid", expiresAt: new Date(data.expiresAt), daysRemaining: data.daysRemaining });
+        } else {
+          setTokenStatus({ state: "unknown" });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setTokenStatus({ state: "check-failed" });
       });
     return () => {
       cancelled = true;
@@ -185,6 +220,31 @@ export function InstagramPublishPanel({
     }
   }
 
+  /** "토큰 갱신" 버튼 — 남은 기간과 무관하게 항상 시도한다(서버 쪽 게이트는 자동 갱신에만
+   * 적용된다, `src/instrumentation.ts` 참고). 성공하면 화면에 보이는 만료일도 즉시 새로
+   * 고친다. */
+  async function handleRefreshToken() {
+    setRefreshingToken(true);
+    try {
+      const res = await fetch("/api/instagram-refresh-token", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setRefreshResult({ state: "success", expiresAt: data.expiresAt });
+        const expiresAt = new Date(data.expiresAt);
+        setTokenStatus({ state: "valid", expiresAt, daysRemaining: daysRemaining(new Date(), expiresAt) });
+      } else {
+        setRefreshResult({
+          state: "failed",
+          message: typeof data.error === "string" ? data.error : "토큰 갱신에 실패했어요.",
+        });
+      }
+    } catch {
+      setRefreshResult({ state: "failed", message: "토큰 갱신에 실패했어요. 잠시 후 다시 시도해 주세요." });
+    } finally {
+      setRefreshingToken(false);
+    }
+  }
+
   return (
     <section className="flex max-w-[640px] flex-col gap-4">
       <SectionHead title="인스타그램에 올리기" aside="누르면 사진이 인스타그램 서버로 나가요" />
@@ -236,6 +296,12 @@ export function InstagramPublishPanel({
               ))}
             </ul>
             <VerifyBlock verify={verify} onVerify={() => void handleVerify()} />
+            <TokenStatusBlock
+              status={tokenStatus}
+              refreshing={refreshingToken}
+              refreshResult={refreshResult}
+              onRefresh={() => void handleRefreshToken()}
+            />
             <SolidButton disabled>
               <Send size={15} aria-hidden="true" />
               인스타에 올리기
@@ -251,6 +317,12 @@ export function InstagramPublishPanel({
             </p>
 
             <VerifyBlock verify={verify} onVerify={() => void handleVerify()} />
+            <TokenStatusBlock
+              status={tokenStatus}
+              refreshing={refreshingToken}
+              refreshResult={refreshResult}
+              onRefresh={() => void handleRefreshToken()}
+            />
 
             <label className="flex flex-col gap-1.5">
               <span className="text-[13px] font-bold text-ink-2">캡션 (선택)</span>
