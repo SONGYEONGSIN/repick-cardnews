@@ -129,8 +129,8 @@ describe("SET_SPEC", () => {
     expect(solutionCard?.band).toBe(0.3);
   });
   it("레이아웃별 기본 textY 를 정한다 — full-bleed 는 1(아래), 나머지는 0.5(가운데)", () => {
-    // FullBleedCard 는 justifyContent:flex-end, Split·TextOnly 는 justifyContent:center 로
-    // 지금 글을 배치한다. 이 기본값이 그 배치와 어긋나면 텍스트 위치가 바뀌어 보인다.
+    // FullBleedCard 는 글을 아래 끝에, Split·TextOnly 는 가운데에 둔다(textYSpacers 가 만드는
+    // 여백 비율). 이 기본값이 그 배치와 어긋나면 텍스트 위치가 바뀌어 보인다.
     const s = cardnewsReducer(withPhotos(5), { type: "SET_SPEC", spec });
     expect(s.cards.map((c) => c.textY)).toEqual([1, 0.5, 0.5, 0.5, 0.5]);
   });
