@@ -179,9 +179,8 @@ function SlotRow({
           className={`flex min-w-0 flex-1 items-center gap-3 text-left ${FOCUS_RING}`}
         >
           <Thumb photo={photo} index={index} />
-          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="text-[14px] font-bold">{card ? ROLE_LABELS[card.copy.role] : "사진"}</span>
-            <span className="truncate text-[13px] text-ink-2">{card ? card.copy.heading : (photo?.name ?? "")}</span>
+          <span className="min-w-0 flex-1 truncate text-[14px] font-bold">
+            {card ? card.copy.heading : (photo?.name ?? "")}
           </span>
         </button>
       </div>

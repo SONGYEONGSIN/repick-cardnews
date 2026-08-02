@@ -14,6 +14,7 @@ export function CardnewsBody({
   compact?: boolean;
 }) {
   const fg = onPhoto ? t.onPhoto : t.fg;
+  // cta 알약(아래 action 배지)에서만 쓰인다 — 역할 배지(RoleTag)는 지웠다
   const tagBg = onPhoto ? t.onPhoto : t.accent;
   const tagFg = onPhoto ? "#111111" : t.bg;
 
@@ -43,30 +44,9 @@ export function CardnewsBody({
       {children}
     </p>
   );
-  const RoleTag = ({ label }: { label: string }) => (
-    <span
-      style={{
-        display: "inline-block",
-        // 레이아웃의 flex column 안에서 flex item 은 blockify 되어 stretch 된다 —
-        // 이걸 막지 않으면 알약이 936px 통짜 띠가 된다.
-        alignSelf: "flex-start",
-        fontFamily: t.displayFont,
-        fontSize: compact ? 26 : 30,
-        color: tagFg,
-        background: tagBg,
-        padding: "6px 20px",
-        borderRadius: 999,
-        marginBottom: compact ? 20 : 28,
-      }}
-    >
-      {label}
-    </span>
-  );
-
   if (card.role === "hook") {
     return (
       <>
-        {card.badge && <RoleTag label={card.badge} />}
         <Heading>{card.heading}</Heading>
         {card.sub && <Body>{card.sub}</Body>}
       </>
@@ -75,7 +55,6 @@ export function CardnewsBody({
   if (card.role === "problem" || card.role === "evidence") {
     return (
       <>
-        <RoleTag label={card.role === "problem" ? "문제" : "증거"} />
         <Heading>{card.heading}</Heading>
         <Body>{card.body}</Body>
       </>
@@ -84,7 +63,6 @@ export function CardnewsBody({
   if (card.role === "solution") {
     return (
       <>
-        <RoleTag label="해결책" />
         <Heading>{card.heading}</Heading>
         <Body>{card.body}</Body>
         {card.steps && (
