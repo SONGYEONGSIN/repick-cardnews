@@ -19,10 +19,16 @@ import { LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFra
  * `instagram-status`와 달리 실제로 Graph API 를 한 번 호출해 토큰이 유효한지, 계정 ID가
  * 맞는지 확인하고 연결된 계정 이름(username)을 보여 준다. **화면이 열릴 때 자동으로 부르지
  * 않고, 사용자가 버튼을 눌렀을 때만** 호출한다.
+ *
+ * 공개 주소(`PUBLIC_BASE_URL`)는 게시할 때만 필요하다 — 연결 확인(계정 ID·토큰)엔 필요
+ * 없다. 그래서 `/api/instagram-status`가 `ready:false`와 함께 내려주는 `connected`로
+ * "연결도 아직 안 됨"(`not-ready`)과 "연결은 됐는데 공개 주소가 없어 게시 준비만 덜 됨"
+ * (`connected-not-ready`)을 구분한다 — 뒤쪽 상태에서만 "연결 확인" 버튼을 켠다.
  */
 type ConnectionStatus =
   | { state: "loading" }
   | { state: "ready" }
+  | { state: "connected-not-ready"; missing: string[] }
   | { state: "not-ready"; missing: string[] }
   | { state: "check-failed" };
 
@@ -31,6 +37,29 @@ type VerifyResult =
   | { state: "checking" }
   | { state: "success"; username: string }
   | { state: "failed"; message: string };
+
+/** "연결 확인" 버튼과 그 결과 표시. `ready`·`connected-not-ready` 두 상태에서 똑같이 쓴다. */
+function VerifyBlock({ verify, onVerify }: { verify: VerifyResult; onVerify: () => void }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <LineButton disabled={verify.state === "checking"} onClick={onVerify}>
+        {verify.state === "checking" ? "확인하는 중..." : "연결 확인"}
+      </LineButton>
+      {verify.state === "success" && (
+        <p role="status" className="flex items-center gap-2 text-[14px] font-bold">
+          <Check size={16} aria-hidden="true" className="flex-none" />
+          연결됨 @{verify.username} — 이 계정이 맞는지 확인해 주세요.
+        </p>
+      )}
+      {verify.state === "failed" && (
+        <p role="alert" className="flex items-center gap-2 text-[14px] text-ink-2">
+          <CircleAlert size={16} aria-hidden="true" className="flex-none" />
+          {verify.message}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function InstagramPublishPanel({
   busy,
@@ -54,11 +83,14 @@ export function InstagramPublishPanel({
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
-        setStatus(
-          data.ready
-            ? { state: "ready" }
-            : { state: "not-ready", missing: Array.isArray(data.missing) ? data.missing : [] },
-        );
+        const missing = Array.isArray(data.missing) ? data.missing : [];
+        if (data.ready) {
+          setStatus({ state: "ready" });
+        } else if (data.connected) {
+          setStatus({ state: "connected-not-ready", missing });
+        } else {
+          setStatus({ state: "not-ready", missing });
+        }
       })
       .catch(() => {
         if (!cancelled) setStatus({ state: "check-failed" });
@@ -117,7 +149,8 @@ export function InstagramPublishPanel({
         {status.state === "not-ready" && (
           <div className="flex flex-col gap-3">
             <p className="text-[14px] leading-relaxed text-ink-2">
-              아직 인스타그램에 바로 올릴 수 없어요. 아래 항목을 서버에 먼저 준비해야 게시 버튼이 켜져요.
+              아직 인스타그램에 연결할 수 없어요. 아래 항목을 서버에 먼저 준비해야 연결 확인도, 게시도 할 수
+              있어요.
             </p>
             <ul className="flex flex-col gap-1.5">
               {status.missing.map((item) => (
@@ -134,6 +167,28 @@ export function InstagramPublishPanel({
           </div>
         )}
 
+        {status.state === "connected-not-ready" && (
+          <div className="flex flex-col gap-3">
+            <p className="text-[14px] leading-relaxed text-ink-2">
+              계정 연결에 필요한 값은 준비됐어요. 연결 확인은 지금 해 볼 수 있지만, 게시하려면 아래 항목이
+              더 필요해요.
+            </p>
+            <ul className="flex flex-col gap-1.5">
+              {status.missing.map((item) => (
+                <li key={item} className="flex items-center gap-2 text-[14px] font-bold">
+                  <CircleAlert size={14} aria-hidden="true" className="flex-none" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <VerifyBlock verify={verify} onVerify={() => void handleVerify()} />
+            <SolidButton disabled>
+              <Send size={15} aria-hidden="true" />
+              인스타에 올리기
+            </SolidButton>
+          </div>
+        )}
+
         {status.state === "ready" && (
           <>
             <p className="text-[14px] leading-relaxed text-ink-2">
@@ -141,23 +196,7 @@ export function InstagramPublishPanel({
               보내기"와 달리 이 컴퓨터의 집 네트워크를 벗어나 인터넷으로 나가는 방식이에요.
             </p>
 
-            <div className="flex flex-col gap-2">
-              <LineButton disabled={verify.state === "checking"} onClick={() => void handleVerify()}>
-                {verify.state === "checking" ? "확인하는 중..." : "연결 확인"}
-              </LineButton>
-              {verify.state === "success" && (
-                <p role="status" className="flex items-center gap-2 text-[14px] font-bold">
-                  <Check size={16} aria-hidden="true" className="flex-none" />
-                  연결됨 @{verify.username} — 이 계정이 맞는지 확인해 주세요.
-                </p>
-              )}
-              {verify.state === "failed" && (
-                <p role="alert" className="flex items-center gap-2 text-[14px] text-ink-2">
-                  <CircleAlert size={16} aria-hidden="true" className="flex-none" />
-                  {verify.message}
-                </p>
-              )}
-            </div>
+            <VerifyBlock verify={verify} onVerify={() => void handleVerify()} />
 
             <label className="flex flex-col gap-1.5">
               <span className="text-[13px] font-bold text-ink-2">캡션 (선택)</span>

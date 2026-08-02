@@ -38,14 +38,27 @@ describe("POST /api/instagram-verify", () => {
     expect(data.error).toContain("컴퓨터");
   });
 
-  it("설정이 없으면 400과 빠진 항목을 한국어로 알려준다", async () => {
+  it("계정 ID·토큰이 없으면 400과 빠진 항목을 한국어로 알려준다", async () => {
     clearEnv();
     const res = await POST(makeRequest("localhost:3500"));
 
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.ok).toBe(false);
-    expect(data.error).toContain("설정");
+    expect(data.error).toContain("필요한 값");
+  });
+
+  it("공개 주소가 없어도 계정 ID·토큰만 있으면 연결 확인을 시도한다", async () => {
+    clearEnv();
+    process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID = "17841400000000000";
+    process.env.INSTAGRAM_ACCESS_TOKEN = "long-lived-secret-token";
+    vi.mocked(verifyInstagramConnection).mockResolvedValueOnce({ username: "repick_official" });
+
+    const res = await POST(makeRequest("localhost:3500"));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({ ok: true, username: "repick_official" });
   });
 
   it("연결에 성공하면 계정 이름을 200으로 돌려준다", async () => {

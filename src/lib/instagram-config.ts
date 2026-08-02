@@ -8,9 +8,12 @@
  * 읽을 뿐, 이 값을 API 라우트 응답에 그대로 실어 보내면 안 된다(호출 쪽 책임).
  */
 
-export type InstagramConfig = {
-  /** 우리 이미지가 바깥에서 닿는 공개 base URL. 예: https://xxxx.ngrok-free.app */
-  publicBaseUrl: string;
+/**
+ * "연결 확인"(`/api/instagram-verify`)에 필요한 값만 묶은 것. 토큰이 유효한지, 어느 계정을
+ * 가리키는지 확인하는 데는 이 셋이면 충분하다 — 사진을 어디로 가져가게 할지(공개 주소)는
+ * 몰라도 된다.
+ */
+export type InstagramConnectionConfig = {
   /** 인스타그램 비즈니스 계정 ID (Graph API 의 {ig-user-id}). */
   businessAccountId: string;
   /** 장기 액세스 토큰. 절대 클라이언트로 내보내지 않는다. */
@@ -22,6 +25,16 @@ export type InstagramConfig = {
    */
   graphHost: string;
 };
+
+/** 실제 게시(`/api/publish`)에 필요한 값 — 연결에 필요한 값에 공개 주소가 더해진다. */
+export type InstagramConfig = InstagramConnectionConfig & {
+  /** 우리 이미지가 바깥에서 닿는 공개 base URL. 예: https://xxxx.ngrok-free.app */
+  publicBaseUrl: string;
+};
+
+export type InstagramConnectionCheck =
+  | { ready: true; config: InstagramConnectionConfig }
+  | { ready: false; missing: string[] };
 
 export type InstagramConfigCheck =
   | { ready: true; config: InstagramConfig }
@@ -59,4 +72,25 @@ export function checkInstagramConfig(env: Record<string, string | undefined>): I
   }
 
   return { ready: true, config: { publicBaseUrl, businessAccountId, accessToken, graphHost } };
+}
+
+/**
+ * 연결 확인(`/api/instagram-verify`)에 필요한 값만 본다 — 공개 주소(`PUBLIC_BASE_URL`)는
+ * 게시할 때만 필요하므로 여기서는 아예 읽지 않는다. 그래서 터널을 아직 안 켜서 공개 주소가
+ * 없어도, 계정 ID와 토큰만 맞으면 연결 확인을 시도할 수 있다.
+ */
+export function checkInstagramConnectionConfig(env: Record<string, string | undefined>): InstagramConnectionCheck {
+  const businessAccountId = env[ENV_KEYS.businessAccountId]?.trim();
+  const accessToken = env[ENV_KEYS.accessToken]?.trim();
+  const graphHost = env[ENV_KEYS.graphHost]?.trim() || DEFAULT_GRAPH_HOST;
+
+  const missing: string[] = [];
+  if (!businessAccountId) missing.push(ENV_LABELS.businessAccountId);
+  if (!accessToken) missing.push(ENV_LABELS.accessToken);
+
+  if (!businessAccountId || !accessToken) {
+    return { ready: false, missing };
+  }
+
+  return { ready: true, config: { businessAccountId, accessToken, graphHost } };
 }

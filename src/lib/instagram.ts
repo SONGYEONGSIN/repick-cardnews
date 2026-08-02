@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
-import type { InstagramConfig } from "@/lib/instagram-config";
+import type { InstagramConfig, InstagramConnectionConfig } from "@/lib/instagram-config";
 
-export type { InstagramConfig };
+export type { InstagramConfig, InstagramConnectionConfig };
 
 /**
  * 인스타그램 콘텐츠 게시(Graph API) 캐러셀 클라이언트.
@@ -31,7 +31,7 @@ export type { InstagramConfig };
 
 const GRAPH_API_VERSION = "v25.0"; // 공식 문서 예제 기준(2026-08-02 확인). 바뀌면 이 상수만 고치면 된다.
 
-function graphApiBase(config: InstagramConfig): string {
+function graphApiBase(config: InstagramConnectionConfig): string {
   return `https://${config.graphHost}/${GRAPH_API_VERSION}`;
 }
 
@@ -164,8 +164,12 @@ export function friendlyVerifyError(e: unknown): string {
  * 돌려준다. `/me?fields=user_id,username`(공식 문서, 2026-08-02 확인)를 부른다 — 토큰
  * 자체가 "누구인지"를 답하는 엔드포인트라 `businessAccountId`를 URL에 넣지 않는다. 대신
  * 응답의 `user_id`를 설정값과 비교해 다르면(계정 ID를 잘못 넣은 경우) 계정 불일치로 알린다.
+ *
+ * 공개 주소는 쓰지 않는다 — 그래서 파라미터 타입이 `InstagramConfig`가 아니라
+ * `InstagramConnectionConfig`다. 공개 주소가 아직 없어도(터널을 안 켠 상태) 이 함수는
+ * 호출할 수 있다.
  */
-export async function verifyInstagramConnection(config: InstagramConfig): Promise<{ username: string }> {
+export async function verifyInstagramConnection(config: InstagramConnectionConfig): Promise<{ username: string }> {
   const url = `${graphApiBase(config)}/me?fields=user_id,username&access_token=${encodeURIComponent(config.accessToken)}`;
   const { user_id, username } = await callGraphApi(url, undefined, MeResponse);
   if (user_id !== config.businessAccountId) {

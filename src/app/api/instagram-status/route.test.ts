@@ -56,4 +56,29 @@ describe("GET /api/instagram-status", () => {
     expect(data).toEqual({ ready: true });
     expect(JSON.stringify(data)).not.toContain("long-lived-secret-token");
   });
+
+  it("공개 주소만 없으면 ready:false 지만 connected:true 로 연결은 됐음을 알려준다", async () => {
+    clearEnv();
+    process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID = "17841400000000000";
+    process.env.INSTAGRAM_ACCESS_TOKEN = "long-lived-secret-token";
+
+    const res = await GET();
+
+    const data = await res.json();
+    expect(data.ready).toBe(false);
+    expect(data.connected).toBe(true);
+    expect(data.missing).toEqual(["공개 주소(PUBLIC_BASE_URL)"]);
+  });
+
+  it("토큰이 없으면 connected:false 로 연결 자체가 안 됐음을 알려준다", async () => {
+    clearEnv();
+    process.env.PUBLIC_BASE_URL = "https://example.ngrok-free.app";
+    process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID = "17841400000000000";
+
+    const res = await GET();
+
+    const data = await res.json();
+    expect(data.ready).toBe(false);
+    expect(data.connected).toBe(false);
+  });
 });
