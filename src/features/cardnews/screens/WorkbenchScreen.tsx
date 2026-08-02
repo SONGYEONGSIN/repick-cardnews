@@ -209,15 +209,19 @@ export function WorkbenchScreen({
         고친 기록은 `fullwidth-report.md`). 좌우 여백은 다른 화면(`TopicScreen`·`ExportScreen`)
         과 같은 `px-5 sm:px-8 lg:px-10` 뿐이다.
 
-        **왼쪽(순서 레일 + 카피 만들기)은 `xl:w-[400px] xl:flex-none` 로 폭을 못박는다.** 썸네일
-        96px + 글이라 400px 이면 충분하다(`WorkbenchRail`). 예전엔 이 칸이 `xl:flex-1` 로 남는
-        폭을 전부 가져갔는데, 그러면 카드가 있는 오른쪽 칸은 **자기 내용 크기만큼만** 차지해
-        (아래 설명) 남는 폭이 죄다 이 왼쪽 빈 레일로 흡수됐다 — 1920 폭에서 카드 왼쪽에만
-        1136px 빈 공간이 남던 결함이 이것이다. 왼쪽 폭을 고정해야 나머지가 전부 오른쪽으로 간다.
+        **왼쪽(순서 레일 + 카피 만들기)은 `xl:basis-[34%]` 에 `xl:min-w-[420px] xl:max-w-[680px]`
+        로 폭을 못박는다.** 고정 px 가 아니라 비율인 이유는 화면이 커질수록 사진 목록도 같이
+        넓어져야 하기 때문이다(400px 고정이던 시절에는 2560 에서도 400px 그대로였다). 하한은
+        썸네일 96px + 글이 들어갈 최소치, 상한은 카드 쪽 몫을 지키는 선이다.
 
-        **오른쪽(세트 바 + 결과)은 `xl:flex-1`(남는 폭을 전부 가져간다) 에 `xl:max-w-[1400px]`
-        로만 상한을 둔다.** `xl:min-w-0` 은 좁은 xl 폭(1280 근처)에서 내용보다 좁아질 수 있게
-        하는 안전판이다.
+        예전엔 이 칸이 `xl:flex-1` 로 남는 폭을 전부 가져갔는데, 그러면 카드가 있는 오른쪽 칸은
+        **자기 내용 크기만큼만** 차지해(아래 설명) 남는 폭이 죄다 이 왼쪽 빈 레일로 흡수됐다 —
+        1920 폭에서 카드 왼쪽에만 1136px 빈 공간이 남던 결함이 이것이다.
+
+        **오른쪽(세트 바 + 결과)은 `xl:flex-1` 로 남는 폭을 전부 가져간다. 상한을 두지 않는다.**
+        예전에 `xl:max-w-[1400px]` 상한이 있었는데, 2560 폭에서 그 상한에 걸려 오른쪽에 372px
+        짜리 빈 띠가 남았다 — 페이지 폭을 채우라는 요구와 정면으로 어긋나서 걷어냈다.
+        `xl:min-w-0` 은 좁은 xl 폭(1280 근처)에서 내용보다 좁아질 수 있게 하는 안전판이다.
 
         카드는 세로 비율(`aspect-[4/5]`, `CardCanvas` 소관, 편집 동작은 안 건드린다)을 지키며
         **남는 높이와 폭 중 더 좁은 쪽**에 맞춘다. 오른쪽 칸을 세로 flex 로 나눠 세트 바·툴바는
@@ -241,10 +245,10 @@ export function WorkbenchScreen({
         폭에서는 지금처럼 위아래로 쌓인다.
       */}
       <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:h-full xl:flex-row xl:gap-x-8 xl:py-3">
-        {/* 왼쪽 = 순서 레일 + 카피 만들기. 썸네일(96px) + 글이라 400px 이면 충분하다 — 폭을
-            여기에 못박아야 남는 폭이 전부 오른쪽(카드)으로 간다. 내용이 넘치면 이 칸 안에서만
-            스크롤한다. */}
-        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:w-[400px] xl:flex-none xl:overflow-y-auto">
+        {/* 왼쪽 = 순서 레일 + 카피 만들기. 화면 폭의 34% 를 쓰되 하한 420px·상한 680px —
+            화면이 커지면 사진 목록도 같이 넓어지고, 그래도 카드 몫은 지켜진다. 폭을 여기서
+            정해야 나머지가 전부 오른쪽(카드)으로 간다. 내용이 넘치면 이 칸 안에서만 스크롤한다. */}
+        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:max-w-[680px] xl:min-w-[420px] xl:flex-none xl:basis-[34%] xl:overflow-y-auto">
           <section className="flex flex-col gap-4">
             <SectionHead
               title="넘겨 보는 순서"
@@ -318,13 +322,13 @@ export function WorkbenchScreen({
         </div>
 
         {/*
-          오른쪽 = 세트 바 + 결과. `xl:flex-1`(왼쪽이 폭을 못박은 만큼 남는 폭을 전부 가져간다) 에
-          `xl:max-w-[1400px]` 로만 상한을 둔다(위 그리드 주석 참고). 안쪽은 세로 flex 로 나눈다 —
+          오른쪽 = 세트 바 + 결과. `xl:flex-1` 로 왼쪽이 쓰고 남는 폭을 **전부** 가져간다 —
+          상한은 두지 않는다(위 그리드 주석 참고). 안쪽은 세로 flex 로 나눈다 —
           세트 바는 제 높이만(`flex-none`, 기본값), 결과 section 은 `xl:flex-1`로 남는 높이를
           가져간다. gap 은 아래 폭(비 xl)에서 쓰던 `gap-8` 을 그대로 두고, xl 에서만 12px 로
           좁힌다 — 세트 바와 카드 사이는 레일 항목 사이보다 붙어도 된다.
         */}
-        <div className="flex flex-col gap-8 xl:min-h-0 xl:min-w-0 xl:flex-1 xl:max-w-[1400px] xl:gap-3">
+        <div className="flex flex-col gap-8 xl:min-h-0 xl:min-w-0 xl:flex-1 xl:gap-3">
           {/* 세트 바(테마·핸들). 고르면 바로 아래 카드에 반영되는 자리라야 한다. */}
           <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
 
