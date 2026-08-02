@@ -222,19 +222,43 @@ export function combineCategoryResults(results: CategoryFetchResult[]): Combined
 }
 
 /**
- * `LIFESTYLE_CATEGORIES`를 전부 병렬로 시도한다. 카테고리 하나가 실패해도(예: 지역에서
- * `mostPopular` 미지원) 나머지 결과로 계속 진행한다 — `combineCategoryResults` 참고.
+ * 요청받은 카테고리 id 를 **지원이 확인된 것만** 골라 돌려준다. 모르는 id 를 그대로 부르면
+ * `notFound` 로 실패하므로(파일 상단 주석 참고) 여기서 걸러 낸다. 아무것도 안 남으면 전체로
+ * 되돌린다 — 빈손으로 부르는 것보다 낫다.
+ */
+export function parseCategoryIds(raw: string | null): readonly YoutubeCategory[] {
+  const wanted = (raw ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  const picked: YoutubeCategory[] = [];
+  for (const id of wanted) {
+    if (seen.has(id)) continue;
+    const found = LIFESTYLE_CATEGORIES.find((c) => c.id === id);
+    if (!found) continue;
+    seen.add(id);
+    picked.push(found);
+  }
+  return picked.length > 0 ? picked : LIFESTYLE_CATEGORIES;
+}
+
+/**
+ * `categories`(기본값 `LIFESTYLE_CATEGORIES` 전체)를 병렬로 시도한다. 카테고리 하나가
+ * 실패해도(예: 지역에서 `mostPopular` 미지원) 나머지 결과로 계속 진행한다 —
+ * `combineCategoryResults` 참고.
  */
 export async function fetchYoutubeTrendingCandidates(
   apiKey: string,
+  categories: readonly YoutubeCategory[] = LIFESTYLE_CATEGORIES,
   fetchImpl: typeof fetch = fetch,
 ): Promise<CombinedCandidates> {
   const settled = await Promise.allSettled(
-    LIFESTYLE_CATEGORIES.map((category) => fetchYoutubeTrendingByCategory(apiKey, category.id, fetchImpl)),
+    categories.map((category) => fetchYoutubeTrendingByCategory(apiKey, category.id, fetchImpl)),
   );
 
   const results: CategoryFetchResult[] = settled.map((result, i) => {
-    const category = LIFESTYLE_CATEGORIES[i];
+    const category = categories[i];
     return result.status === "fulfilled"
       ? { status: "fulfilled", category, candidates: result.value }
       : { status: "rejected", category, error: result.reason };

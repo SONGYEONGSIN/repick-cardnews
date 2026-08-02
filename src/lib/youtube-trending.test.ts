@@ -5,6 +5,7 @@ import {
   fetchYoutubeTrendingCandidates,
   combineCategoryResults,
   friendlyYoutubeError,
+  parseCategoryIds,
   YoutubeApiError,
   AllCategoriesFailedError,
   YOUTUBE_MAX_RESULTS,
@@ -205,6 +206,43 @@ describe("fetchYoutubeTrendingCandidates", () => {
     vi.stubGlobal("fetch", mockFetch);
 
     await expect(fetchYoutubeTrendingCandidates("test-key")).rejects.toBeInstanceOf(AllCategoriesFailedError);
+  });
+});
+
+describe("parseCategoryIds — 요청한 카테고리만 고른다", () => {
+  it("쉼표로 구분된 id 를 알려진 카테고리로 바꾼다", () => {
+    expect(parseCategoryIds("26,28").map((c) => c.id)).toEqual(["26", "28"]);
+  });
+
+  it("목록에 없는 id 는 조용히 버린다 — 지원 확인된 카테고리만 부른다", () => {
+    expect(parseCategoryIds("26,27,99").map((c) => c.id)).toEqual(["26"]);
+  });
+
+  it("빈 값이면 전체를 쓴다", () => {
+    expect(parseCategoryIds(null)).toEqual(LIFESTYLE_CATEGORIES);
+    expect(parseCategoryIds("")).toEqual(LIFESTYLE_CATEGORIES);
+  });
+
+  it("전부 모르는 id 면 전체로 되돌린다 — 빈손으로 부르지 않는다", () => {
+    expect(parseCategoryIds("99,100")).toEqual(LIFESTYLE_CATEGORIES);
+  });
+
+  it("공백과 중복을 정리한다", () => {
+    expect(parseCategoryIds(" 26 , 26 ,22 ").map((c) => c.id)).toEqual(["26", "22"]);
+  });
+});
+
+describe("fetchYoutubeTrendingCandidates — 카테고리 선택", () => {
+  it("건네준 카테고리만 부른다", async () => {
+    const called: string[] = [];
+    const mockFetch = vi.fn(async (input: string | URL | Request) => {
+      called.push(new URL(String(input)).searchParams.get("videoCategoryId") ?? "");
+      return { ok: true, status: 200, json: async () => ({ items: [] }) };
+    });
+
+    await fetchYoutubeTrendingCandidates("key", [LIFESTYLE_CATEGORIES[0]], mockFetch as unknown as typeof fetch);
+
+    expect(called).toEqual(["26"]);
   });
 });
 
