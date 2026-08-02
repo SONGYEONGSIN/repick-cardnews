@@ -209,13 +209,15 @@ export function WorkbenchScreen({
         460px 안팎이라 레일 칩 다섯 개가 가로로 못 들어간다(칩 152px×5+간격 ≈ 800px) — 그래서
         lg 은 지금처럼 쌓인 채로 두고 xl 부터만 칸을 나눈다.
 
-        비율은 4:7(왼쪽 36% · 오른쪽 64%)이다. 카드는 세로 비율(`aspect-[4/5]`)이라 높이
-        (`h-[min(70vh,760px)]`)로 크기가 정해지고, 그 폭(높이×4/5)이 오른쪽 칸(캔버스 wrapper
-        padding 32px 포함)보다 좁아지면 `max-w-full` 때문에 실제로 작아진다 — 반반(50:50)으로
-        나누면 1280px 화면에서 오른쪽 칸이 그 폭보다 좁아져 카드가 작아진다. 4:7 은 1280px 에서도
-        오른쪽 칸에 여유를 남겨 카드 크기를 지금과 같게 유지한다(수치는 2col-report.md 참고).
+        오른쪽은 비율이 아니라 **상한(560px)**이다. 카드는 세로 비율(`aspect-[4/5]`)이라 높이
+        (`h-[min(70vh,760px)]`)로 크기가 정해지고 폭은 거기 따라온다(뷰포트 900px 기준 504px) —
+        화면이 넓어져도 카드는 안 커진다. 오른쪽을 비율(fr)로 잡으면 화면이 넓을수록 카드 둘레의
+        빈 여백만 커진다(이 작업을 시작한 "오른쪽이 통째로 빈다" 문제를 오른쪽 칸 안으로 옮겨
+        놓을 뿐이다). 560px 은 카드가 필요로 하는 최소 536px(카드 504px + 캔버스 wrapper 좌우
+        패딩 32px)에 24px 여유를 더한 값이다 — 왼쪽(`1fr`)이 남는 폭을 전부 가져가 화면이
+        넓어질수록 레일이 더 넓게 펼쳐진다(수치는 2col-report.md 참고).
       */}
-      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:grid xl:grid-cols-[4fr_7fr] xl:items-start">
+      <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:grid xl:grid-cols-[1fr_560px] xl:items-start">
         {/* 왼쪽 = 설정. 세트 바 → 순서 레일 → 카피 만들기 순서는 좁은 화면의 쌓인 순서와 같다. */}
         <div className="flex flex-col gap-8 lg:gap-9 xl:min-w-0">
           <WorkbenchSetBar themeId={state.themeId} handle={state.handle} dispatch={dispatch} />
