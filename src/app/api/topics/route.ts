@@ -17,7 +17,9 @@
  *    값 자체를 구분한다 — 후자는 자격 증명을 다시 확인해야 한다는 신호다.
  *
  * `/api/publish`와 같은 이유로 이 PC 브라우저에서만 호출할 수 있다(`@/lib/local-guard`).
- * 오래 걸린다(Claude 호출 포함) — 자세한 예상 소요 시간은 topics-pipeline-report.md 참고.
+ * **오래 걸린다** — 유튜브 3개 카테고리 병렬 호출이 1~2초, Claude 추리기가 실측 100초
+ * 안팎(2026-08-02), 데이터랩이 붙으면 몇 초 더. 보통 100~110초다. 부르는 쪽은 이걸
+ * 전제로 만들어야 한다 — 화면 진입만으로 자동 호출하면 사용자를 100초 세워 둔다.
  */
 import { checkTopicsConfig } from "@/lib/topics-config";
 import { isLocalHost } from "@/lib/local-guard";

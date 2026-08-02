@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { StudioFrame, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
+import { TopicSuggestPanel } from "./TopicSuggestPanel";
 import { canLeaveTopic, type CardnewsAction, type CardnewsState } from "../reducer";
 
 /**
@@ -55,6 +56,13 @@ export function TopicScreen({
             </p>
           </div>
         </div>
+
+        {/* 떠오르는 주제가 없을 때를 위한 보조 도구. 위 입력을 대체하지 않고 채워 준다 —
+            고른 결과는 그냥 keyword 가 되므로 위 칸에서 그대로 고칠 수 있다. */}
+        <TopicSuggestPanel
+          keyword={state.keyword}
+          onSelect={(keyword) => dispatch({ type: "SET_KEYWORD", keyword })}
+        />
 
         <div className="flex flex-col gap-4">
           <SectionHead title="어떤 형태로" />
