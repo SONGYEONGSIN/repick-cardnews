@@ -39,9 +39,13 @@ export function StudioFrame({
     // `xl:h-screen` — 만들기 화면(`WorkbenchScreen`)이 `xl` 이상에서 `<main>` 의 남는 세로 폭을
     // flex 로 계산하려면(카드가 세트 바·툴바 아래 남는 높이에 맞춰지도록) 이 조상이 **확정된
     // 높이**를 가져야 한다 — `min-height` 만으로는 `flex-1` 자식의 높이가 확정되지 않는다.
-    // `overflow` 는 기본값(visible)이라 내용이 넘치면 그대로 페이지가 늘어나 스크롤된다(예전과
-    // 동일) — 이 줄은 잘라내지 않고 그저 자식에게 기준 높이를 하나 더 준다. 주제·내보내기
-    // 화면은 이 기준 높이를 쓰는 자식이 없어 보이는 결과가 그대로다.
+    // 이 확정 높이 때문에 `overflow` 를 기본값(visible)으로 두면 `<main>` 내용이 뷰포트를
+    // 넘길 때 **문서는 늘어나 스크롤되지만, 이 루트 박스 자체의 높이는 `h-screen` 에 고정된 채라
+    // 배경(`bg-surface`)과 사이드바 테두리가 뷰포트 높이에서 그대로 끊긴다** — 그 아래 내용은
+    // 프레임 밖 body 배경 위에 얹힌 것처럼 보인다. 그래서 `<main>` 을 `xl:overflow-y-auto` 로
+    // 만들어 **넘치는 내용이 `<main>` 안에서만 스크롤**하게 한다 — 문서(body) 는 늘 정확히
+    // 뷰포트 높이이므로 프레임 배경·테두리가 끊길 일이 없다. 주제·내보내기 화면처럼 이 기준
+    // 높이를 쓰는 자식이 없는 화면도 내용이 길면 `<main>` 안에서 스크롤될 뿐 결과는 같다.
     <div className="flex min-h-screen flex-col bg-surface text-ink lg:flex-row xl:h-screen">
       {/* 모바일 — 사이드바를 세울 폭이 없다. 같은 정보를 가로로 압축해 상단에 둔다. */}
       <div className="flex flex-col gap-2.5 border-b border-hair px-5 py-3 lg:hidden">
@@ -147,7 +151,7 @@ export function StudioFrame({
           <div className="flex flex-none flex-wrap items-center gap-2.5">{action}</div>
         </header>
 
-        <main className="min-h-0 flex-1">{children}</main>
+        <main className="min-h-0 flex-1 xl:overflow-y-auto">{children}</main>
       </div>
     </div>
   );
