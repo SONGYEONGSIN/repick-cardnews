@@ -1,6 +1,22 @@
 "use client";
 
-import { ChevronDown, ChevronUp, ImageOff, Plus, Trash2 } from "lucide-react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, ImageOff, Plus, Trash2 } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import type { Photo } from "@/lib/photos";
 import type { CardnewsCard } from "@/lib/schema";
@@ -18,10 +34,16 @@ import type { CardDraft } from "../reducer";
  * 로 둔다) 사진 기준으로만 그리면 마지막 카드에 닿을 방법이 없다 — 행 하나 = 카드 하나여야
  * 모든 카드의 글을 고칠 수 있다.
  *
- * 순서 바꾸기는 드래그가 아니라 **버튼**이다. 세로 목록이 되며 방향도 위/아래로 바뀐다 — 화면에
- * 보이는 방향과 "앞 카드 / 뒤 카드" 가 이제 같은 축을 가리킨다. 뜻은 그대로다: 위 화살표는 앞
- * 카드로, 아래 화살표는 뒤 카드로 사진을 옮긴다(`REORDER`). 카피는 자리에 남고, reducer 가
- * `cards[i].photoId` 를 새 `order` 에 다시 맞춘다.
+ * 순서 바꾸기는 각 행의 손잡이(`GripVertical`)를 끄는 드래그다(`@dnd-kit`). 세로 목록이라
+ * 방향도 위/아래이고, 화면에 보이는 방향과 "앞 카드 / 뒤 카드" 가 같은 축을 가리킨다. 뜻은
+ * 그대로다: 행을 위로 끌면 앞 카드로, 아래로 끌면 뒤 카드로 사진이 옮겨간다(`REORDER`). 카피는
+ * 자리에 남고, reducer 가 `cards[i].photoId` 를 새 `order` 에 다시 맞춘다.
+ *
+ * 손잡이는 마우스뿐 아니라 키보드로도 잡힌다 — `KeyboardSensor` + `sortableKeyboardCoordinates`
+ * 조합이 Space/Enter 로 집고 화살표 키로 옮긴 뒤 Space/Enter 로 놓는 경로를 준다. 행을 누르는
+ * "고르기"(`onPick`)는 손잡이가 아니라 옆의 별도 버튼이라 드래그와 서로 안 걸린다 —
+ * `PointerSensor` 의 `activationConstraint`(거리 4px)까지 더하면 손잡이를 살짝 스치는 클릭도
+ * 드래그로 오인하지 않는다.
  *
  * 슬롯 목록은 `<ol>` 이다 — 순서 자체가 뜻(넘겨 보는 차례)이다. 안 쓴 사진은 자리가 서로
  * 바뀌어도 뜻이 안 변하는 묶음이라 `<ul>` 로 나눈다. "사진 추가" 는 목록 항목이 아니라 목록 다음에
@@ -40,34 +62,9 @@ export const ROLE_LABELS: Record<CardnewsCard["role"], string> = {
   cta: "행동",
 };
 
-/** 고른 행 아래 줄에 붙는 조작 버튼. 이름은 aria-label 로 준다. */
-function ChipAction({
-  label,
-  disabled = false,
-  onClick,
-  children,
-}: {
-  label: string;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className={`flex h-9 w-9 flex-none items-center justify-center rounded-lg border border-hair text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink disabled:text-ink-disabled disabled:hover:border-hair ${FOCUS_RING} motion-reduce:transition-none`}
-    >
-      {children}
-    </button>
-  );
-}
-
 /**
- * 사진 빼기. 되돌리기가 없으므로(조각 2) **위/아래 화살표와 같은 줄에 두지 않는다** — 화살표는
- * 자주 누르고 빼기는 되돌릴 수 없어, 옆에 있으면 오폭이 실제로 난다. 아이콘만 두지 않고
+ * 사진 빼기. 되돌리기가 없으므로(조각 2) **손잡이·고르기 버튼과 같은 줄에 두지 않는다** — 드래그는
+ * 자주 하고 빼기는 되돌릴 수 없어, 옆에 있으면 오폭이 실제로 난다. 아이콘만 두지 않고
  * "빼기"라고 쓴다.
  */
 function RemoveButton({
@@ -119,75 +116,79 @@ function Thumb({ photo, index }: { photo: Photo | undefined; index?: number }) {
 }
 
 /**
- * 목록의 한 행 — 슬롯(카드/사진). 조작 버튼은 **고른 행에만** 붙는다 — 여섯 줄에 버튼을 늘 띄우면
- * 지금 무엇을 고쳤는지가 안 보인다.
+ * 목록의 한 행 — 슬롯(카드/사진). 손잡이는 사진이 든 자리에만 붙는다(`sortable`) — 사진이
+ * 모자란 카드(자리 수 `orderCount` 보다 뒤)는 옮길 사진이 없다. 빼기 버튼은 **고른 행에만** 붙는다
+ * — 여섯 줄에 버튼을 늘 띄우면 지금 무엇을 고쳤는지가 안 보인다.
  */
 function SlotRow({
   item,
   index,
   on,
-  canBack,
-  canForward,
+  sortable,
   locked,
   onPick,
-  onMove,
   onRemove,
 }: {
   item: RailItem;
   index: number;
   on: boolean;
-  canBack: boolean;
-  canForward: boolean;
+  /** 사진이 든 자리인가(`index < orderCount`) — 사진 없는 카드는 옮길 게 없어 손잡이를 안 그린다 */
+  sortable: boolean;
   /** 카피 생성 중 — 사진을 바꾸면 응답이 다른 사진에 붙는다 */
   locked: boolean;
   onPick: () => void;
-  onMove: (to: number) => void;
   onRemove: (photoId: string) => void;
 }) {
   // 지역 const 로 받아야 아래 클로저 안에서도 좁힌 타입이 유지된다(프로퍼티 접근은 유지되지 않는다)
   const photo = item.photo;
   const card = item.card;
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.key,
+    disabled: locked || !sortable,
+  });
+
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onPick}
-        aria-pressed={on}
-        className={`flex w-full items-center gap-3 rounded-xl border-2 p-2.5 text-left transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
+    <li
+      ref={setNodeRef}
+      // @dnd-kit이 드래그 중 실시간으로 계산하는 값 — Tailwind 클래스로 표현 불가능해 인라인 style 예외로 둔다
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={isDragging ? "opacity-60" : undefined}
+    >
+      <div
+        className={`flex items-center gap-2 rounded-xl border-2 p-2.5 transition-colors duration-200 motion-reduce:transition-none ${
           on ? "border-ink" : "border-transparent hover:border-hair"
         }`}
       >
-        <Thumb photo={photo} index={index} />
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-[14px] font-bold">{card ? ROLE_LABELS[card.copy.role] : "사진"}</span>
-          <span className="truncate text-[13px] text-ink-2">{card ? card.copy.heading : (photo?.name ?? "")}</span>
-        </span>
-      </button>
+        {sortable && (
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            disabled={locked}
+            aria-label={`${index + 1}번 사진 순서 바꾸기`}
+            className={`flex h-9 w-9 flex-none cursor-grab items-center justify-center rounded-lg text-ink-2 transition-colors duration-200 hover:bg-hair-soft hover:text-ink disabled:text-ink-disabled disabled:hover:bg-transparent active:cursor-grabbing ${FOCUS_RING} motion-reduce:transition-none`}
+          >
+            <GripVertical size={16} aria-hidden="true" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onPick}
+          aria-pressed={on}
+          className={`flex min-w-0 flex-1 items-center gap-3 text-left ${FOCUS_RING}`}
+        >
+          <Thumb photo={photo} index={index} />
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-[14px] font-bold">{card ? ROLE_LABELS[card.copy.role] : "사진"}</span>
+            <span className="truncate text-[13px] text-ink-2">{card ? card.copy.heading : (photo?.name ?? "")}</span>
+          </span>
+        </button>
+      </div>
 
-      {on && (
+      {on && photo && (
         <div className="flex flex-col gap-2 px-2.5 py-2">
-          {/* 옮기는 것은 사진이지 카드가 아니다 — 이름에 그걸 담는다. 카피가 나오기 전에는
-              카드가 없으므로 "카드" 대신 "자리"로 말한다. 화살표는 위/아래로 바뀌었지만
-              뜻(앞 카드로/뒤 카드로 옮기기)은 그대로다. */}
-          <div className="flex items-center gap-1.5">
-            <ChipAction
-              label={`${index + 1}번 사진을 ${card ? "앞 카드로" : "앞 자리로"} 옮기기`}
-              disabled={locked || !canBack}
-              onClick={() => onMove(index - 1)}
-            >
-              <ChevronUp size={16} aria-hidden="true" />
-            </ChipAction>
-            <ChipAction
-              label={`${index + 1}번 사진을 ${card ? "뒤 카드로" : "뒤 자리로"} 옮기기`}
-              disabled={locked || !canForward}
-              onClick={() => onMove(index + 1)}
-            >
-              <ChevronDown size={16} aria-hidden="true" />
-            </ChipAction>
-          </div>
-          {/* 삭제는 화살표와 같은 줄에 두지 않는다 — 되돌릴 수 없는 동작이라 오폭이 곧 손실이다 */}
-          {photo && <RemoveButton name={photo.name} disabled={locked} onClick={() => onRemove(photo.id)} />}
+          <RemoveButton name={photo.name} disabled={locked} onClick={() => onRemove(photo.id)} />
         </div>
       )}
     </li>
@@ -235,7 +236,7 @@ export function WorkbenchRail({
   dropOpen,
   locked,
   onPick,
-  onMove,
+  onReorder,
   onRemove,
   onSwapIn,
   onToggleDrop,
@@ -253,30 +254,48 @@ export function WorkbenchRail({
    */
   locked: boolean;
   onPick: (index: number) => void;
-  onMove: (to: number) => void;
+  /** 손잡이를 놓은 자리로 사진을 옮긴다 — `from`·`to` 는 둘 다 레일의 화면 위치다 */
+  onReorder: (from: number, to: number) => void;
   onRemove: (photoId: string) => void;
   onSwapIn: (photoId: string) => void;
   onToggleDrop: () => void;
 }) {
+  const sensors = useSensors(
+    // 4px 안쪽 움직임은 클릭으로 본다 — 안 그러면 손잡이를 누르는 손떨림만으로도 드래그가 시작된다
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function onDragEnd(event: DragEndEvent) {
+    const { active: dragged, over } = event;
+    if (!over || dragged.id === over.id) return;
+    const from = items.findIndex((it) => it.key === dragged.id);
+    const to = items.findIndex((it) => it.key === over.id);
+    if (from === -1 || to === -1) return;
+    onReorder(from, to);
+  }
+
   return (
     <div className="flex flex-col gap-2">
-      {/* 순서 자체가 뜻이다 — 목록 시맨틱을 그대로 쓴다 */}
-      <ol aria-label="카드 순서" className="flex flex-col gap-1">
-        {items.map((item, i) => (
-          <SlotRow
-            key={item.key}
-            item={item}
-            index={i}
-            on={i === active}
-            canBack={i > 0 && i < orderCount}
-            canForward={i + 1 < orderCount}
-            locked={locked}
-            onPick={() => onPick(i)}
-            onMove={onMove}
-            onRemove={onRemove}
-          />
-        ))}
-      </ol>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        {/* 순서 자체가 뜻이다 — 목록 시맨틱을 그대로 쓴다 */}
+        <SortableContext items={items.map((it) => it.key)} strategy={verticalListSortingStrategy}>
+          <ol aria-label="카드 순서" className="flex flex-col gap-1">
+            {items.map((item, i) => (
+              <SlotRow
+                key={item.key}
+                item={item}
+                index={i}
+                on={i === active}
+                sortable={i < orderCount}
+                locked={locked}
+                onPick={() => onPick(i)}
+                onRemove={onRemove}
+              />
+            ))}
+          </ol>
+        </SortableContext>
+      </DndContext>
 
       {/* 안 쓴 사진은 순서가 뜻을 갖지 않는 묶음이다 — 별도 목록으로 나누되 구분선은 두지 않는다 */}
       {tray.length > 0 && (

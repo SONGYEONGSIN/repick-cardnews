@@ -38,7 +38,8 @@ import {
  * `SWAP_IN`·`REMOVE_PHOTO` 를 그대로 보내기만 하고 카드 쪽을 따로 보정하지 않는다.
  *
  * 시안(`src/app/lab2/Workbench.tsx`)에서 뺀 것: 되돌리기·다시 실행(조각 2), 제목 서체
- * 그룹(데이터 모델에 없다), 순서 드래그(버튼으로 대신한다 — 키보드로도 되어야 한다).
+ * 그룹(데이터 모델에 없다). 순서 바꾸기는 한동안 버튼(위/아래 화살표)이었다가, 행을 직접 끌 수
+ * 있어야 한다는 요구로 `WorkbenchRail` 안에서 `@dnd-kit` 드래그(키보드 포함)로 되돌아갔다.
  */
 
 /** 카피 생성 줄. 20~50초 걸리는 호출이라 버튼 문구와 옆 한 줄이 진행 상황을 함께 말한다. */
@@ -140,10 +141,10 @@ export function WorkbenchScreen({
     setAdding(false);
   }
 
-  function moveTo(to: number) {
-    dispatch({ type: "REORDER", from: active, to });
+  function moveTo(from: number, to: number) {
+    dispatch({ type: "REORDER", from, to });
     // 선택은 **옮긴 사진**을 따라간다(`move` 가 그 사진을 to 자리에 놓는다). 자리에 남겨 두면
-    // 방금 옮긴 사진이 아니라 옆 사진이 골라진 채가 돼 같은 버튼을 다시 못 누른다.
+    // 방금 끈 사진이 아니라 옆 사진이 골라진 채가 돼 방금 놓은 자리를 다시 못 고친다.
     // 자리가 바뀌면 그 자리의 카피가 달라지므로 pick 이 편집 대상도 heading 으로 되돌린다.
     pick(to);
   }
@@ -264,7 +265,7 @@ export function WorkbenchScreen({
                   dropOpen={dropOpen}
                   locked={state.busy}
                   onPick={pick}
-                  onMove={moveTo}
+                  onReorder={moveTo}
                   onRemove={(photoId) => dispatch({ type: "REMOVE_PHOTO", photoId })}
                   onSwapIn={swapIn}
                   onToggleDrop={() => setAdding((v) => !v)}
@@ -278,8 +279,8 @@ export function WorkbenchScreen({
                       {/* 카피가 나오기 전에는 "카피는 자리에 남는다"는 말이 성립하지 않는다 —
                           카드 순서는 hook→cta 로 스키마가 고정하므로 바뀌는 것은 늘 사진뿐이다 */}
                       {state.cards.length > 0
-                        ? "행을 누르면 그 카드를 고쳐요. 고른 행의 화살표는 사진을 앞뒤 카드로 옮겨요 — 카피는 자리에 남아요."
-                        : "고른 행의 화살표로 사진 차례를 바꿔요."}{" "}
+                        ? "행을 누르면 그 카드를 고쳐요. 손잡이를 끌면 사진이 앞뒤 카드로 옮겨요(키보드는 Space 로 집고 화살표로 옮긴 뒤 Space 로 놓아요) — 카피는 자리에 남아요."
+                        : "손잡이를 끌면 사진 차례가 바뀌어요(키보드는 Space 로 집고 화살표로 옮긴 뒤 Space 로 놓아요)."}{" "}
                       빼기를 누르면 그 사진을 지워요.
                       {tray.length > 0 && (
                         <>
