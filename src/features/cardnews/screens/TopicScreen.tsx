@@ -64,9 +64,11 @@ export function TopicScreen({
                 <span className="text-[20px] font-black tracking-tight sm:text-[24px]">카드뉴스</span>
                 <span className="rounded bg-ink px-2 py-0.5 text-[12px] font-bold text-surface">선택</span>
               </span>
-              <span className="text-[15px] font-bold text-ink-2">사진 5~6장 · 넘겨 보는 설득 시퀀스</span>
+              <span className="text-[15px] font-bold text-ink-2">사진 5~6장 · 넘겨 보는 한 덩어리</span>
+              {/* 카드마다 맡는 역할(후크·문제·근거·해법·행동)은 카피를 만드는 내부 규칙이다.
+                  사용자에게는 그 이름 대신 **결과로 무엇이 되는지**를 말한다. */}
               <span className="text-[14px] leading-relaxed text-ink-2">
-                후크 → 문제 → 근거 → 해법 → 행동 순으로 카피가 붙어요.
+                첫 장에서 눈길을 끌고 마지막 장에서 저장하고 싶어지도록 카피를 써요.
               </span>
             </div>
 
