@@ -53,12 +53,21 @@ function Opt({ label, on, onClick }: { label: string; on: boolean; onClick: () =
   );
 }
 
-function Btn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function Btn({
+  children,
+  onClick,
+  disabled = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
-      className={`flex h-11 items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+      className={`flex h-11 items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
     >
       {children}
     </button>
@@ -123,6 +132,7 @@ export function EditToolbar({
   onPatch,
   onSwapPhoto,
   onRequestFocus,
+  headlineSelection,
 }: {
   card: CardDraft;
   target: EditTarget;
@@ -132,6 +142,9 @@ export function EditToolbar({
   /** 헤드라인·본문이 이미 비어 있을 때 "추가" 버튼이 부르는 콜백 — 값은 이미 ""라 onPatch로는
       아무 변화가 없다. 캔버스의 그 칸에 포커스를 옮기는 게 실제 효과다(CardCanvas 참고). */
   onRequestFocus: () => void;
+  /** 캔버스의 헤드라인에서 지금 드래그·키보드로 고른 글자(CardCanvas 참고). 형광 버튼이 이 값을
+      그대로 저장한다 — 비어 있으면 아직 아무것도 안 골랐다는 뜻이라 버튼을 비활성으로 둔다. */
+  headlineSelection: string;
 }) {
   const copy = card.copy;
   // hook·cta 에는 본문이 없다. 없는 카드에서는 본문 탭 자체를 띄우지 않는다.
@@ -227,6 +240,26 @@ export function EditToolbar({
                 ))}
               </Group>
             </span>
+            {/* 형광은 본문이 아니라 헤드라인에만 있다(카드뉴스 형광은 거의 다 헤드라인이라 범위를
+                좁혔다) — 크기·정렬과 달리 본문 탭에서는 이 컨트롤 자체를 안 보여준다. 이미 강조가
+                있으면 지우기로 바뀐다(크기·정렬의 지우기/추가 짝과 같은 방식). 선택이 없으면
+                버튼을 비활성으로 두고 옆에 왜인지 말해 준다 — 조용히 아무 일도 안 나면 안 된다. */}
+            {active === "heading" && (
+              <span className="flex items-center gap-2.5">
+                {card.highlight ? (
+                  <Btn onClick={() => onPatch({ highlight: "" })}>형광 지우기</Btn>
+                ) : (
+                  <>
+                    <Btn disabled={!headlineSelection} onClick={() => onPatch({ highlight: headlineSelection })}>
+                      형광
+                    </Btn>
+                    {!headlineSelection && (
+                      <span className="text-[13px] text-ink-2">헤드라인 글자를 드래그로 선택하면 켤 수 있어요</span>
+                    )}
+                  </>
+                )}
+              </span>
+            )}
             <Counter len={len} max={max} />
             {/* 되돌리기가 없어 실수로 지우면 복구는 다시 입력뿐이다 — 그래도 그 복구가 한 번의
                 입력으로 충분하므로 확인 절차는 두지 않는다. 이미 비어 있으면 "추가"로 바뀌어

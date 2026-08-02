@@ -140,6 +140,10 @@ describe("SET_SPEC", () => {
     expect(s.cards.map((c) => c.textScale)).toEqual([1, 1, 1, 1, 1]);
     expect(s.cards.map((c) => c.textAlign)).toEqual(["left", "left", "left", "left", "center"]);
   });
+  it("형광 기본값은 빈 문자열(강조 없음)이다", () => {
+    const s = cardnewsReducer(withPhotos(5), { type: "SET_SPEC", spec });
+    expect(s.cards.map((c) => c.highlight)).toEqual(["", "", "", "", ""]);
+  });
   it("사진보다 카드가 많으면 남는 카드는 사진 없이 둔다", () => {
     const sixCardSpec = {
       type: "cardnews" as const,
@@ -353,6 +357,7 @@ const CARD: CardDraft = {
   textY: 1,
   textScale: 1,
   textAlign: "left",
+  highlight: "",
   copy: { role: "hook", heading: "후크" },
 };
 

@@ -1,6 +1,6 @@
 import type { CardnewsCard } from "@/lib/schema";
 import type { Theme } from "@/templates/themes";
-import { isBlankText, type TextAlign } from "@/templates/layout-utils";
+import { isBlankText, splitHighlight, type TextAlign } from "@/templates/layout-utils";
 
 /**
  * 편집으로 글을 지우면(값이 "" 또는 공백만) 저장 이미지에서 그 요소를 통째로 뺀다 —
@@ -18,6 +18,7 @@ export function CardnewsBody({
   compact = false,
   textScale,
   textAlign,
+  highlight,
 }: {
   card: CardnewsCard;
   theme: Theme;
@@ -31,26 +32,41 @@ export function CardnewsBody({
   textScale: number;
   /** 헤드라인·본문(및 cta 알약·핸들) 정렬. 카드 전체에 한 번에 적용된다. */
   textAlign: TextAlign;
+  /** 헤드라인에서 형광으로 강조할 문자열. 빈 문자열이면 강조 없음 — splitHighlight 참고. */
+  highlight: string;
 }) {
   const fg = onPhoto ? t.onPhoto : t.fg;
   // cta 알약(아래 action 배지)에서만 쓰인다 — 역할 배지(RoleTag)는 지웠다
   const tagBg = onPhoto ? t.onPhoto : t.accent;
   const tagFg = onPhoto ? "#111111" : t.bg;
 
-  const Heading = ({ children }: { children: React.ReactNode }) => (
-    <h1
-      style={{
-        fontFamily: t.displayFont,
-        fontSize: Math.round((compact ? 56 : 72) * textScale),
-        lineHeight: 1.22,
-        margin: 0,
-        color: fg,
-        textAlign,
-      }}
-    >
-      {children}
-    </h1>
-  );
+  // 헤드라인은 네 역할 분기(hook/problem·evidence/solution/cta) 모두에서 그려진다 — 강조 쪼개기를
+  // 이 한 곳에만 두어 네 곳에 같은 splitHighlight 호출이 흩어지지 않게 한다.
+  const Heading = ({ text }: { text: string }) => {
+    const { before, match, after } = splitHighlight(text, highlight);
+    return (
+      <h1
+        style={{
+          fontFamily: t.displayFont,
+          fontSize: Math.round((compact ? 56 : 72) * textScale),
+          lineHeight: 1.22,
+          margin: 0,
+          color: fg,
+          textAlign,
+        }}
+      >
+        {before}
+        {match.length > 0 && (
+          // 형광 배경(theme.highlight)·글자색(theme.fg) — 아래 solution 단계 번호 배지와 같은
+          // 배경·글자색 조합을 그대로 따른다. onPhoto 와 무관하게 항상 t.fg 를 쓴다 — onPhoto 의
+          // 흰 글자(t.onPhoto)를 밝은 형광 배경 위에 얹으면 대비가 무너진다(mono-bold 를 제외한
+          // 두 테마의 highlight 가 밝은 색이다).
+          <mark style={{ background: t.highlight, color: t.fg }}>{match}</mark>
+        )}
+        {after}
+      </h1>
+    );
+  };
   const Body = ({ children }: { children: React.ReactNode }) => (
     <p
       style={{
@@ -68,7 +84,7 @@ export function CardnewsBody({
   if (card.role === "hook") {
     return (
       <>
-        {hasText(card.heading) && <Heading>{card.heading}</Heading>}
+        {hasText(card.heading) && <Heading text={card.heading} />}
         {hasText(card.sub) && <Body>{card.sub}</Body>}
       </>
     );
@@ -76,7 +92,7 @@ export function CardnewsBody({
   if (card.role === "problem" || card.role === "evidence") {
     return (
       <>
-        {hasText(card.heading) && <Heading>{card.heading}</Heading>}
+        {hasText(card.heading) && <Heading text={card.heading} />}
         {hasText(card.body) && <Body>{card.body}</Body>}
       </>
     );
@@ -86,7 +102,7 @@ export function CardnewsBody({
     const steps = (card.steps ?? []).filter(hasText);
     return (
       <>
-        {hasText(card.heading) && <Heading>{card.heading}</Heading>}
+        {hasText(card.heading) && <Heading text={card.heading} />}
         {hasText(card.body) && <Body>{card.body}</Body>}
         {steps.length > 0 && (
           <div
@@ -135,7 +151,7 @@ export function CardnewsBody({
   }
   return (
     <div style={{ textAlign }}>
-      {hasText(card.heading) && <Heading>{card.heading}</Heading>}
+      {hasText(card.heading) && <Heading text={card.heading} />}
       {hasText(card.action) && (
         <div
           style={{

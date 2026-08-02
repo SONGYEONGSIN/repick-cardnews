@@ -89,6 +89,9 @@ export function WorkbenchScreen({
   const [selected, setSelected] = useState(0);
   const [target, setTarget] = useState<EditTarget>("heading");
   const [adding, setAdding] = useState(false);
+  // 캔버스의 헤드라인에서 지금 드래그·키보드로 고른 글자(형광 지정용). 저장값이 아니라 이
+  // 화면을 보는 동안의 시선이라 target·selected 와 같은 이유로 reducer 밖에 둔다.
+  const [headlineSelection, setHeadlineSelection] = useState("");
   // 툴바의 "추가" 버튼이 캔버스의 빈 칸에 포커스를 옮겨 달라는 신호. 값 자체는 의미 없고
   // 매 클릭마다 늘어나기만 한다(CardCanvas 상단 주석 참고) — 같은 칸을 연달아 눌러도 신호가
   // 매번 달라져야 CardCanvas 의 effect 가 다시 돈다.
@@ -134,6 +137,8 @@ export function WorkbenchScreen({
     // 카드가 바뀌면 편집 대상도 되돌린다. heading 은 다섯 역할 전부에 있어 항상 유효하다 —
     // 그대로 두면 부모가 지금 카드에 없는 대상(본문·사진)을 가리킨 채 남는다.
     setTarget("heading");
+    // 이전 카드에서 고른 글자는 이 카드의 헤드라인과 무관하다.
+    setHeadlineSelection("");
   }
 
   function swapIn(photoId: string) {
@@ -163,8 +168,9 @@ export function WorkbenchScreen({
         photos: slots.map((p) => p.thumbUrl),
       });
       dispatch({ type: "SET_SPEC", spec });
-      // 카드가 통째로 바뀌었다. 고르기와 같은 이유로 편집 대상을 되돌린다.
+      // 카드가 통째로 바뀌었다. 고르기와 같은 이유로 편집 대상과 고른 글자를 되돌린다.
       setTarget("heading");
+      setHeadlineSelection("");
     } catch (e) {
       // 네트워크가 끊기거나 dev 서버가 재시작되면 `Failed to fetch` 같은 영문이 여기로 온다.
       const message = inKorean(
@@ -364,6 +370,7 @@ export function WorkbenchScreen({
                   onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
                   onSwapPhoto={() => setAdding(true)}
                   onRequestFocus={() => setFocusToken((n) => n + 1)}
+                  headlineSelection={headlineSelection}
                 />
                 {/* 카드 상자 + 캡션을 한 덩어리로 묶는다 — 이 안의 gap(`gap-1`)만 좁혀서 캡션이
                     카드 바로 아래 붙게 하고, section 의 `gap-2`(위 SectionHead·EditToolbar 사이)
@@ -384,6 +391,7 @@ export function WorkbenchScreen({
                       focusToken={focusToken}
                       onSelect={setTarget}
                       onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
+                      onHeadlineSelect={setHeadlineSelection}
                     />
                   </div>
                   <p className="flex-none text-center text-[13px] text-ink-2">

@@ -16,6 +16,31 @@ export const DEFAULT_TEXT_ALIGN: TextAlign = "left";
 export const TEXT_ALIGNS: readonly TextAlign[] = ["left", "center"];
 export const TEXT_ALIGN_LABELS: Record<TextAlign, string> = { left: "왼쪽", center: "가운데" };
 
+export type HighlightSplit = { before: string; match: string; after: string };
+/** 강조 없음(초기값) — CardDraft.highlight, RenderCard.highlight 의 기본값 */
+export const DEFAULT_HIGHLIGHT = "";
+
+/**
+ * 헤드라인을 강조 문자열 기준으로 [앞·강조·뒤] 세 조각으로 나눈다. 좌표(인덱스)가 아니라
+ * "글자"로 저장하므로(reducer의 CardDraft.highlight) 매 렌더마다 이 함수로 다시 찾는다 —
+ * 헤드라인을 고쳐도 그 글자가 남아 있는 한 강조가 따라간다.
+ *
+ * 강조 문자열이 비었거나(indexOf 를 아예 안 부른다) 글에 없으면(indexOf === -1, 강조 문자열이
+ * 글보다 길 때도 이 경로로 떨어진다) 조용히 강조 없음으로 본다 — 오류를 던지지 않는다. 헤드라인을
+ * 고쳐 강조 글자가 사라져도 렌더가 깨지면 안 된다. 같은 글자가 여러 번 나오면 첫 번째만 찾는다
+ * (String.indexOf 의 기본 동작 그대로).
+ */
+export function splitHighlight(text: string, highlight: string): HighlightSplit {
+  if (highlight.length === 0) return { before: text, match: "", after: "" };
+  const start = text.indexOf(highlight);
+  if (start === -1) return { before: text, match: "", after: "" };
+  return {
+    before: text.slice(0, start),
+    match: text.slice(start, start + highlight.length),
+    after: text.slice(start + highlight.length),
+  };
+}
+
 export type TextScaleStep = "sm" | "md" | "lg";
 export const TEXT_SCALE_STEPS: readonly TextScaleStep[] = ["sm", "md", "lg"];
 export const TEXT_SCALE_LABELS: Record<TextScaleStep, string> = { sm: "작게", md: "보통", lg: "크게" };

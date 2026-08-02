@@ -5,6 +5,7 @@ import { assignLayouts, type CardLayout } from "@/lib/layout-assign";
 import {
   DEFAULT_BAND_CARDNEWS,
   DEFAULT_FOCAL,
+  DEFAULT_HIGHLIGHT,
   DEFAULT_SCRIM,
   DEFAULT_TEXT_ALIGN,
   DEFAULT_TEXT_SCALE,
@@ -33,6 +34,13 @@ export type CardDraft = {
   textScale: number;
   /** 헤드라인·본문(및 cta 알약·핸들) 정렬. 카드 전체에 한 번에 적용된다 — textAlignFor 참고. */
   textAlign: TextAlign;
+  /**
+   * 헤드라인에서 형광으로 강조할 문자열. 위치(인덱스)가 아니라 **글자 자체**를 저장한다 —
+   * 좌표로 저장하면 헤드라인을 조금만 고쳐도 강조가 엉뚱한 자리로 간다. 빈 문자열이면 강조
+   * 없음. 본문에는 적용하지 않는다(CardnewsBody·CardCanvas 참고). layout-utils의
+   * splitHighlight(heading, highlight)가 매 렌더마다 이 값으로 [앞·강조·뒤]를 다시 찾는다.
+   */
+  highlight: string;
   copy: CardnewsCard;
 };
 
@@ -204,6 +212,7 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
         textY: textYFor(layouts[i]),
         textScale: DEFAULT_TEXT_SCALE,
         textAlign: textAlignFor(copy),
+        highlight: DEFAULT_HIGHLIGHT,
         copy,
       }));
       return { ...state, cards, error: null };

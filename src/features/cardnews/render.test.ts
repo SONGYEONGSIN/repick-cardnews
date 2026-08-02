@@ -18,6 +18,7 @@ function draft(overrides: Partial<CardDraft> = {}): CardDraft {
     textY: 1,
     textScale: 1,
     textAlign: "left",
+    highlight: "",
     copy: { role: "hook", heading: "헤드라인" },
     ...overrides,
   };
@@ -73,12 +74,22 @@ describe("toRenderCards", () => {
     expect(cards.map((c) => c.badge)).toEqual(["1 / 3", "2 / 3", "3 / 3"]);
   });
 
-  it("layout·focal·scrim·band·textY·textScale·textAlign·copy는 CardDraft에서 그대로 옮겨진다", () => {
+  it("layout·focal·scrim·band·textY·textScale·textAlign·highlight·copy는 CardDraft에서 그대로 옮겨진다", () => {
     const focal = { x: 0.2, y: 0.8 };
     const copy = { role: "solution" as const, heading: "h", body: "b", steps: ["1", "2"] };
     const s = state({
       cards: [
-        draft({ layout: "split", focal, scrim: 0.5, band: 0.6, textY: 0.3, textScale: 1.2, textAlign: "center", copy }),
+        draft({
+          layout: "split",
+          focal,
+          scrim: 0.5,
+          band: 0.6,
+          textY: 0.3,
+          textScale: 1.2,
+          textAlign: "center",
+          highlight: "h",
+          copy,
+        }),
       ],
     });
     const [card] = toRenderCards(s);
@@ -89,6 +100,7 @@ describe("toRenderCards", () => {
     expect(card.textY).toBe(0.3);
     expect(card.textScale).toBe(1.2);
     expect(card.textAlign).toBe("center");
+    expect(card.highlight).toBe("h");
     expect(card.copy).toEqual(copy);
   });
 });

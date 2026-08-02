@@ -25,6 +25,11 @@ export type RenderCard = {
   textScale: number;
   /** 헤드라인·본문 정렬(CardnewsBody 전용). InfographicBody 경로에서는 쓰이지 않는다. */
   textAlign: TextAlign;
+  /**
+   * 헤드라인에서 형광으로 강조할 문자열(CardnewsBody 전용, InfographicBody 경로에서는 쓰이지
+   * 않는다). 위치가 아니라 글자 자체 — layout-utils의 splitHighlight 참고. 빈 문자열이면 강조 없음.
+   */
+  highlight: string;
   /** "1 / 5" 형태. 빈 문자열이면 렌더하지 않는다 */
   badge: string;
   copy: CardnewsCard | InfographicSpec;
@@ -51,6 +56,7 @@ export function CardRenderer({
       compact={card.layout === "split"}
       textScale={card.textScale}
       textAlign={card.textAlign}
+      highlight={card.highlight}
     />
   );
   // InfographicBody는 아이템 목록에 스스로 flex:1을 걸어 남는 공간을 요구한다 — 스페이서가

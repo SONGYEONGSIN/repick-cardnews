@@ -7,12 +7,14 @@ import {
   isBlankText,
   textScaleFor,
   textScaleStepOf,
+  splitHighlight,
   DEFAULT_FOCAL,
   DEFAULT_SCRIM,
   DEFAULT_BAND_CARDNEWS,
   DEFAULT_BAND_INFO,
   DEFAULT_TEXT_SCALE,
   DEFAULT_TEXT_ALIGN,
+  DEFAULT_HIGHLIGHT,
 } from "@/templates/layout-utils";
 
 describe("objectPosition", () => {
@@ -143,6 +145,78 @@ describe("기본값", () => {
   });
   it("정렬 기본값은 왼쪽이다", () => {
     expect(DEFAULT_TEXT_ALIGN).toBe("left");
+  });
+  it("형광 기본값은 빈 문자열(강조 없음)이다", () => {
+    expect(DEFAULT_HIGHLIGHT).toBe("");
+  });
+});
+
+// splitHighlight: 헤드라인을 강조 문자열 기준으로 [앞·강조·뒤] 세 조각으로 나눈다. 위치(인덱스)가
+// 아니라 "글자"로 저장하므로(CardDraft.highlight) 매 렌더마다 다시 찾는다 — 글이 바뀌어도 그
+// 글자가 남아 있는 한 강조가 따라간다.
+describe("splitHighlight", () => {
+  it("강조 문자열이 비면 강조 없음(전체가 before)", () => {
+    expect(splitHighlight("에어컨 전기세 아끼는 법", "")).toEqual({
+      before: "에어컨 전기세 아끼는 법",
+      match: "",
+      after: "",
+    });
+  });
+
+  it("글에 없는 강조 문자열은 조용히 강조 없음으로 본다(오류로 만들지 않는다)", () => {
+    expect(splitHighlight("에어컨 전기세 아끼는 법", "냉장고")).toEqual({
+      before: "에어컨 전기세 아끼는 법",
+      match: "",
+      after: "",
+    });
+  });
+
+  it("맨 앞에 있으면 before가 빈다", () => {
+    expect(splitHighlight("전기세 아끼는 법", "전기세")).toEqual({
+      before: "",
+      match: "전기세",
+      after: " 아끼는 법",
+    });
+  });
+
+  it("가운데에 있으면 앞뒤가 모두 남는다", () => {
+    expect(splitHighlight("에어컨 전기세 아끼는 법", "전기세")).toEqual({
+      before: "에어컨 ",
+      match: "전기세",
+      after: " 아끼는 법",
+    });
+  });
+
+  it("맨 끝에 있으면 after가 빈다", () => {
+    expect(splitHighlight("에어컨 전기세", "전기세")).toEqual({
+      before: "에어컨 ",
+      match: "전기세",
+      after: "",
+    });
+  });
+
+  it("같은 글자가 두 번 나오면 첫 번째만 강조한다", () => {
+    expect(splitHighlight("전기세 절약, 전기세 반값", "전기세")).toEqual({
+      before: "",
+      match: "전기세",
+      after: " 절약, 전기세 반값",
+    });
+  });
+
+  it("강조 문자열이 글 전체와 같으면 전체가 match다", () => {
+    expect(splitHighlight("전기세 반값", "전기세 반값")).toEqual({
+      before: "",
+      match: "전기세 반값",
+      after: "",
+    });
+  });
+
+  it("강조 문자열이 글보다 길면 강조 없음으로 본다", () => {
+    expect(splitHighlight("전기세", "전기세 반값")).toEqual({
+      before: "전기세",
+      match: "",
+      after: "",
+    });
   });
 });
 
