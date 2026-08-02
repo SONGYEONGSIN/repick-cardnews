@@ -82,13 +82,13 @@ function jsonResponse(status: number, body: unknown) {
 describe("rankKeywordsByNaverDatalab", () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  it("헤더에 클라이언트 ID·시크릿을 싣고 POST 로 호출한다", async () => {
+  it("API HUB 게이트웨이 헤더에 클라이언트 ID·시크릿을 싣고 POST 로 호출한다", async () => {
     const mockFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-      expect(String(input)).toBe("https://openapi.naver.com/v1/datalab/search");
+      expect(String(input)).toBe("https://naverapihub.apigw.ntruss.com/search-trend/v1/search");
       expect(init?.method).toBe("POST");
       const headers = init?.headers as Record<string, string>;
-      expect(headers["X-Naver-Client-Id"]).toBe("client-id");
-      expect(headers["X-Naver-Client-Secret"]).toBe("client-secret");
+      expect(headers["X-NCP-APIGW-API-KEY-ID"]).toBe("client-id");
+      expect(headers["X-NCP-APIGW-API-KEY"]).toBe("client-secret");
       expect(headers["Content-Type"]).toBe("application/json");
       return jsonResponse(200, {
         results: [{ title: "다이어트", keywords: ["다이어트"], data: [{ period: "2026-07-01", ratio: 50 }] }],

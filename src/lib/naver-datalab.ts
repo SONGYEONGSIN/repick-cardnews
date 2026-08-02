@@ -3,9 +3,13 @@
  * 4단계. `@/lib/topic-curation`이 추려준 키워드들을 30~40대 여성이 실제로 검색하는지
  * 상대값으로 확인해 정렬한다.
  *
- * 공식 문서(openapi.naver.com/v1/datalab/search, 2026-08-02 확인) 기준:
- * `POST https://openapi.naver.com/v1/datalab/search`, 헤더
- * `X-Naver-Client-Id`·`X-Naver-Client-Secret`·`Content-Type: application/json`. 본문은
+ * **NAVER API HUB(네이버 클라우드 플랫폼)를 통해 부른다** — `developers.naver.com` 이 아니다.
+ * 둘은 같은 데이터를 주지만 **호스트도 인증 헤더도 다르고, 자격 증명이 서로 호환되지 않는다**.
+ * API HUB 키로 `openapi.naver.com` 을 부르면 `errorCode 024`(인증 실패)로 거절당한다 —
+ * 키가 틀린 것처럼 보여서 헤매기 쉽다(2026-08-02 실제로 겪음).
+ *
+ * `POST https://naverapihub.apigw.ntruss.com/search-trend/v1/search`, 헤더
+ * `X-NCP-APIGW-API-KEY-ID`·`X-NCP-APIGW-API-KEY`·`Content-Type: application/json`. 본문은
  * `startDate`·`endDate`·`timeUnit`·`keywordGroups`(그룹명+키워드)·`device`·`ages`·`gender`.
  * **한 요청에 키워드 그룹 최대 5개**까지만 담을 수 있어 후보가 많으면 나눠 보낸다.
  *
@@ -23,6 +27,9 @@
  * 따라서 `NAVER_AGES_30S_40S` = 30\~49세다.
  */
 import { z } from "zod/v4";
+
+/** NAVER API HUB 게이트웨이의 검색어트렌드 경로. 파일 상단 주석 참고. */
+const DATALAB_URL = "https://naverapihub.apigw.ntruss.com/search-trend/v1/search";
 
 /** 30~49세 — 5=30~34, 6=35~39, 7=40~44, 8=45~49. 파일 상단 주석 참고. */
 export const NAVER_AGES_30S_40S: readonly string[] = ["5", "6", "7", "8"];
@@ -120,11 +127,11 @@ async function callDatalab(
   body: DatalabRequestBody,
   fetchImpl: typeof fetch,
 ): Promise<RankedTopic[]> {
-  const res = await fetchImpl("https://openapi.naver.com/v1/datalab/search", {
+  const res = await fetchImpl(DATALAB_URL, {
     method: "POST",
     headers: {
-      "X-Naver-Client-Id": auth.clientId,
-      "X-Naver-Client-Secret": auth.clientSecret,
+      "X-NCP-APIGW-API-KEY-ID": auth.clientId,
+      "X-NCP-APIGW-API-KEY": auth.clientSecret,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),

@@ -162,7 +162,7 @@ describe("GET /api/topics 데이터랩 있음 — 검색 비중으로 정렬", (
           items: [{ id: `video-${categoryId}`, snippet: { title: `제목-${categoryId}`, channelTitle: "채널", categoryId } }],
         });
       }
-      if (url.includes("openapi.naver.com")) {
+      if (url.includes("naverapihub.apigw.ntruss.com")) {
         const body: { keywordGroups: { groupName: string }[] } = JSON.parse(String(init?.body));
         const results = body.keywordGroups.map((g) => ({
           title: g.groupName,
