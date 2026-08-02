@@ -32,13 +32,15 @@ const TOP_N = 10;
 
 type RankedBy = "naver-datalab" | "claude-no-naver-config" | "claude-naver-unavailable";
 
+/** 데이터랩에는 **검색어트렌드**와 쇼핑인사이트가 있다 — 어느 쪽을 봤는지 반드시 밝힌다.
+ * "네이버 데이터랩"까지만 쓰면 쇼핑 데이터로 오해할 수 있다. */
 const NOTE_BY_BASIS: Record<RankedBy, string> = {
   "naver-datalab":
-    "네이버 데이터랩에서 30~40대 여성 기준 상대 검색 비중을 조회해 정렬했어요(절대 검색량이 아니라 후보끼리의 상대 비교예요).",
+    "네이버 데이터랩 검색어트렌드에서 30~40대 여성 기준 상대 검색 비중을 조회해 정렬했어요(절대 검색량이 아니라 후보끼리의 상대 비교예요).",
   "claude-no-naver-config":
-    "네이버 데이터랩 설정이 없어 Claude가 판단한 관련성 순서로 정렬했어요(실제 검색 비중은 반영되지 않았어요).",
+    "네이버 데이터랩 검색어트렌드 설정이 없어 Claude가 판단한 관련성 순서로 정렬했어요(실제 검색 비중은 반영되지 않았어요).",
   "claude-naver-unavailable":
-    "네이버 데이터랩에 연결하지 못해 Claude가 판단한 관련성 순서로 정렬했어요 — 클라이언트 ID·시크릿 설정을 확인해 주세요(실제 검색 비중은 반영되지 않았어요).",
+    "네이버 데이터랩 검색어트렌드에 연결하지 못해 Claude가 판단한 관련성 순서로 정렬했어요 — 클라이언트 ID·시크릿 설정을 확인해 주세요(실제 검색 비중은 반영되지 않았어요).",
 };
 
 type TopicResult = { keyword: string; reason: string };
@@ -60,14 +62,26 @@ function topResultsByRank(curated: CuratedTopic[]): TopicResult[] {
     .map(({ keyword, reason }) => ({ keyword, reason }));
 }
 
-/** 유튜브 카테고리 일부가 실패해도 파이프라인은 계속 간다(`@/lib/youtube-trending`) — 그
- * 사실을 감추지 않고 건너뛴 카테고리 이름을 응답에 그대로 담는다. */
-function respond(topics: TopicResult[], rankedBy: RankedBy, skippedYoutubeCategories: string[]) {
+/**
+ * **출처를 밝힌다.** 후보는 언제나 유튜브에서 오고(`youtubeCategories`), 순위만 데이터랩이
+ * 매긴다(`rankedBy`·`note`) — 화면에서 둘이 경쟁하는 출처처럼 보이면 안 된다.
+ *
+ * 유튜브 카테고리 일부가 실패해도 파이프라인은 계속 가므로(`@/lib/youtube-trending`), 실제로
+ * 쓴 카테고리와 건너뛴 카테고리를 **한국어 이름으로** 함께 담는다.
+ */
+function respond(
+  topics: TopicResult[],
+  rankedBy: RankedBy,
+  youtubeCategories: string[],
+  skippedYoutubeCategories: string[],
+) {
   const message = buildScarcityMessage(topics.length);
   return Response.json({
     topics,
-    rankedBy,
-    note: NOTE_BY_BASIS[rankedBy],
+    // 정렬할 게 없으면 순위 근거도 없다 — 없는 근거를 말하면 (네이버가 설정된 사람에게)
+    // 거짓이 된다. 후보를 어디서 찾아봤는지(`youtubeCategories`)는 빈손이어도 밝힌다.
+    ...(topics.length > 0 ? { rankedBy, note: NOTE_BY_BASIS[rankedBy] } : {}),
+    youtubeCategories,
     ...(message ? { message } : {}),
     ...(skippedYoutubeCategories.length > 0 ? { skippedYoutubeCategories } : {}),
   });
@@ -93,7 +107,9 @@ export async function GET(req: Request) {
   } catch (e) {
     return Response.json({ error: friendlyYoutubeError(e) }, { status: 502 });
   }
-  const skippedYoutubeCategories = youtubeResult.skippedCategories.map((c) => c.label);
+  // 화면에 그대로 나가는 이름이라 영문 `label` 이 아니라 한국어 `displayName` 을 쓴다.
+  const youtubeCategories = youtubeResult.usedCategories.map((c) => c.displayName);
+  const skippedYoutubeCategories = youtubeResult.skippedCategories.map((c) => c.displayName);
 
   let curated: CuratedTopic[];
   try {
@@ -103,11 +119,11 @@ export async function GET(req: Request) {
   }
 
   if (curated.length === 0) {
-    return respond([], "claude-no-naver-config", skippedYoutubeCategories);
+    return respond([], "claude-no-naver-config", youtubeCategories, skippedYoutubeCategories);
   }
 
   if (!config.naver) {
-    return respond(topResultsByRank(curated), "claude-no-naver-config", skippedYoutubeCategories);
+    return respond(topResultsByRank(curated), "claude-no-naver-config", youtubeCategories, skippedYoutubeCategories);
   }
 
   try {
@@ -119,10 +135,10 @@ export async function GET(req: Request) {
     const topics = ranked
       .slice(0, TOP_N)
       .map((r) => ({ keyword: r.keyword, reason: reasonByKeyword.get(r.keyword) ?? "" }));
-    return respond(topics, "naver-datalab", skippedYoutubeCategories);
+    return respond(topics, "naver-datalab", youtubeCategories, skippedYoutubeCategories);
   } catch {
     // 데이터랩은 선택 기능이다 — 실패해도 Claude 가 이미 만들어 둔 결과를 버리지 않고
     // Claude 순위로 폴백한다. 원인(오류 본문·키 값)은 응답에 담지 않는다.
-    return respond(topResultsByRank(curated), "claude-naver-unavailable", skippedYoutubeCategories);
+    return respond(topResultsByRank(curated), "claude-naver-unavailable", youtubeCategories, skippedYoutubeCategories);
   }
 }

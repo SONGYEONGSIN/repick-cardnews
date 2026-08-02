@@ -5,13 +5,16 @@ import { CircleAlert, LoaderCircle, TrendingUp } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { LineButton, SectionHead } from "@/features/shell/StudioFrame";
 import {
+  CANDIDATE_SOURCE,
   TOPICS_IDLE_HINT,
+  candidateSourceLine,
   elapsedLabel,
   errorView,
   panelStatus,
   selectedKeyword,
   toTopicsView,
   waitingStatus,
+  type BasisView,
   type TopicsView,
 } from "./topic-suggest";
 
@@ -37,15 +40,29 @@ import {
 
 type PanelState = { kind: "idle" } | { kind: "loading" } | { kind: "done"; view: TopicsView };
 
-/** 근거 한 줄. 서버가 준 `note` 를 그대로 쓰고, 자격 증명을 확인해야 하는 경우만 눈에 띄게 둔다. */
-function BasisNote({ note, needsAttention }: { note: string; needsAttention: boolean }) {
-  if (!note) return null;
-  if (!needsAttention) return <p className="text-[13px] leading-relaxed text-ink-2">{note}</p>;
+/**
+ * 출처 블록 — **어디서 가져왔고 무엇이 줄을 세웠는지**를 결과 바로 위에 붙인다.
+ *
+ * 유튜브와 데이터랩이 경쟁하는 두 출처처럼 보이면 안 된다. 둘은 단계가 다르다: 후보는 언제나
+ * 유튜브에서 오고, 데이터랩은 그 후보를 줄 세울 뿐이다. 그래서 `후보`·`순위` 두 줄로 못 박는다.
+ */
+function SourceBlock({ candidate, basis }: { candidate: string; basis: BasisView }) {
   return (
-    <p className="flex items-start gap-2 rounded-lg border-2 border-ink px-4 py-2.5 text-[14px] font-bold leading-relaxed">
-      <CircleAlert size={16} aria-hidden="true" className="mt-0.5 flex-none" />
-      {note}
-    </p>
+    <dl className="flex flex-col gap-1.5 rounded-xl border border-hair px-4 py-3 text-[13px] leading-relaxed">
+      <div className="flex flex-wrap gap-x-2">
+        <dt className="font-bold">후보</dt>
+        <dd className="text-ink-2">{candidate}</dd>
+      </div>
+      {basis.note && (
+        <div className="flex flex-wrap gap-x-2">
+          <dt className="font-bold">순위</dt>
+          <dd className={basis.needsAttention ? "flex items-start gap-1.5 font-bold" : "text-ink-2"}>
+            {basis.needsAttention && <CircleAlert size={15} aria-hidden="true" className="mt-0.5 flex-none" />}
+            {basis.note}
+          </dd>
+        </div>
+      )}
+    </dl>
   );
 }
 
@@ -191,7 +208,7 @@ export function TopicSuggestPanel({
 
       {panel.kind === "done" && panel.view.kind !== "error" && (
         <div className="flex flex-col gap-3">
-          <BasisNote note={panel.view.basis.note} needsAttention={panel.view.basis.needsAttention} />
+          <SourceBlock candidate={candidateSourceLine(panel.view) ?? CANDIDATE_SOURCE} basis={panel.view.basis} />
           {/* 후보가 상한보다 적을 때 서버가 준 설명 — 결과가 있는 경우에만 여기 둔다.
               결과가 없을 때는 위 상태 한 줄(panelStatus)이 이미 같은 문장을 말한다. */}
           {panel.view.kind === "results" && panel.view.message && (

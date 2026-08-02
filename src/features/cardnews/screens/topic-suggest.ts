@@ -30,6 +30,8 @@ export type TopicsResults = {
   basis: BasisView;
   /** 후보가 상한보다 적을 때 서버가 주는 설명. 없으면 null. */
   message: string | null;
+  /** 실제로 후보를 가져온 유튜브 카테고리 이름(한국어) — 출처를 밝히는 데 쓴다. */
+  categories: string[];
   /** 오늘 가져오지 못한 유튜브 카테고리 이름 — 감추지 않는다. */
   skipped: string[];
 };
@@ -37,6 +39,7 @@ export type TopicsEmpty = {
   kind: "empty";
   basis: BasisView;
   message: string | null;
+  categories: string[];
   skipped: string[];
 };
 export type TopicsError = { kind: "error"; message: string };
@@ -86,10 +89,23 @@ export function toTopicsView(status: number, body: unknown): TopicsView {
     needsAttention: record.rankedBy === "claude-naver-unavailable",
   };
   const message = asString(record.message);
+  const categories = toStringList(record.youtubeCategories);
   const skipped = toStringList(record.skippedYoutubeCategories);
 
-  if (topics.length === 0) return { kind: "empty", basis, message, skipped };
-  return { kind: "results", topics, basis, message, skipped };
+  if (topics.length === 0) return { kind: "empty", basis, message, categories, skipped };
+  return { kind: "results", topics, basis, message, categories, skipped };
+}
+
+/**
+ * **후보는 언제나 유튜브에서 온다.** 데이터랩은 그 후보를 줄 세울 뿐 후보를 만들지 않는다 —
+ * 화면에서 둘이 "어느 쪽에서 가져왔나" 로 경쟁하는 것처럼 보이면 사용자가 헷갈린다.
+ */
+export const CANDIDATE_SOURCE = "유튜브 인기 급상승(한국)";
+
+/** 후보 출처 한 줄. 실제로 쓴 카테고리를 알면 붙이고, 모르면 출처 이름만 말한다. */
+export function candidateSourceLine(view: TopicsView): string | null {
+  if (view.kind === "error") return null;
+  return view.categories.length > 0 ? `${CANDIDATE_SOURCE} · ${view.categories.join(", ")}` : CANDIDATE_SOURCE;
 }
 
 /** 경과·예상 시간을 사람이 읽는 단위로. 초 단위 숫자가 화면에서 그대로 커지지 않게 한다. */
@@ -102,8 +118,13 @@ export function elapsedLabel(seconds: number): string {
 
 const EXPECTED_LABEL = elapsedLabel(TOPICS_EXPECTED_SECONDS);
 
-/** 누르기 전 안내 — **버튼을 눌러야 시작한다는 것**과 얼마나 걸리는지를 미리 말한다. */
-export const TOPICS_IDLE_HINT = `유튜브에서 지금 뜨는 것 중 생활 정보로 다듬을 만한 주제를 골라 와요. 누른 뒤 보통 ${EXPECTED_LABEL}쯤 걸려요.`;
+/**
+ * 누르기 전 안내 — **버튼을 눌러야 시작한다는 것**, 얼마나 걸리는지, 그리고 **어디서
+ * 가져오는지**를 미리 말한다. 두 출처의 역할이 다르다는 것(유튜브=후보, 데이터랩=순위)이
+ * 여기서부터 드러나야 결과를 보고 헷갈리지 않는다. 데이터랩은 **검색어트렌드**임을 밝힌다 —
+ * 쇼핑인사이트와 다른 API 다.
+ */
+export const TOPICS_IDLE_HINT = `${CANDIDATE_SOURCE}에서 생활 정보로 다듬을 만한 후보를 모으고, 네이버 데이터랩 검색어트렌드로 30~40대 여성 검색 비중 순으로 정렬해요. 누른 뒤 보통 ${EXPECTED_LABEL}쯤 걸려요.`;
 
 /**
  * 기다리는 동안 읽어 줄 한 줄. 예상 시간을 넘기면 문구가 바뀐다 — 같은 문장이 계속 있으면

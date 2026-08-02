@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  CANDIDATE_SOURCE,
   TOPICS_IDLE_HINT,
+  candidateSourceLine,
   elapsedLabel,
   errorView,
   panelStatus,
@@ -10,11 +12,11 @@ import {
 
 /** 응답 형태의 근거는 `src/app/api/topics/route.ts` 뿐이다 — 그 라우트가 실제로 만드는 본문을 그대로 쓴다. */
 const NOTE_DATALAB =
-  "네이버 데이터랩에서 30~40대 여성 기준 상대 검색 비중을 조회해 정렬했어요(절대 검색량이 아니라 후보끼리의 상대 비교예요).";
+  "네이버 데이터랩 검색어트렌드에서 30~40대 여성 기준 상대 검색 비중을 조회해 정렬했어요(절대 검색량이 아니라 후보끼리의 상대 비교예요).";
 const NOTE_NO_CONFIG =
-  "네이버 데이터랩 설정이 없어 Claude가 판단한 관련성 순서로 정렬했어요(실제 검색 비중은 반영되지 않았어요).";
+  "네이버 데이터랩 검색어트렌드 설정이 없어 Claude가 판단한 관련성 순서로 정렬했어요(실제 검색 비중은 반영되지 않았어요).";
 const NOTE_UNAVAILABLE =
-  "네이버 데이터랩에 연결하지 못해 Claude가 판단한 관련성 순서로 정렬했어요 — 클라이언트 ID·시크릿 설정을 확인해 주세요(실제 검색 비중은 반영되지 않았어요).";
+  "네이버 데이터랩 검색어트렌드에 연결하지 못해 Claude가 판단한 관련성 순서로 정렬했어요 — 클라이언트 ID·시크릿 설정을 확인해 주세요(실제 검색 비중은 반영되지 않았어요).";
 
 function okBody(extra: Record<string, unknown> = {}) {
   return {
@@ -192,5 +194,39 @@ describe("panelStatus — 스크린리더에 읽힐 한 줄", () => {
   it("오류 상태에서는 오류 문구를 그대로 읽는다", () => {
     const view = errorView("잠깐 문제가 있었어요.");
     expect(panelStatus(view, "")).toBe("잠깐 문제가 있었어요.");
+  });
+});
+
+describe("출처 표시 — 어디서 가져온 주제인지", () => {
+  it("후보 출처는 언제나 유튜브다 — 순위 근거와 헷갈리지 않게 이름을 못 박는다", () => {
+    expect(CANDIDATE_SOURCE).toContain("유튜브");
+    expect(CANDIDATE_SOURCE).toContain("인기 급상승");
+  });
+
+  it("누르기 전 안내가 두 출처의 역할을 모두 밝힌다 — 유튜브는 후보, 데이터랩은 순위", () => {
+    expect(TOPICS_IDLE_HINT).toContain("유튜브");
+    // 데이터랩에는 검색어트렌드와 쇼핑인사이트가 있다 — 어느 쪽인지까지 말해야 한다.
+    expect(TOPICS_IDLE_HINT).toContain("검색어트렌드");
+  });
+
+  it("가져온 뒤에는 실제로 쓴 카테고리 이름을 붙여 준다", () => {
+    const view = toTopicsView(200, okBody({ youtubeCategories: ["살림·요리·꿀팁", "일상·브이로그"] }));
+
+    expect(candidateSourceLine(view)).toBe(`${CANDIDATE_SOURCE} · 살림·요리·꿀팁, 일상·브이로그`);
+  });
+
+  it("카테고리 정보가 없으면 출처 이름만 말한다 — 빈 구분자를 남기지 않는다", () => {
+    expect(candidateSourceLine(toTopicsView(200, okBody()))).toBe(CANDIDATE_SOURCE);
+  });
+
+  it("주제가 0개여도 어디서 찾아봤는지는 밝힌다 — 빈손인 이유를 알아야 한다", () => {
+    const view = toTopicsView(200, { topics: [], youtubeCategories: ["살림·요리·꿀팁"] });
+
+    expect(view.kind).toBe("empty");
+    expect(candidateSourceLine(view)).toBe(`${CANDIDATE_SOURCE} · 살림·요리·꿀팁`);
+  });
+
+  it("오류일 때는 출처를 말하지 않는다 — 아무것도 가져오지 못했다", () => {
+    expect(candidateSourceLine(errorView("실패했어요"))).toBeNull();
   });
 });

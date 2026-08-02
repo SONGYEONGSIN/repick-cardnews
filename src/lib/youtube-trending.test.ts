@@ -35,14 +35,21 @@ describe("buildYoutubeTrendingUrl", () => {
 describe("LIFESTYLE_CATEGORIES", () => {
   it("실제 videos.list(chart=mostPopular, regionCode=KR) 호출로 지원 확인된 카테고리만 담는다(2026-08-02 실측)", () => {
     expect(LIFESTYLE_CATEGORIES).toEqual([
-      { id: "26", label: "Howto & Style" },
-      { id: "22", label: "People & Blogs" },
-      { id: "28", label: "Science & Technology" },
+      { id: "26", label: "Howto & Style", displayName: "살림·요리·꿀팁" },
+      { id: "22", label: "People & Blogs", displayName: "일상·브이로그" },
+      { id: "28", label: "Science & Technology", displayName: "생활기술·가전" },
     ]);
   });
 
   it("Education(27)은 실측 결과(notFound) 목록에 없다 — 한국에서 mostPopular 미지원", () => {
     expect(LIFESTYLE_CATEGORIES.some((c) => c.id === "27")).toBe(false);
+  });
+
+  // 화면이 출처를 밝힐 때 쓰는 이름이라 영어가 새어 나가면 안 된다.
+  it("사용자에게 보일 이름은 전부 한국어다 — 영문자가 없다", () => {
+    for (const category of LIFESTYLE_CATEGORIES) {
+      expect(category.displayName).not.toMatch(/[A-Za-z]/);
+    }
   });
 });
 
@@ -89,9 +96,9 @@ describe("fetchYoutubeTrendingByCategory", () => {
   });
 });
 
-const categoryA = { id: "26", label: "Howto & Style" };
-const categoryB = { id: "22", label: "People & Blogs" };
-const categoryC = { id: "28", label: "Science & Technology" };
+const categoryA = { id: "26", label: "Howto & Style", displayName: "살림·요리·꿀팁" };
+const categoryB = { id: "22", label: "People & Blogs", displayName: "일상·브이로그" };
+const categoryC = { id: "28", label: "Science & Technology", displayName: "생활기술·가전" };
 
 function candidate(id: string): YoutubeCandidate {
   return { videoId: id, title: `제목-${id}`, channelTitle: "채널", categoryId: "26" };
@@ -108,6 +115,17 @@ describe("combineCategoryResults — 순수 함수(부분 실패 허용)", () =>
 
     expect(combined.candidates.map((c) => c.videoId)).toEqual(["a1", "b1"]);
     expect(combined.skippedCategories).toEqual([]);
+    // 화면이 "어디서 가져왔는지"를 밝히려면 실제로 쓴 카테고리를 알아야 한다.
+    expect(combined.usedCategories).toEqual([categoryA, categoryB]);
+  });
+
+  it("일부가 실패하면 usedCategories에는 성공한 카테고리만 남는다", () => {
+    const results: CategoryFetchResult[] = [
+      { status: "fulfilled", category: categoryA, candidates: [candidate("a1")] },
+      { status: "rejected", category: categoryB, error: new YoutubeApiError("HTTP 404", {}) },
+    ];
+
+    expect(combineCategoryResults(results).usedCategories).toEqual([categoryA]);
   });
 
   it("일부만 실패하면 성공한 카테고리 결과만 합치고, 실패한 카테고리는 skippedCategories에 담는다", () => {
@@ -177,7 +195,9 @@ describe("fetchYoutubeTrendingCandidates", () => {
     const result = await fetchYoutubeTrendingCandidates("test-key");
 
     expect(result.candidates.length).toBeGreaterThan(0);
-    expect(result.skippedCategories).toEqual([{ id: "22", label: "People & Blogs" }]);
+    expect(result.skippedCategories).toEqual([
+      { id: "22", label: "People & Blogs", displayName: "일상·브이로그" },
+    ]);
   });
 
   it("카테고리가 전부 실패하면 AllCategoriesFailedError로 실패한다", async () => {

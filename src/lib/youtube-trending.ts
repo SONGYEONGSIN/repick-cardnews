@@ -27,7 +27,11 @@ import { z } from "zod/v4";
 /** 공식 문서상 `maxResults`의 1회 요청 최대치. */
 export const YOUTUBE_MAX_RESULTS = 50;
 
-export type YoutubeCategory = { id: string; label: string };
+/**
+ * `label` 은 유튜브 공식 영문 이름(문서 대조용), `displayName` 은 **사용자에게 보일 한국어
+ * 이름**이다. 화면이 "어디서 가져왔는지"를 밝힐 때 이 이름을 쓰므로 영문이 새어 나가면 안 된다.
+ */
+export type YoutubeCategory = { id: string; label: string; displayName: string };
 
 /**
  * 생활 정보 적중률이 높은 유튜브 공식 카테고리 — **실제 API 호출로 하나씩 검증한 것만**
@@ -52,9 +56,9 @@ export type YoutubeCategory = { id: string; label: string };
  * 전에 반드시 실제 호출로 지원 여부를 다시 확인할 것.
  */
 export const LIFESTYLE_CATEGORIES: readonly YoutubeCategory[] = [
-  { id: "26", label: "Howto & Style" },
-  { id: "22", label: "People & Blogs" },
-  { id: "28", label: "Science & Technology" },
+  { id: "26", label: "Howto & Style", displayName: "살림·요리·꿀팁" },
+  { id: "22", label: "People & Blogs", displayName: "일상·브이로그" },
+  { id: "28", label: "Science & Technology", displayName: "생활기술·가전" },
 ];
 
 export function buildYoutubeTrendingUrl(
@@ -182,6 +186,8 @@ export type CategoryFetchResult =
 
 export type CombinedCandidates = {
   candidates: YoutubeCandidate[];
+  /** 실제로 후보를 가져온 카테고리들 — 화면이 **어디서 가져왔는지**를 밝힐 때 쓴다. */
+  usedCategories: YoutubeCategory[];
   /** 실패해서 건너뛴 카테고리들 — 화면이 "일부만 가져왔다"를 알 수 있게 감추지 않는다. */
   skippedCategories: YoutubeCategory[];
 };
@@ -208,7 +214,11 @@ export function combineCategoryResults(results: CategoryFetchResult[]): Combined
       candidates.push(c);
     }
   }
-  return { candidates, skippedCategories: rejected.map((r) => r.category) };
+  return {
+    candidates,
+    usedCategories: fulfilled.map((r) => r.category),
+    skippedCategories: rejected.map((r) => r.category),
+  };
 }
 
 /**

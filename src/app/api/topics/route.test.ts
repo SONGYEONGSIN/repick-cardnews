@@ -138,6 +138,24 @@ describe("GET /api/topics 데이터랩 없음 — Claude 순위로 정렬", () =
     expect(data.message).toBeUndefined();
   });
 
+  // 정렬할 게 없으면 순위 근거도 없다. 그런데도 "설정이 없어 Claude 순서"라고 말하면,
+  // 네이버가 멀쩡히 설정된 사람에게 거짓을 말하게 된다.
+  it("빈 topics 면 순위 근거(note·rankedBy)를 말하지 않는다", async () => {
+    process.env.YOUTUBE_API_KEY = "yt-key";
+    process.env.NAVER_CLIENT_ID = "naver-id";
+    process.env.NAVER_CLIENT_SECRET = "naver-secret";
+    vi.stubGlobal("fetch", stubYoutubeSuccess());
+    vi.mocked(runClaudeCli).mockResolvedValueOnce({ topics: [] });
+
+    const data = await (await GET(makeRequest("localhost:3500"))).json();
+
+    expect(data.topics).toEqual([]);
+    expect(data.note).toBeUndefined();
+    expect(data.rankedBy).toBeUndefined();
+    // 후보를 어디서 찾아봤는지는 여전히 밝힌다 — 빈손인 이유를 알아야 한다.
+    expect(data.youtubeCategories.length).toBeGreaterThan(0);
+  });
+
   it("빈 topics 면 200과 '오늘은 없다'는 한국어 message를 함께 준다", async () => {
     process.env.YOUTUBE_API_KEY = "yt-key";
     vi.stubGlobal("fetch", stubYoutubeSuccess());
@@ -193,6 +211,8 @@ describe("GET /api/topics 데이터랩 있음 — 검색 비중으로 정렬", (
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.rankedBy).toBe("naver-datalab");
+    // 데이터랩에는 검색어트렌드와 쇼핑인사이트가 있다 — 어느 쪽인지 밝혀야 한다.
+    expect(data.note).toContain("검색어트렌드");
     // Claude rank 로는 제철요리가 먼저지만, 데이터랩 점수는 육아팁이 더 높다 — 데이터랩이 이겨야 한다.
     expect(data.topics.map((t: { keyword: string }) => t.keyword)).toEqual(["육아팁", "제철요리"]);
   });
@@ -261,7 +281,22 @@ describe("GET /api/topics 유튜브 카테고리 일부 실패 — 부분 실패
 
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.skippedYoutubeCategories).toEqual(["People & Blogs"]);
+    // 화면에 그대로 나가는 이름이라 한국어여야 한다 — 영문 카테고리명이 새어 나가면 안 된다.
+    expect(data.skippedYoutubeCategories).toEqual(["일상·브이로그"]);
+    // 실패한 것만 빼고, 실제로 쓴 카테고리도 밝힌다.
+    expect(data.youtubeCategories).toEqual(["살림·요리·꿀팁", "생활기술·가전"]);
+  });
+
+  it("전부 성공하면 youtubeCategories에 쓴 카테고리 이름이 한국어로 전부 담긴다", async () => {
+    process.env.YOUTUBE_API_KEY = "yt-key";
+    vi.stubGlobal("fetch", stubYoutubeSuccess());
+    vi.mocked(runClaudeCli).mockResolvedValueOnce({
+      topics: [{ keyword: "키워드", reason: "이유", rank: 1 }],
+    });
+
+    const data = await (await GET(makeRequest("localhost:3500"))).json();
+
+    expect(data.youtubeCategories).toEqual(["살림·요리·꿀팁", "일상·브이로그", "생활기술·가전"]);
   });
 
   it("카테고리를 하나도 못 건너뛰면(전부 성공) skippedYoutubeCategories 필드가 없다", async () => {
