@@ -1360,6 +1360,12 @@ import { inKorean } from "./errors";
 export type FinderMode = "trending" | "search" | "curated";
 export type RankLens = "search-trend" | "shopping" | "claude";
 
+/**
+ * `@/lib/youtube-search` 의 동명 타입과 **일부러 따로 둔다.** 저쪽은 유튜브 응답을 파싱한
+ * 결과이고 이쪽은 **우리 API 응답을 검증해 얻은 것**이다 — 서버가 필드를 바꾸면 여기서
+ * `toMaterialsView` 가 걸러 내야지, 타입을 공유해 조용히 통과시키면 안 된다. 클라이언트가
+ * 서버 전용 모듈(zod·fetch 를 끌고 온다)을 import 하지 않게 하는 효과도 있다.
+ */
 export type MaterialItem = { videoId: string; title: string; channelTitle: string };
 
 /** 모드는 **속도**로 갈린다 — 앞의 둘은 Claude 를 안 써서 1~2초, 마지막은 100초. */
