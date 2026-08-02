@@ -6,6 +6,9 @@
 짜여 있습니다. 인터넷에서 흔히 보이는 "페이스북 페이지를 연결하라"는 안내는 **다른 방식**
 (Facebook Login)의 것이라 여기서는 필요 없습니다.
 
+> 이 절차는 2026-08-02 에 계정 `ys040607` 로 **실제 게시까지 성공한** 경로입니다.
+> 앱 검수는 필요 없었습니다 — 본인 계정에만 올리는 경우 대시보드가 그 단계를 건너뛰라고 안내합니다.
+
 ---
 
 ## 0. 미리 알아 둘 것
@@ -66,44 +69,29 @@
 
 ---
 
-## 6. 토큰 받기
+## 6. 토큰 받기 — 대시보드에서 한 번에
 
-### 6-1. 로그인해서 코드 받기
+**Instagram → API 설정 → "1. 액세스 토큰 생성"** 으로 갑니다.
 
-대시보드의 **Business Login** 설정에서 리디렉션 URI 를 등록하고, 거기 나오는 로그인 URL 을
-브라우저에서 엽니다. 로그인하면 리디렉션 주소 뒤에 `?code=...` 가 붙어 돌아옵니다.
-그 `code` 값을 복사하세요. **몇 분 안에 만료되니 바로 다음 단계로 갑니다.**
+5단계에서 연결한 계정이 목록에 보입니다. 그 줄의 **"토큰 생성"** 을 누르면 **장기 토큰(60일)**
+이 바로 나옵니다. 복사해서 안전한 곳에 두세요.
 
-### 6-2. 코드 → 단기 토큰 (1시간짜리)
-
-```bash
-curl -X POST https://api.instagram.com/oauth/access_token \
-  -F client_id=<인스타 앱 ID> \
-  -F client_secret=<인스타 앱 시크릿> \
-  -F grant_type=authorization_code \
-  -F redirect_uri=<등록한 리디렉션 URI> \
-  -F code=<6-1 에서 받은 code>
-```
-
-### 6-3. 단기 → 장기 토큰 (60일짜리)
-
-```bash
-curl -G https://graph.instagram.com/access_token \
-  -d grant_type=ig_exchange_token \
-  -d client_secret=<인스타 앱 시크릿> \
-  -d access_token=<6-2 에서 받은 단기 토큰>
-```
-
-여기서 나온 값이 **앱에 넣을 토큰**입니다.
+> 이 방법이 실제로 확인된 가장 짧은 길입니다. OAuth 로 코드를 받아 단기 → 장기로 교환하는
+> 절차(아래 부록)는 **하지 않아도 됩니다.**
 
 ---
 
 ## 7. 계정 ID 확인
 
+6단계와 **같은 화면**에 있습니다. 계정 이름(예: `ys040607`) 바로 아래 적힌 **숫자**가
+계정 ID 입니다. 그대로 복사하면 됩니다.
+
+토큰으로 직접 확인하고 싶으면:
+
 ```bash
 curl -G https://graph.instagram.com/me \
   -d fields=user_id,username \
-  -d access_token=<장기 토큰>
+  -d access_token=<토큰>
 ```
 
 - `user_id` → 앱에 넣을 **계정 ID**
@@ -175,6 +163,36 @@ curl -G https://graph.instagram.com/refresh_access_token \
 | "인스타그램이 사진을 가져가지 못했어요" | 8단계 터널이 꺼졌거나 `PUBLIC_BASE_URL` 이 틀림. 브라우저로 그 주소를 직접 열어 보세요 |
 | "오늘 게시 한도를 다 썼어요" | 24시간에 100건 제한입니다 |
 | 계정 이름이 다른 계정으로 나옴 | 6-1 에서 다른 계정으로 로그인했습니다. 다시 받으세요 |
+
+---
+
+## 부록 — OAuth 로 토큰 받기 (보통은 필요 없음)
+
+6단계의 "토큰 생성" 버튼이 안 보이거나, 남의 계정에 올리는 앱을 만들 때만 이 길을 씁니다.
+
+**6-1.** 대시보드의 **Business Login** 설정에서 리디렉션 URI 를 등록하고, 거기 나오는 로그인
+URL 을 브라우저에서 엽니다. 로그인하면 리디렉션 주소 뒤에 `?code=...` 가 붙어 돌아옵니다.
+그 `code` 를 복사하세요. **몇 분 안에 만료되니 바로 다음으로 갑니다.**
+
+**6-2. 코드 → 단기 토큰(1시간)**
+
+```bash
+curl -X POST https://api.instagram.com/oauth/access_token \
+  -F client_id=<인스타 앱 ID> \
+  -F client_secret=<인스타 앱 시크릿> \
+  -F grant_type=authorization_code \
+  -F redirect_uri=<등록한 리디렉션 URI> \
+  -F code=<6-1 에서 받은 code>
+```
+
+**6-3. 단기 → 장기 토큰(60일)**
+
+```bash
+curl -G https://graph.instagram.com/access_token \
+  -d grant_type=ig_exchange_token \
+  -d client_secret=<인스타 앱 시크릿> \
+  -d access_token=<6-2 의 단기 토큰>
+```
 
 ---
 
