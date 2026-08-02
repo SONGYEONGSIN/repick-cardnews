@@ -193,7 +193,9 @@ export function WorkbenchScreen({
       ]}
       action={
         <>
-          <LineButton onClick={onPrev}>
+          {/* 생성 중에는 나갈 수 없다. 나가서 주제를 고치고 돌아오면 busy 가 안 풀린 채로 화면이
+              잠기고, 뒤늦게 도착한 카피가 **고치기 전 주제**로 쓴 것이라 조용히 어긋난다. */}
+          <LineButton disabled={state.busy} onClick={onPrev}>
             <ArrowLeft size={16} aria-hidden="true" />
             주제 고치기
           </LineButton>
