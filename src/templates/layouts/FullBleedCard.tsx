@@ -6,6 +6,7 @@ export function FullBleedCard({
   photoUrl,
   focal,
   scrim,
+  textY,
   badge,
   children,
 }: {
@@ -13,6 +14,7 @@ export function FullBleedCard({
   photoUrl: string | null;
   focal: Focal;
   scrim: number;
+  textY: number;
   badge: string;
   children: React.ReactNode;
 }) {
@@ -33,7 +35,7 @@ export function FullBleedCard({
           }}
         />
       )}
-      {photoUrl && <div style={{ position: "absolute", inset: 0, background: scrimGradient(scrim) }} />}
+      {photoUrl && <div style={{ position: "absolute", inset: 0, background: scrimGradient(scrim, textY) }} />}
       <div
         style={{
           position: "relative",

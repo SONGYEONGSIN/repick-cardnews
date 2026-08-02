@@ -128,6 +128,12 @@ describe("SET_SPEC", () => {
     const solutionCard = s.cards.find((c) => c.copy.role === "solution");
     expect(solutionCard?.band).toBe(0.3);
   });
+  it("레이아웃별 기본 textY 를 정한다 — full-bleed 는 1(아래), 나머지는 0.5(가운데)", () => {
+    // FullBleedCard 는 justifyContent:flex-end, Split·TextOnly 는 justifyContent:center 로
+    // 지금 글을 배치한다. 이 기본값이 그 배치와 어긋나면 텍스트 위치가 바뀌어 보인다.
+    const s = cardnewsReducer(withPhotos(5), { type: "SET_SPEC", spec });
+    expect(s.cards.map((c) => c.textY)).toEqual([1, 0.5, 0.5, 0.5, 0.5]);
+  });
   it("사진보다 카드가 많으면 남는 카드는 사진 없이 둔다", () => {
     const sixCardSpec = {
       type: "cardnews" as const,
@@ -241,6 +247,45 @@ describe("UPDATE_CARD", () => {
     expect(next.cards[1].layout).toBe("text-only");
     expect(next.cards[0]).toBe(base.cards[0]);
   });
+
+  it("textY 를 바꾼다", () => {
+    const base = cardnewsReducer(withPhotos(5), {
+      type: "SET_SPEC",
+      spec: {
+        type: "cardnews",
+        keyword: "k",
+        cards: [
+          { role: "hook", heading: "표지" },
+          { role: "problem", heading: "문제", body: "b" },
+          { role: "evidence", heading: "근거", body: "b" },
+          { role: "solution", heading: "해결", body: "b" },
+          { role: "cta", heading: "마무리", action: "저장" },
+        ],
+      },
+    });
+    const next = cardnewsReducer(base, { type: "UPDATE_CARD", index: 0, patch: { textY: 0.2 } });
+    expect(next.cards[0].textY).toBe(0.2);
+  });
+
+  it("레이아웃을 바꿔도 사용자가 정한 textY 는 초기화되지 않는다", () => {
+    const base = cardnewsReducer(withPhotos(5), {
+      type: "SET_SPEC",
+      spec: {
+        type: "cardnews",
+        keyword: "k",
+        cards: [
+          { role: "hook", heading: "표지" },
+          { role: "problem", heading: "문제", body: "b" },
+          { role: "evidence", heading: "근거", body: "b" },
+          { role: "solution", heading: "해결", body: "b" },
+          { role: "cta", heading: "마무리", action: "저장" },
+        ],
+      },
+    });
+    const moved = cardnewsReducer(base, { type: "UPDATE_CARD", index: 0, patch: { textY: 0.2 } });
+    const relayouted = cardnewsReducer(moved, { type: "UPDATE_CARD", index: 0, patch: { layout: "split" } });
+    expect(relayouted.cards[0].textY).toBe(0.2);
+  });
 });
 
 describe("SET_ERROR", () => {
@@ -287,6 +332,7 @@ const CARD: CardDraft = {
   focal: { x: 0.5, y: 0.5 },
   scrim: 0.7,
   band: 0.45,
+  textY: 1,
   copy: { role: "hook", heading: "후크" },
 };
 

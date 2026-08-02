@@ -9,6 +9,7 @@ export function toRenderCards(state: CardnewsState): RenderCard[] {
     focal: card.focal,
     scrim: card.scrim,
     band: card.band,
+    textY: card.textY,
     badge: `${i + 1} / ${state.cards.length}`,
     copy: card.copy,
   }));

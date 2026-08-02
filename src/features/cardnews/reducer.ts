@@ -15,6 +15,8 @@ export type CardDraft = {
   focal: Focal;
   scrim: number;
   band: number;
+  /** 글 덩어리의 세로 위치. 0(위 끝)~1(아래 끝) 여백 비율 — 좌표가 아니라 flex-grow 몫이라 카드 밖으로 넘칠 수 없다. */
+  textY: number;
   copy: CardnewsCard;
 };
 
@@ -94,6 +96,16 @@ export function bandFor(copy: CardnewsCard): number {
 }
 
 /**
+ * 레이아웃별 기본 textY — 지금 각 레이아웃이 글을 두는 자리(justifyContent)를 그대로 반영한다.
+ * full-bleed(FullBleedCard)는 flex-end(아래) → 1, split·text-only(SplitPhotoCard·TextOnlyCard)는
+ * center(가운데) → 0.5. SET_SPEC 이 카드를 새로 만들 때만 쓰인다 — 레이아웃을 바꾼다고 사용자가
+ * 이미 옮긴 textY 를 여기로 되돌리면 안 된다(UPDATE_CARD 는 이 함수를 거치지 않는다).
+ */
+export function textYFor(layout: CardLayout): number {
+  return layout === "full-bleed" ? 1 : 0.5;
+}
+
+/**
  * 카드의 사진 연결을 `order` 에 다시 맞춘다 — 불변식은 `cards[i].photoId === (order[i] ?? "")` 다.
  *
  * `SET_SPEC` 이 이 식으로 연결을 세우고, 캔버스도 출력(`toRenderCards`)도 `card.photoId` 로 사진을
@@ -162,6 +174,7 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
         focal: DEFAULT_FOCAL,
         scrim: DEFAULT_SCRIM,
         band: bandFor(copy),
+        textY: textYFor(layouts[i]),
         copy,
       }));
       return { ...state, cards, error: null };

@@ -22,8 +22,30 @@ export function objectPosition(focal: Focal): string {
   return `${Math.round(clamp01(focal.x) * 100)}% ${Math.round(clamp01(focal.y) * 100)}%`;
 }
 
-export function scrimGradient(strength: number): string {
+export type ScrimStop = { position: number; alpha: number };
+
+/**
+ * scrim(글 배경 어둠)의 정지점을 textY(글 덩어리의 세로 위치, 0=위 끝~1=아래 끝)에 앵커한다.
+ * 어두운 마루가 p(=textY*100)에 있고 위아래로 34%p·68%p 씩 대칭으로 옅어진다.
+ * 위치가 0 미만이거나 100 초과여도 자르지 않는다 — CSS 그라디언트는 화면 밖 정지점을 그대로
+ * 보간하며, 억지로 0~100에 가두면(clamp) 마루 주변 기울기가 textY 값마다 달라진다.
+ */
+export function scrimStops(strength: number, textY: number): ScrimStop[] {
   const a = round2(clamp01(strength));
   const mid = round2(a * 0.75);
-  return `linear-gradient(to top, rgba(0,0,0,${a}) 0%, rgba(0,0,0,${mid}) 34%, rgba(0,0,0,0) 68%)`;
+  const p = clamp01(textY) * 100;
+  return [
+    { position: round2(p - 68), alpha: 0 },
+    { position: round2(p - 34), alpha: mid },
+    { position: round2(p), alpha: a },
+    { position: round2(p + 34), alpha: mid },
+    { position: round2(p + 68), alpha: 0 },
+  ];
+}
+
+export function scrimGradient(strength: number, textY: number): string {
+  const stops = scrimStops(strength, textY)
+    .map((s) => `rgba(0,0,0,${s.alpha}) ${s.position}%`)
+    .join(", ");
+  return `linear-gradient(to bottom, ${stops})`;
 }
