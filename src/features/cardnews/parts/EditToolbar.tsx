@@ -41,7 +41,10 @@ import type { CardDraft } from "../reducer";
  * 액센트 색을 쓰지 않는다. 선택 상태는 검정 채움(`bg-ink text-surface`)과 굵기로만 만든다.
  */
 
-export type EditTarget = "heading" | "body" | "photo" | "card";
+export type EditTarget = "heading" | "body" | "steps" | "photo" | "card";
+
+/** 순서 목록 상한 — 스키마(`SolutionCard.steps`)의 `.max(5)` 와 같은 값이어야 한다. */
+export const MAX_STEPS = 5;
 
 function Group({ children }: { children: React.ReactNode }) {
   return <span className="flex items-center rounded-lg border border-hair p-1">{children}</span>;
@@ -164,11 +167,15 @@ export function EditToolbar({
   const copy = card.copy;
   // hook·cta 에는 본문이 없다. 없는 카드에서는 본문 탭 자체를 띄우지 않는다.
   const body = "body" in copy ? copy.body : undefined;
+  // 해법 카드에만 있는 순서 목록. 스키마 상한이 5개다(`CardnewsSpec` 의 SolutionCard).
+  const steps = "steps" in copy ? (copy.steps ?? []) : undefined;
   const hasPhoto = card.layout !== "text-only";
 
   const picks: { id: EditTarget; label: string; show: boolean }[] = [
     { id: "heading", label: "헤드라인", show: true },
     { id: "body", label: "본문", show: body !== undefined },
+    // 순서 목록은 해법 카드에만 있다. 없는 카드에서는 탭 자체를 띄우지 않는다(본문과 같은 규칙).
+    { id: "steps", label: "순서", show: steps !== undefined },
     { id: "photo", label: "사진", show: hasPhoto },
     { id: "card", label: "카드", show: true },
   ];
@@ -313,6 +320,31 @@ export function EditToolbar({
                 사진 바꾸기
               </Btn>
             </span>
+          </>
+        )}
+
+        {active === "steps" && steps !== undefined && "steps" in copy && (
+          <>
+            <span className="text-[14px] text-ink-2">글은 카드에서 직접 눌러 고쳐요</span>
+            <Divider />
+            <span className="text-[14px] text-ink-2">
+              단계 <span className="font-bold tabular-nums text-ink">{steps.length}</span>/{MAX_STEPS}
+            </span>
+            <Btn
+              disabled={steps.length >= MAX_STEPS}
+              onClick={() => onPatch({ copy: { ...copy, steps: [...steps, ""] } })}
+            >
+              단계 추가
+            </Btn>
+            <Btn
+              disabled={steps.length === 0}
+              onClick={() => onPatch({ copy: { ...copy, steps: steps.slice(0, -1) } })}
+            >
+              마지막 단계 빼기
+            </Btn>
+            {steps.length === 0 && (
+              <span className="text-[14px] text-ink-2">지금은 순서가 없어요. 추가하면 카드에 나와요.</span>
+            )}
           </>
         )}
 
