@@ -298,12 +298,14 @@ export function ExportScreen({
 
           {/* 고른 방법의 세부만 나온다. '파일로 저장'은 저장될 파일 목록을 **옆에** 둔다 —
               예전엔 이 목록이 방법과 떨어진 자리에 홀로 떠 있어 어느 방법에 딸린 것인지 흐렸다. */}
+          {/* `items-start` 를 쓰지 않는다 — 나란한 테두리 박스의 아래가 들쭉날쭉하면 결함으로
+              읽힌다(실측: 156px vs 284px). 칸을 늘리고 박스가 그 높이를 채운다. */}
           {method === "file" && (
-            <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+            <div className="grid gap-6 xl:grid-cols-2">
               <FileSavePanel busy={state.busy} dir={dir} saved={saved} onDownload={downloadFiles} onSave={saveFiles} />
-              <div className="flex flex-col gap-4">
+              <div className="flex h-full flex-col gap-4">
                 <SectionHead title="저장될 파일" />
-                <div className="flex flex-col gap-4 rounded-xl border border-hair p-6">
+                <div className="flex flex-1 flex-col gap-4 rounded-xl border border-hair p-6">
                   <p className="text-[17px] font-bold tracking-tight">{dir}/</p>
                   <ul className="flex flex-col gap-2">
                     {state.cards.map((card, i) => (
