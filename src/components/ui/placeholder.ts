@@ -6,4 +6,4 @@
  * 여백(`py-14` vs `py-16`)이 달라 한쪽만 커 보였다 — 한 곳에 두어 다시 갈라지지 않게 한다.
  */
 export const PLACEHOLDER_BOX =
-  "flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-hair px-6 py-14 text-center";
+  "flex min-h-[19rem] flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-hair px-6 py-14 text-center";

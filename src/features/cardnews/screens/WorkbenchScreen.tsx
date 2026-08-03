@@ -370,7 +370,9 @@ export function WorkbenchScreen({
         <div className="flex flex-col gap-8 xl:min-h-0 xl:min-w-0 xl:flex-1 xl:gap-3">
           {/* 예전엔 여기 테마·계정 핸들을 담은 세트 바가 한 줄을 차지했다. 계정 핸들은 없앴고
               테마는 툴바 안으로 들어가, 그 줄만큼 카드가 커졌다. */}
-          <section className="flex flex-col gap-4 xl:min-h-0 xl:flex-1 xl:gap-2">
+          {/* 제목→내용 간격은 왼쪽 칸과 **같아야 한다**. 예전엔 여기만 `xl:gap-2` 로 좁혀(카드를
+              8px 키우려고) 두 칸의 내용이 8px 어긋나 시작했다 — 빈 상태에서 눈에 띈다. */}
+          <section className="flex flex-col gap-4 xl:min-h-0 xl:flex-1">
             <SectionHead
               title={card ? `${active + 1}번 카드` : "카드"}
               aside={card ? "1080 × 1350" : undefined}
