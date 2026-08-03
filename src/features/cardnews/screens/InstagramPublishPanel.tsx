@@ -256,10 +256,10 @@ export function InstagramPublishPanel({
   }
 
   return (
-    // 표준: 제목/구분선 밖 + 상태(왼쪽) / 게시 준비(오른쪽) 2단 — docs/ui-standards.md §1,§3
+    // 표준: 제목/구분선 밖, 내용은 박스 안 + 상태(왼쪽)/게시 준비(오른쪽) 2단 — docs/ui-standards.md §1,§3
     <section className="flex flex-col gap-4">
       <SectionHead title="인스타그램에 올리기" aside="누르면 사진이 인스타그램 서버로 나가요" />
-      <div role="status" className="flex flex-col gap-4">
+      <div role="status" className="flex flex-col gap-4 rounded-xl border border-hair p-6">
         {status.state === "loading" && (
           <p className="text-[14px] text-ink-2">연결 상태를 확인하는 중이에요.</p>
         )}
@@ -273,7 +273,7 @@ export function InstagramPublishPanel({
 
         {status.state === "not-ready" && (
           <div className="flex flex-col gap-3">
-            <p className="max-w-[62ch] text-[14px] leading-relaxed text-ink-2">
+            <p className="max-w-[46rem] text-[14px] leading-relaxed text-ink-2">
               아직 인스타그램에 연결할 수 없어요. 아래 항목을 서버에 먼저 준비해야 연결 확인도, 게시도 할 수
               있어요.
             </p>
@@ -294,7 +294,7 @@ export function InstagramPublishPanel({
 
         {status.state === "connected-not-ready" && (
           <div className="flex flex-col gap-3">
-            <p className="max-w-[62ch] text-[14px] leading-relaxed text-ink-2">
+            <p className="max-w-[46rem] text-[14px] leading-relaxed text-ink-2">
               계정 연결에 필요한 값은 준비됐어요. 연결 확인은 지금 해 볼 수 있지만, 게시하려면 아래 항목이
               더 필요해요.
             </p>
@@ -324,7 +324,7 @@ export function InstagramPublishPanel({
           <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
             {/* 왼쪽 = 읽고 확인하는 것(무엇이 일어나나 · 연결 · 토큰) */}
             <div className="flex flex-col gap-4">
-              <p className="max-w-[62ch] text-[14px] leading-relaxed text-ink-2">
+              <p className="text-[14px] leading-relaxed text-ink-2">
                 올리기를 누르면 이 카드 사진이 우리 공개 주소를 거쳐 인스타그램 서버로 전달돼요. "폰으로
                 보내기"와 달리 이 컴퓨터의 집 네트워크를 벗어나 인터넷으로 나가는 방식이에요.
               </p>

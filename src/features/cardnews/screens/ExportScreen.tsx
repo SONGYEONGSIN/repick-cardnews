@@ -210,7 +210,7 @@ export function ExportScreen({
           <h2 className="text-balance text-[30px] font-black leading-[1.08] tracking-tight sm:text-[36px] lg:text-[44px]">
             이대로 내보낼까요
           </h2>
-          <p className="max-w-[54ch] text-[15px] leading-relaxed text-ink-2 sm:text-[17px]">
+          <p className="max-w-[46rem] text-[15px] leading-relaxed text-ink-2 sm:text-[17px]">
             넘겨 보는 순서대로 늘어놓았어요. 한 덩어리로 읽히는지 마지막으로 확인해 보세요.
           </p>
           {state.busy && (
