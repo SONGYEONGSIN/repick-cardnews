@@ -18,11 +18,18 @@ export const TOPICS_EXPECTED_SECONDS = 100;
 export type TopicItem = { keyword: string; reason: string };
 
 /**
- * 순위 근거. `rankedBy` 세 값 중 **"설정은 있는데 연결하지 못함"만 사용자가 할 일이 있는
- * 상태**(자격 증명 확인)라 따로 표시해야 한다 — 나머지 둘은 정상이다. 그래서 값 자체가 아니라
+ * 순위 근거. `rankedBy` 값들 중 **"설정은 있는데 연결하지 못함"만 사용자가 할 일이 있는
+ * 상태**(자격 증명 확인)라 따로 표시해야 한다 — 나머지는 정상이다. 그래서 값 자체가 아니라
  * "눈에 띄게 보여 줄 것인가"로 좁혀 넘긴다.
  */
 export type BasisView = { note: string; needsAttention: boolean };
+
+/**
+ * 연결 실패라 **사용자가 자격 증명을 확인해야 하는** 값들. 검색어트렌드와 쇼핑인사이트는 같은
+ * 성격의 실패이고 서버도 둘 다 "설정을 확인해 주세요"라고 말한다 — 한쪽만 눈에 띄게 하면
+ * 다른 렌즈를 쓴 사람은 신호를 덜 받는다. **렌즈를 추가하면 여기도 늘려야 한다.**
+ */
+const NEEDS_ATTENTION_BASES = new Set(["claude-naver-unavailable", "claude-shopping-unavailable"]);
 
 export type TopicsResults = {
   kind: "results";
@@ -86,7 +93,7 @@ export function toTopicsView(status: number, body: unknown): TopicsView {
 
   const basis: BasisView = {
     note: asString(record.note) ?? "",
-    needsAttention: record.rankedBy === "claude-naver-unavailable",
+    needsAttention: typeof record.rankedBy === "string" && NEEDS_ATTENTION_BASES.has(record.rankedBy),
   };
   const message = asString(record.message);
   const categories = toStringList(record.youtubeCategories);

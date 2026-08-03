@@ -230,3 +230,26 @@ describe("출처 표시 — 어디서 가져온 주제인지", () => {
     expect(candidateSourceLine(errorView("실패했어요"))).toBeNull();
   });
 });
+
+// 쇼핑인사이트도 검색어트렌드와 **같은 성격의 실패**다 — 서버가 둘 다 "자격 증명을 확인해
+// 주세요"라고 말한다. 한쪽만 눈에 띄게 표시하면 쇼핑 렌즈를 쓴 사람은 신호를 덜 받는다.
+describe("needsAttention — 사용자가 할 일이 있는 실패만 눈에 띄게", () => {
+  it("쇼핑인사이트 연결 실패도 확인이 필요한 상태로 표시한다", () => {
+    const view = toTopicsView(
+      200,
+      okBody({
+        rankedBy: "claude-shopping-unavailable",
+        note: "네이버 데이터랩 쇼핑인사이트에 연결하지 못해 Claude가 판단한 관련성 순서로 정렬했어요 — 클라이언트 ID·시크릿 설정을 확인해 주세요(실제 검색 비중은 반영되지 않았어요).",
+      }),
+    );
+
+    expect(view.kind === "results" && view.basis.needsAttention).toBe(true);
+  });
+
+  it("정상 경로들은 눈에 띄게 하지 않는다", () => {
+    for (const rankedBy of ["naver-datalab", "naver-shopping", "claude-no-naver-config", "claude-lens-chosen"]) {
+      const view = toTopicsView(200, okBody({ rankedBy }));
+      expect(view.kind === "results" && view.basis.needsAttention).toBe(false);
+    }
+  });
+});

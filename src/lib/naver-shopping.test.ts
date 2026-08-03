@@ -4,7 +4,6 @@ import {
   MAX_SHOPPING_KEYWORDS_PER_REQUEST,
   SHOPPING_AGES_30S_40S,
   SHOPPING_CATEGORIES,
-  friendlyNaverShoppingError,
   rankKeywordsByNaverShopping,
 } from "./naver-shopping";
 
@@ -97,11 +96,3 @@ describe("rankKeywordsByNaverShopping", () => {
   });
 });
 
-describe("friendlyNaverShoppingError — 언제나 한국어", () => {
-  it("영문 원문이나 키 값을 노출하지 않는다", () => {
-    const message = friendlyNaverShoppingError(new Error("NID AUTH Result Invalid (1000)"));
-
-    expect(message).not.toContain("NID");
-    expect(/[가-힣]/.test(message)).toBe(true);
-  });
-});

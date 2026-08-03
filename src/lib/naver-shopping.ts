@@ -58,11 +58,6 @@ export class NaverShoppingApiError extends Error {
   }
 }
 
-/** 오류 원문(영문·키 값이 섞일 수 있다)을 절대 사용자에게 넘기지 않는다. */
-export function friendlyNaverShoppingError(_e: unknown): string {
-  return "네이버 쇼핑인사이트에 연결하지 못했어요. 클라이언트 ID·시크릿 설정을 확인해 주세요.";
-}
-
 const ShoppingResponseSchema = z.object({
   results: z.array(
     z.object({

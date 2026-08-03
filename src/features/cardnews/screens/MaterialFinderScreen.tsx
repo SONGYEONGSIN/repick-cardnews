@@ -161,17 +161,19 @@ export function MaterialFinderScreen({
           </LineButton>
         </div>
 
-        {/* 탭을 바꿔도 이미 가져온 결과는 남는다 — 견줘 보라고 일부러 지우지 않는다. */}
+        {/* 탭을 바꿔도 이미 가져온 결과는 남는다 — 견줘 보라고 일부러 지우지 않는다.
+            `role="tab"` 을 쓰지 않는다: 그 역할을 붙이면 스크린리더가 화살표 키 이동을
+            안내하는데 여기엔 그 동작이 없다. 못 지킬 약속 대신 `aria-pressed` 를 쓴다 —
+            Tab 키로 옮기고 Enter 로 고르는, 실제로 되는 동작 그대로다. */}
         <div className="flex flex-col gap-3">
-          <div role="tablist" aria-label="소재 찾는 방법" className="flex flex-wrap gap-2">
+          <div role="group" aria-label="소재 찾는 방법" className="flex flex-wrap gap-2">
             {FINDER_MODES.map((m) => {
               const on = m.id === mode;
               return (
                 <button
                   key={m.id}
                   type="button"
-                  role="tab"
-                  aria-selected={on}
+                  aria-pressed={on}
                   onClick={() => setMode(m.id)}
                   className={`rounded-xl border-2 px-4 py-2.5 text-[15px] font-bold transition-colors duration-200 ${
                     on ? "border-ink bg-ink text-surface" : "border-hair hover:border-ink-3"
@@ -289,23 +291,32 @@ export function MaterialFinderScreen({
           </div>
         )}
 
-        {/* 소재 추천은 기존에 검증된 패널을 그대로 쓴다 — 경과 시간·취소·출처·오류 처리가 이미 있다. */}
-        {mode === "curated" ? (
+        {/*
+          두 블록을 **둘 다 마운트한 채 숨긴다.** 조건부 렌더로 갈아 끼우면 언마운트되면서
+          컴포넌트 로컬 state 가 날아가는데, 소재 추천 결과는 **100초를 들여 만든 것**이라
+          탭을 한 번 다녀왔다고 잃으면 안 된다("결과를 지우지 않는다"는 약속도 깨진다).
+
+          바깥 래퍼에 display 클래스를 두지 않는다 — Tailwind 의 `flex` 가 `[hidden]` 의
+          `display:none` 을 이겨서 안 숨겨진다.
+        */}
+        <div hidden={mode !== "curated"}>
           <div className="flex flex-col gap-4">
             {shoppingBlocked && (
               <p role="status" className="text-[14px] font-bold">
                 분야를 골라야 쇼핑인사이트로 줄 세울 수 있어요.
               </p>
             )}
-            {!shoppingBlocked && (
-              <TopicSuggestPanel
-                keyword={keyword}
-                query={buildTopicsQuery(lens, shoppingCategoryId)}
-                onSelect={onPick}
-              />
-            )}
+            {/* 분야를 안 골랐어도 마운트는 유지한다 — 눌러도 서버가 Claude 단계 전에
+                한국어로 막아 주므로 할당량이 새지 않는다. */}
+            <TopicSuggestPanel
+              keyword={keyword}
+              query={buildTopicsQuery(lens, shoppingCategoryId)}
+              onSelect={onPick}
+            />
           </div>
-        ) : (
+        </div>
+
+        <div hidden={mode === "curated"}>
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
               <SolidButton disabled={loading || searchBlocked} onClick={() => void load()}>
@@ -363,7 +374,7 @@ export function MaterialFinderScreen({
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </StudioFrame>
   );
