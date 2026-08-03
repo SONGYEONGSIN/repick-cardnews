@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { CircleAlert, LoaderCircle, Search, TrendingUp, X } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { LineButton, SectionHead, SolidButton, StudioFrame } from "@/features/shell/StudioFrame";
-import { LIFESTYLE_CATEGORIES } from "@/lib/youtube-trending";
-import { SHOPPING_CATEGORIES } from "@/lib/naver-shopping";
 import { TopicSuggestPanel } from "./TopicSuggestPanel";
 // 경과 시간 표기는 소재 추천 패널이 쓰던 것을 그대로 쓴다 — 같은 화면에서 두 표기가 갈리면 안 된다.
 import { elapsedLabel } from "./topic-suggest";
 import {
+  FINDER_CATEGORIES,
+  FINDER_SHOPPING_CATEGORIES,
   FINDER_MODES,
   RANK_LENSES,
   buildMaterialsQuery,
@@ -77,7 +77,7 @@ export function MaterialFinderScreen({
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<FinderMode>("trending");
-  const [categoryIds, setCategoryIds] = useState<string[]>(LIFESTYLE_CATEGORIES.map((c) => c.id));
+  const [categoryIds, setCategoryIds] = useState<string[]>(FINDER_CATEGORIES.map((c) => c.id));
   const [query, setQuery] = useState("");
   const [lens, setLens] = useState<RankLens>("search-trend");
   const [shoppingCategoryId, setShoppingCategoryId] = useState("");
@@ -189,7 +189,7 @@ export function MaterialFinderScreen({
           <div className="flex flex-col gap-3">
             <SectionHead title="어디서 찾을까요" aside="여러 개 고를 수 있어요" />
             <div className="flex flex-wrap gap-2">
-              {LIFESTYLE_CATEGORIES.map((c) => {
+              {FINDER_CATEGORIES.map((c) => {
                 const on = categoryIds.includes(c.id);
                 return (
                   <label
@@ -206,7 +206,7 @@ export function MaterialFinderScreen({
                       }
                       className={`h-4 w-4 accent-ink ${FOCUS_RING}`}
                     />
-                    {c.displayName}
+                    {c.name}
                   </label>
                 );
               })}
@@ -278,7 +278,7 @@ export function MaterialFinderScreen({
                   className={`h-[52px] w-full max-w-sm rounded-xl border-2 border-hair bg-surface px-4 text-[16px] font-bold focus:border-ink focus:outline-none ${FOCUS_RING}`}
                 >
                   <option value="">분야를 골라 주세요</option>
-                  {SHOPPING_CATEGORIES.map((c) => (
+                  {FINDER_SHOPPING_CATEGORIES.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>

@@ -21,6 +21,36 @@ export type RankLens = "search-trend" | "shopping" | "claude";
  */
 export type MaterialItem = { videoId: string; title: string; channelTitle: string };
 
+export type FinderChoice = { id: string; name: string };
+
+/**
+ * 화면이 그릴 목록들 — **서버 모듈에서 가져오지 않고 여기 따로 둔다.**
+ *
+ * `@/lib/youtube-trending`·`@/lib/naver-shopping` 은 zod 와 API 호출 코드를 품은 서버 모듈이라,
+ * 상수 배열 하나 때문에 import 하면 그것들이 브라우저 번들로 딸려 온다.
+ *
+ * 대신 **어긋나면 테스트가 깨진다** — `material-finder.test.ts` 가 서버 목록과 id·이름을
+ * 대조한다. 서버에서 카테고리를 늘리거나 이름을 바꾸면 여기서 잡힌다.
+ */
+export const FINDER_CATEGORIES: readonly FinderChoice[] = [
+  { id: "26", name: "살림·요리·꿀팁" },
+  { id: "22", name: "일상·브이로그" },
+  { id: "28", name: "생활기술·가전" },
+];
+
+/** 쇼핑인사이트 분야. 순서도 서버와 같게 둔다 — 화면에 그대로 나열된다. */
+export const FINDER_SHOPPING_CATEGORIES: readonly FinderChoice[] = [
+  { id: "50000005", name: "출산·육아" },
+  { id: "50000006", name: "식품" },
+  { id: "50000008", name: "생활·건강" },
+  { id: "50000004", name: "가구·인테리어" },
+  { id: "50000002", name: "화장품·미용" },
+  { id: "50000003", name: "디지털·가전" },
+  { id: "50000000", name: "패션의류" },
+  { id: "50000001", name: "패션잡화" },
+  { id: "50000007", name: "스포츠·레저" },
+];
+
 /** 모드는 **속도**로 갈린다 — 앞의 둘은 Claude 를 안 써서 1~2초, 마지막은 100초. */
 export const FINDER_MODES: readonly { id: FinderMode; label: string; hint: string }[] = [
   {

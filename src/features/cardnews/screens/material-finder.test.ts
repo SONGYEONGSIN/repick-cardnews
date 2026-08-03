@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  FINDER_CATEGORIES,
+  FINDER_SHOPPING_CATEGORIES,
   FINDER_MODES,
   RANK_LENSES,
   buildMaterialsQuery,
@@ -182,5 +184,27 @@ describe("materialsSourceLine — 어디서 가져온 것인지", () => {
 
   it("오류일 때는 출처를 말하지 않는다", () => {
     expect(materialsSourceLine(toMaterialsView(502, { error: "실패" }))).toBeNull();
+  });
+});
+
+// 화면은 상수 배열 하나 때문에 서버 전용 모듈(zod·fetch 를 끌고 온다)을 import 하면 안 된다.
+// 그래서 목록을 여기 따로 두되, **서버와 어긋나면 여기서 깨지게** 잠근다.
+describe("화면용 목록 — 서버와 어긋나면 안 된다", () => {
+  it("유튜브 카테고리가 서버의 LIFESTYLE_CATEGORIES 와 id·이름까지 같다", async () => {
+    const { LIFESTYLE_CATEGORIES } = await import("@/lib/youtube-trending");
+
+    expect(FINDER_CATEGORIES).toEqual(LIFESTYLE_CATEGORIES.map((c) => ({ id: c.id, name: c.displayName })));
+  });
+
+  it("쇼핑 분야가 서버의 SHOPPING_CATEGORIES 와 같다", async () => {
+    const { SHOPPING_CATEGORIES } = await import("@/lib/naver-shopping");
+
+    expect(FINDER_SHOPPING_CATEGORIES).toEqual(SHOPPING_CATEGORIES.map((c) => ({ id: c.id, name: c.name })));
+  });
+
+  it("두 목록의 이름은 전부 한국어다", () => {
+    for (const c of [...FINDER_CATEGORIES, ...FINDER_SHOPPING_CATEGORIES]) {
+      expect(c.name).not.toMatch(/[A-Za-z]/);
+    }
   });
 });
