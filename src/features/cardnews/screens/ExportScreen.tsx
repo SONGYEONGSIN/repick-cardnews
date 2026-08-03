@@ -178,10 +178,31 @@ export function ExportScreen({
         { label: "저장 위치", value: dir },
       ]}
       action={
-        <LineButton disabled={state.busy} onClick={onPrev}>
+        <>
+          {/* 되돌릴 수 없는 조작은 본문 맨 아래가 아니라 헤더에 둔다 — 만들고·고르고·내보내는
+              본문 흐름과 섞이면 실수로 눌리기 쉽다(docs/ui-standards.md §4). 확인은 그 자리에서
+              버튼이 바뀌는 방식이다 — window.confirm 은 쓰지 않는다. */}
+          {resetConfirm ? (
+            <span className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[13px] font-bold">지금까지 만든 내용이 모두 사라져요.</span>
+              <LineButton disabled={state.busy} onClick={() => setResetConfirm(false)}>
+                취소
+              </LineButton>
+              <SolidButton disabled={state.busy} onClick={() => dispatch({ type: "RESET" })}>
+                처음부터 다시
+              </SolidButton>
+            </span>
+          ) : (
+            <LineButton disabled={state.busy} onClick={() => setResetConfirm(true)}>
+              <RotateCcw size={15} aria-hidden="true" />
+              처음부터 다시
+            </LineButton>
+          )}
+          <LineButton disabled={state.busy} onClick={onPrev}>
           <ArrowLeft size={16} aria-hidden="true" />
-          만들기로 돌아가기
-        </LineButton>
+            만들기로 돌아가기
+          </LineButton>
+        </>
       }
     >
       <div className="flex flex-col gap-9 px-5 py-8 sm:px-8 lg:gap-10 lg:px-10 lg:py-12">
@@ -303,47 +324,20 @@ export function ExportScreen({
           )}
 
           {method === "phone" && (
-            <div className="xl:max-w-[560px]">
-              <SharePanel share={share} busy={state.busy} onRequest={requestShare} />
-            </div>
+            <SharePanel share={share} busy={state.busy} onRequest={requestShare} />
           )}
 
           {method === "instagram" && (
-            <div className="xl:max-w-[560px]">
-              <InstagramPublishPanel
-                busy={state.busy}
-                published={published}
-                onPublish={publishToInstagram}
-                token={publishToken}
-                imageCount={state.cards.length}
-              />
-            </div>
+            <InstagramPublishPanel
+              busy={state.busy}
+              published={published}
+              onPublish={publishToInstagram}
+              token={publishToken}
+              imageCount={state.cards.length}
+            />
           )}
         </section>
 
-        <section className="flex max-w-[640px] flex-col gap-4">
-          <SectionHead title="새로 만들기" />
-          {resetConfirm ? (
-            <div className="flex flex-col gap-3 rounded-xl border border-hair p-6">
-              <p className="text-[14px] leading-relaxed text-ink-2">
-                정말 처음부터 다시 할까요? 지금까지 만든 내용이 모두 사라져요.
-              </p>
-              <div className="flex gap-2.5">
-                <LineButton disabled={state.busy} onClick={() => setResetConfirm(false)}>
-                  취소
-                </LineButton>
-                <SolidButton disabled={state.busy} onClick={() => dispatch({ type: "RESET" })}>
-                  처음부터 다시
-                </SolidButton>
-              </div>
-            </div>
-          ) : (
-            <LineButton disabled={state.busy} onClick={() => setResetConfirm(true)}>
-              <RotateCcw size={15} aria-hidden="true" />
-              처음부터 다시
-            </LineButton>
-          )}
-        </section>
       </div>
     </StudioFrame>
   );

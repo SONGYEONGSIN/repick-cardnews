@@ -57,42 +57,46 @@ export function SharePanel({
   }, []);
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-hair p-6">
+    // 표준: 제목/구분선 밖 + 설명(왼쪽) / 조작·결과(오른쪽) 2단 — docs/ui-standards.md §1,§3
+    <section className="flex flex-col gap-4">
       <SectionHead title="폰으로 보내기" aside="같은 와이파이에서만 열려요" />
-      <div role="status" className="flex flex-col gap-4">
-        {!share && (
-          <>
-            {/* 이 방법이 "확인용"으로만 읽히던 문제 — 링크 조건만 적혀 있고 **무엇에 쓰는지**가
-                없었다. 폰에 저장한 뒤 인스타 앱으로 올리는 길이라는 걸 먼저 말한다. */}
-            <p className="text-[14px] leading-relaxed">
-              <span className="font-bold">폰 사진첩에 저장해서 인스타 앱으로 직접 올릴 때 써요.</span>{" "}
-              앱에서 올리면 예약·위치·태그처럼 인스타 앱 기능을 그대로 쓸 수 있어요.
-            </p>
-            <p className="text-[14px] leading-relaxed text-ink-2">
-              폰이 이 컴퓨터와 같은 와이파이에 연결돼 있어야 링크가 열려요. 인터넷으로는 나가지 않아요.
-              링크를 연 다음 <span className="font-bold">이미지를 길게 눌러 저장</span>하면 돼요.
-            </p>
+      <div role="status" className="grid gap-6 xl:grid-cols-2 xl:items-start">
+        <div className="flex flex-col gap-3">
+          {/* 이 방법이 "확인용"으로만 읽히던 문제 — 링크 조건만 적혀 있고 **무엇에 쓰는지**가
+              없었다. 폰에 저장한 뒤 인스타 앱으로 올리는 길이라는 걸 먼저 말한다. */}
+          <p className="max-w-[62ch] text-[14px] leading-relaxed">
+            <span className="font-bold">폰 사진첩에 저장해서 인스타 앱으로 직접 올릴 때 써요.</span>{" "}
+            앱에서 올리면 예약·위치·태그처럼 인스타 앱 기능을 그대로 쓸 수 있어요.
+          </p>
+          <p className="max-w-[62ch] text-[14px] leading-relaxed text-ink-2">
+            폰이 이 컴퓨터와 같은 와이파이에 연결돼 있어야 링크가 열려요. 인터넷으로는 나가지 않아요.
+            링크를 연 다음 <span className="font-bold">이미지를 길게 눌러 저장</span>하면 돼요.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {!share && (
             <LineButton disabled={busy} onClick={onRequest}>
               <Smartphone size={15} aria-hidden="true" />
               폰으로 보내기 링크 만들기
             </LineButton>
-          </>
-        )}
-        {share?.link && (
-          <>
-            {qrDataUrl && (
-              <img src={qrDataUrl} alt="폰 카메라로 스캔하면 카드가 열려요" className="h-44 w-44 flex-none" />
-            )}
-            <p className="break-all rounded bg-hair-soft px-3 py-2 font-mono text-[13px]">{share.link}</p>
-            <p className="text-[13px] font-bold text-ink-2">{remainingLabel(share.expiresAt, now)}</p>
-          </>
-        )}
-        {share && !share.link && (
-          <p className="text-[14px] leading-relaxed text-ink-2">
-            이 컴퓨터의 집 네트워크 주소를 찾지 못해 링크를 만들지 못했어요. 이 컴퓨터가 와이파이(유선이
-            아닌)에 연결돼 있는지 확인한 뒤 다시 눌러 주세요.
-          </p>
-        )}
+          )}
+          {share?.link && (
+            <>
+              {qrDataUrl && (
+                <img src={qrDataUrl} alt="폰 카메라로 스캔하면 카드가 열려요" className="h-44 w-44 flex-none" />
+              )}
+              <p className="break-all rounded bg-hair-soft px-3 py-2 font-mono text-[13px]">{share.link}</p>
+              <p className="text-[13px] font-bold text-ink-2">{remainingLabel(share.expiresAt, now)}</p>
+            </>
+          )}
+          {share && !share.link && (
+            <p className="max-w-[62ch] text-[14px] leading-relaxed text-ink-2">
+              이 컴퓨터의 집 네트워크 주소를 찾지 못해 링크를 만들지 못했어요. 이 컴퓨터가 와이파이(유선이
+              아닌)에 연결돼 있는지 확인한 뒤 다시 눌러 주세요.
+            </p>
+          )}
+        </div>
       </div>
     </section>
   );
