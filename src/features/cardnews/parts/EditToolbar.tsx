@@ -31,18 +31,16 @@ import type { CardDraft } from "../reducer";
  * `CardDraft.textScale`·`textAlign`으로 받으므로 헤드라인·본문을 고른 동안 아래에 컨트롤을 둔다
  * — 카드 전체에 한 번에 적용되는 값이라 두 탭에서 같은 컨트롤·같은 값을 보여 준다.
  *
- * **테마**(`CardnewsState.themeId`, 다섯 장 전체에 적용)는 예전에 화면 전체 폭을 차지하던
- * `WorkbenchSetBar` 띠에 있었다. 그 띠를 없애면서 여기 '카드' 탭 안으로 옮겼다 — 새 탭을 따로
- * 만들지 않은 이유는, 이 툴바의 다른 네 탭이 전부 "지금 고른 카드 하나"를 향한 요소 선택기라 그
- * 축에 다섯 장 전체에 걸리는 탭을 하나 더 얹으면 "이것도 카드 하나만의 설정"으로 잘못 읽히기
- * 쉽기 때문이다. '카드' 탭은 이미 카드 자체(구성=레이아웃)를 다루는 자리이자 어느 카드를 보고
- * 있어도 늘 뜨는 탭이라, 옆에 "5장 전체" 라벨을 붙여 구성과 테마의 적용 범위를 문구로만
- * 구분했다.
+ * **테마**(`CardnewsState.themeId`, 다섯 장 전체에 적용)는 **자기 탭**을 갖는다.
+ *
+ * 처음엔 '카드' 탭 안에 넣고 "5장 전체" 라벨로만 구분했다. 새 탭을 만들면 다른 탭들처럼
+ * "카드 하나짜리 설정"으로 읽힐까 봐서였는데, **카드 하나짜리 탭 안에 있는 편이 오히려 더
+ * 그렇게 읽혔다**(실사용 지적). 탭을 나누고 패널 안에 적용 범위를 적는 쪽이 분명하다.
  *
  * 액센트 색을 쓰지 않는다. 선택 상태는 검정 채움(`bg-ink text-surface`)과 굵기로만 만든다.
  */
 
-export type EditTarget = "heading" | "body" | "steps" | "photo" | "card";
+export type EditTarget = "heading" | "body" | "steps" | "photo" | "card" | "theme";
 
 /** 순서 목록 상한 — 스키마(`SolutionCard.steps`)의 `.max(5)` 와 같은 값이어야 한다. */
 export const MAX_STEPS = 5;
@@ -207,6 +205,10 @@ export function EditToolbar({
     { id: "steps", label: "순서", show: steps !== undefined },
     { id: "photo", label: "사진", show: hasPhoto },
     { id: "card", label: "카드", show: true },
+    // 테마만 적용 범위가 다르다(카드 하나가 아니라 다섯 장 전체). 예전엔 '카드' 탭 안에
+    // 두었는데, **카드 하나짜리 탭 안에 있으니 오히려 카드 설정으로 읽혔다.** 탭을 나누고
+    // 라벨에 범위를 적어 구분한다.
+    { id: "theme", label: "테마", show: true },
   ];
   const tabs = picks.filter((p) => p.show);
 
@@ -242,9 +244,14 @@ export function EditToolbar({
     if (target === "photo") return "사진 위를 끌어 초점을 옮겨요";
     // 사진 전면 카드는 사진이 바탕·글자색을 덮는다 — 안 적으면 "테마가 안 먹는다"로 읽힌다
     // (실제로 그런 문의를 받았다). 해당 레이아웃일 때만 덧붙인다.
-    return card.layout === "full-bleed"
-      ? "구성은 이 카드에만, 테마는 다섯 장 전체에 적용돼요 · 이 카드는 사진이 덮어서 글꼴과 형광만 달라져요"
-      : "구성은 이 카드에만, 테마는 다섯 장 전체에 적용돼요";
+    if (target === "theme") {
+      // 사진 전면 카드는 사진이 바탕·글자색을 덮는다 — 안 적으면 "테마가 안 먹는다"로 읽힌다
+      // (실제로 그런 문의를 받았다).
+      return card.layout === "full-bleed"
+        ? "바탕·글자·강조색과 제목 글꼴을 한 번에 바꿔요 · 이 카드는 사진이 덮어서 글꼴과 형광만 달라져요"
+        : "바탕·글자·강조색과 제목 글꼴을 한 번에 바꿔요";
+    }
+    return "구성은 이 카드에만 적용돼요";
   }
 
   function clearActiveText() {
@@ -405,25 +412,26 @@ export function EditToolbar({
               </Group>
             </span>
 
-            {/* 테마만 적용 범위가 다르다(이 카드가 아니라 다섯 장 전체) — 같은 줄에 두되
-                라벨에 "5장 전체"를 붙여 문구로만 구분한다. 파일 상단 주석 참고. */}
-            <span className="flex flex-wrap items-center gap-2.5">
-              <span className="text-[14px] text-ink-2">
-                테마 <span className="font-bold text-ink">5장 전체</span>
-              </span>
-              <Group>
-                {THEME_IDS.map((id) => (
-                  <Opt
-                    key={id}
-                    label={THEMES[id].label}
-                    on={id === themeId}
-                    onClick={() => onThemeChange(id)}
-                    swatch={<ThemeSwatch themeId={id} />}
-                  />
-                ))}
-              </Group>
-            </span>
           </>
+        )}
+
+        {active === "theme" && (
+          <span className="flex flex-wrap items-center gap-2.5">
+            <span className="text-[14px] text-ink-2">
+              이 세트 <span className="font-bold text-ink">5장 전체</span>에 적용
+            </span>
+            <Group>
+              {THEME_IDS.map((id) => (
+                <Opt
+                  key={id}
+                  label={THEMES[id].label}
+                  on={id === themeId}
+                  onClick={() => onThemeChange(id)}
+                  swatch={<ThemeSwatch themeId={id} />}
+                />
+              ))}
+            </Group>
+          </span>
         )}
         </div>
         <p className="text-[13px] leading-relaxed text-ink-2">{hintFor(active)}</p>
