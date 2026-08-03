@@ -26,21 +26,33 @@ import { isLocalHost } from "@/lib/local-guard";
 import { fetchYoutubeTrendingCandidates, friendlyYoutubeError } from "@/lib/youtube-trending";
 import { curateTopicsWithClaude, friendlyTopicCurationError, type CuratedTopic } from "@/lib/topic-curation";
 import { rankKeywordsByNaverDatalab } from "@/lib/naver-datalab";
+import { isShoppingCategoryId, rankKeywordsByNaverShopping } from "@/lib/naver-shopping";
 
 /** "상위 10개 안팎을 돌려준다"(사용자 지시). */
 const TOP_N = 10;
 
-type RankedBy = "naver-datalab" | "claude-no-naver-config" | "claude-naver-unavailable";
+type RankedBy =
+  | "naver-datalab"
+  | "naver-shopping"
+  | "claude-no-naver-config"
+  | "claude-naver-unavailable"
+  | "claude-shopping-unavailable"
+  | "claude-lens-chosen";
 
 /** 데이터랩에는 **검색어트렌드**와 쇼핑인사이트가 있다 — 어느 쪽을 봤는지 반드시 밝힌다.
  * "네이버 데이터랩"까지만 쓰면 쇼핑 데이터로 오해할 수 있다. */
 const NOTE_BY_BASIS: Record<RankedBy, string> = {
   "naver-datalab":
     "네이버 데이터랩 검색어트렌드에서 30~40대 여성 기준 상대 검색 비중을 조회해 정렬했어요(절대 검색량이 아니라 후보끼리의 상대 비교예요).",
+  "naver-shopping":
+    "네이버 데이터랩 쇼핑인사이트에서 30~40대 여성 기준 상대 검색 클릭 비중을 조회해 정렬했어요(물건이 아닌 주제는 데이터가 없어 뒤로 밀릴 수 있어요).",
   "claude-no-naver-config":
     "네이버 데이터랩 검색어트렌드 설정이 없어 Claude가 판단한 관련성 순서로 정렬했어요(실제 검색 비중은 반영되지 않았어요).",
   "claude-naver-unavailable":
     "네이버 데이터랩 검색어트렌드에 연결하지 못해 Claude가 판단한 관련성 순서로 정렬했어요 — 클라이언트 ID·시크릿 설정을 확인해 주세요(실제 검색 비중은 반영되지 않았어요).",
+  "claude-shopping-unavailable":
+    "네이버 데이터랩 쇼핑인사이트에 연결하지 못해 Claude가 판단한 관련성 순서로 정렬했어요 — 클라이언트 ID·시크릿 설정을 확인해 주세요(실제 검색 비중은 반영되지 않았어요).",
+  "claude-lens-chosen": "Claude가 판단한 관련성 순서로 정렬했어요(실제 검색 비중은 반영되지 않았어요).",
 };
 
 type TopicResult = { keyword: string; reason: string };
@@ -101,6 +113,17 @@ export async function GET(req: Request) {
   }
   const { config } = configCheck;
 
+  const url = new URL(req.url);
+  const lens = url.searchParams.get("lens") ?? "search-trend";
+  if (lens !== "search-trend" && lens !== "shopping" && lens !== "claude") {
+    return Response.json({ error: "어떤 기준으로 순위를 매길지 알 수 없어요." }, { status: 400 });
+  }
+  // 분야가 틀린 채로 100초짜리 Claude 단계를 지나가면 헛수고가 된다 — 먼저 막는다.
+  const shoppingCategory = url.searchParams.get("shoppingCategory") ?? "";
+  if (lens === "shopping" && !isShoppingCategoryId(shoppingCategory)) {
+    return Response.json({ error: "쇼핑인사이트로 순위를 매기려면 분야를 골라 주세요." }, { status: 400 });
+  }
+
   let youtubeResult;
   try {
     youtubeResult = await fetchYoutubeTrendingCandidates(config.youtubeApiKey);
@@ -122,23 +145,38 @@ export async function GET(req: Request) {
     return respond([], "claude-no-naver-config", youtubeCategories, skippedYoutubeCategories);
   }
 
+  if (lens === "claude") {
+    return respond(topResultsByRank(curated), "claude-lens-chosen", youtubeCategories, skippedYoutubeCategories);
+  }
+
   if (!config.naver) {
     return respond(topResultsByRank(curated), "claude-no-naver-config", youtubeCategories, skippedYoutubeCategories);
   }
 
+  const keywords = curated.map((t) => t.keyword);
+  const reasonByKeyword = new Map(curated.map((t) => [t.keyword, t.reason]));
+
   try {
-    const ranked = await rankKeywordsByNaverDatalab(
-      curated.map((t) => t.keyword),
-      config.naver,
-    );
-    const reasonByKeyword = new Map(curated.map((t) => [t.keyword, t.reason]));
+    const ranked =
+      lens === "shopping"
+        ? await rankKeywordsByNaverShopping(keywords, shoppingCategory, config.naver)
+        : await rankKeywordsByNaverDatalab(keywords, config.naver);
     const topics = ranked
       .slice(0, TOP_N)
       .map((r) => ({ keyword: r.keyword, reason: reasonByKeyword.get(r.keyword) ?? "" }));
-    return respond(topics, "naver-datalab", youtubeCategories, skippedYoutubeCategories);
+    return respond(
+      topics,
+      lens === "shopping" ? "naver-shopping" : "naver-datalab",
+      youtubeCategories,
+      skippedYoutubeCategories,
+    );
   } catch {
-    // 데이터랩은 선택 기능이다 — 실패해도 Claude 가 이미 만들어 둔 결과를 버리지 않고
-    // Claude 순위로 폴백한다. 원인(오류 본문·키 값)은 응답에 담지 않는다.
-    return respond(topResultsByRank(curated), "claude-naver-unavailable", youtubeCategories, skippedYoutubeCategories);
+    // 순위는 선택 기능이다 — 실패해도 Claude 가 만들어 둔 결과를 버리지 않는다.
+    return respond(
+      topResultsByRank(curated),
+      lens === "shopping" ? "claude-shopping-unavailable" : "claude-naver-unavailable",
+      youtubeCategories,
+      skippedYoutubeCategories,
+    );
   }
 }

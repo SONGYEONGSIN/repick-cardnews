@@ -12,8 +12,9 @@ function clearEnv() {
   for (const key of ENV_KEYS) delete process.env[key];
 }
 
-function makeRequest(host: string): Request {
-  return new Request("http://x/api/topics", { method: "GET", headers: { host } });
+function makeRequest(host: string, query = ""): Request {
+  const url = query ? `http://x/api/topics?${query}` : "http://x/api/topics";
+  return new Request(url, { method: "GET", headers: { host } });
 }
 
 function jsonResponse(status: number, body: unknown) {
@@ -340,5 +341,94 @@ describe("GET /api/topics 실패 처리", () => {
     expect(res.status).toBe(502);
     const data = await res.json();
     expect(typeof data.error).toBe("string");
+  });
+});
+
+describe("GET /api/topics — 순위 렌즈 선택", () => {
+  it("lens=claude 면 네이버 설정이 있어도 부르지 않는다", async () => {
+    process.env.YOUTUBE_API_KEY = "yt-key";
+    process.env.NAVER_CLIENT_ID = "naver-id";
+    process.env.NAVER_CLIENT_SECRET = "naver-secret";
+    const mockFetch = stubYoutubeSuccess();
+    vi.stubGlobal("fetch", mockFetch);
+    vi.mocked(runClaudeCli).mockResolvedValueOnce({ topics: [{ keyword: "키워드", reason: "이유", rank: 1 }] });
+
+    const data = await (await GET(makeRequest("localhost:3500", "lens=claude"))).json();
+
+    expect(data.rankedBy).toBe("claude-lens-chosen");
+    const naverCalls = mockFetch.mock.calls.filter((c) => String(c[0]).includes("ntruss.com"));
+    expect(naverCalls).toHaveLength(0);
+  });
+
+  it("lens=shopping 이면 쇼핑 경로를 고른 분야로 부른다", async () => {
+    process.env.YOUTUBE_API_KEY = "yt-key";
+    process.env.NAVER_CLIENT_ID = "naver-id";
+    process.env.NAVER_CLIENT_SECRET = "naver-secret";
+    let shoppingBody: Record<string, unknown> | null = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/shopping/v1/category/keywords")) {
+          shoppingBody = JSON.parse(String(init?.body));
+          return jsonResponse(200, {
+            results: [{ title: "키워드", keyword: ["키워드"], data: [{ period: "2026-07-01", ratio: 50 }] }],
+          });
+        }
+        return jsonResponse(200, {
+          items: [{ id: "v1", snippet: { title: "제목", channelTitle: "채널", categoryId: "26" } }],
+        });
+      }),
+    );
+    vi.mocked(runClaudeCli).mockResolvedValueOnce({ topics: [{ keyword: "키워드", reason: "이유", rank: 1 }] });
+
+    const data = await (
+      await GET(makeRequest("localhost:3500", "lens=shopping&shoppingCategory=50000005"))
+    ).json();
+
+    expect(data.rankedBy).toBe("naver-shopping");
+    expect(shoppingBody).not.toBeNull();
+    expect(shoppingBody!.category).toBe("50000005");
+    expect(data.note).toContain("쇼핑인사이트");
+  });
+
+  it("lens=shopping 인데 분야가 없으면 400 과 한국어 안내를 준다", async () => {
+    process.env.YOUTUBE_API_KEY = "yt-key";
+
+    const res = await GET(makeRequest("localhost:3500", "lens=shopping"));
+
+    expect(res.status).toBe(400);
+    expect(/[가-힣]/.test((await res.json()).error)).toBe(true);
+  });
+
+  it("모르는 분야 id 도 400 이다 — 그대로 네이버에 넘기지 않는다", async () => {
+    process.env.YOUTUBE_API_KEY = "yt-key";
+
+    const res = await GET(makeRequest("localhost:3500", "lens=shopping&shoppingCategory=99"));
+
+    expect(res.status).toBe(400);
+  });
+
+  it("쇼핑인사이트가 실패해도 502 로 죽지 않고 Claude 순위로 폴백한다", async () => {
+    process.env.YOUTUBE_API_KEY = "yt-key";
+    process.env.NAVER_CLIENT_ID = "naver-id";
+    process.env.NAVER_CLIENT_SECRET = "naver-secret";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        if (String(input).includes("/shopping/")) return jsonResponse(401, { errorCode: "024" });
+        return jsonResponse(200, {
+          items: [{ id: "v1", snippet: { title: "제목", channelTitle: "채널", categoryId: "26" } }],
+        });
+      }),
+    );
+    vi.mocked(runClaudeCli).mockResolvedValueOnce({ topics: [{ keyword: "키워드", reason: "이유", rank: 1 }] });
+
+    const res = await GET(makeRequest("localhost:3500", "lens=shopping&shoppingCategory=50000005"));
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.rankedBy).toBe("claude-shopping-unavailable");
+    expect(data.topics).toHaveLength(1);
   });
 });
