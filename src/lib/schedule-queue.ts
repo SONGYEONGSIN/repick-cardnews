@@ -31,8 +31,12 @@ const ScheduleItemSchema = z.object({
 
 export type ScheduleItem = z.infer<typeof ScheduleItemSchema>;
 
+/**
+ * 큐가 사는 곳. `REPICK_SCHEDULE_ROOT` 로 바꿀 수 있다 — 라우트는 경로를 인자로 받을 수 없어
+ * 테스트가 임시 폴더를 가리키려면 이 이음새가 필요하다(실제 실행에서는 설정하지 않는다).
+ */
 export function scheduleRoot(): string {
-  return path.join(process.cwd(), ".repick", "scheduled");
+  return process.env.REPICK_SCHEDULE_ROOT ?? path.join(process.cwd(), ".repick", "scheduled");
 }
 
 function queueFile(root: string): string {
