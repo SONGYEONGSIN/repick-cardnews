@@ -67,7 +67,7 @@ export function HashtagInput({
                 type="button"
                 disabled={disabled}
                 onClick={() => remove(tag)}
-                className={`inline-flex items-center gap-1 rounded-full bg-hair-soft px-2.5 py-1 text-[13px] font-semibold text-ink-2 transition-opacity duration-200 hover:opacity-70 disabled:opacity-50 ${FOCUS_RING} motion-reduce:transition-none`}
+                className={`inline-flex items-center gap-1 rounded-full bg-hair-soft px-2.5 py-1 text-[13px] font-semibold text-ink-2 transition-opacity duration-200 hover:opacity-85 disabled:opacity-50 ${FOCUS_RING} motion-reduce:transition-none`}
               >
                 #{tag}
                 <X size={12} aria-hidden="true" />

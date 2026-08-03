@@ -67,7 +67,7 @@ function Opt({
       aria-pressed={on}
       onClick={onClick}
       className={`flex h-9 items-center gap-2 rounded px-3 text-[14px] font-bold transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
-        on ? "bg-ink text-surface" : "text-ink-2 hover:text-ink"
+        on ? "bg-ink text-surface" : "text-ink-2 hover:bg-hair-soft hover:text-ink"
       }`}
     >
       {swatch}
@@ -106,7 +106,7 @@ function Btn({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex h-11 items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
+      className={`flex h-11 items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:bg-transparent disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
     >
       {children}
     </button>

@@ -2,6 +2,7 @@
 
 import { useState, type Dispatch } from "react";
 import { ArrowLeft, ArrowRight, Check, CircleAlert, LoaderCircle, Sparkles } from "lucide-react";
+import { PLACEHOLDER_BOX } from "@/components/ui";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { Dropzone } from "@/features/photos/Dropzone";
 import { requestSpec } from "@/features/studio/useGenerate";
@@ -436,7 +437,7 @@ export function WorkbenchScreen({
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-hair bg-canvas px-6 py-16 text-center">
+              <div className={`${PLACEHOLDER_BOX} gap-2 bg-canvas`}>
                 <p className="text-[17px] font-bold">사진을 올리고 카피를 만들면 여기에 카드가 나와요</p>
                 <p className="text-[14px] text-ink-2">카드마다 헤드라인·본문·사진을 여기서 바로 고쳐요.</p>
               </div>
