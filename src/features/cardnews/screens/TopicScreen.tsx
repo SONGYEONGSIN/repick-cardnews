@@ -2,12 +2,10 @@
 
 import type { Dispatch } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
-import { StudioFrame, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
-import { TopicSuggestPanel } from "./TopicSuggestPanel";
+import { StudioFrame, SectionHead, SolidButton, LineButton } from "@/features/shell/StudioFrame";
 import { canLeaveTopic, type CardnewsAction, type CardnewsState } from "../reducer";
-import { buildTopicsQuery } from "./material-finder";
 
 /**
  * 화면 1 — 주제. `src/app/lab2/Hub.tsx` 시안을 실제 상태에 물렸다.
@@ -25,10 +23,12 @@ export function TopicScreen({
   state,
   dispatch,
   onNext,
+  onOpenFinder,
 }: {
   state: CardnewsState;
   dispatch: Dispatch<CardnewsAction>;
   onNext: () => void;
+  onOpenFinder: () => void;
 }) {
   return (
     <StudioFrame step={0} title="새로 만들기">
@@ -58,13 +58,18 @@ export function TopicScreen({
           </div>
         </div>
 
-        {/* 떠오르는 주제가 없을 때를 위한 보조 도구. 위 입력을 대체하지 않고 채워 준다 —
-            고른 결과는 그냥 keyword 가 되므로 위 칸에서 그대로 고칠 수 있다. */}
-        <TopicSuggestPanel
-          keyword={state.keyword}
-          query={buildTopicsQuery("search-trend", "")}
-          onSelect={(keyword) => dispatch({ type: "SET_KEYWORD", keyword })}
-        />
+        {/* 소재 찾기는 **선택적 도구**다. 위 입력을 대체하지 않고 채워 준다 — 고른 결과는 그냥
+            keyword 가 되므로 돌아와서 이 칸에서 그대로 고칠 수 있다. 스텝을 늘리지 않는 이유도
+            같다(스텝에 넣으면 필수처럼 보인다). */}
+        <div className="flex flex-wrap items-center gap-4">
+          <LineButton onClick={onOpenFinder}>
+            <Sparkles size={16} aria-hidden="true" />
+            소재 찾기
+          </LineButton>
+          <p className="text-[14px] text-ink-2">
+            뭘 만들지 안 정해졌으면 요즘 뜨는 것 중에서 골라 올 수 있어요.
+          </p>
+        </div>
 
         <div className="flex flex-col gap-4">
           <SectionHead title="어떤 형태로" />

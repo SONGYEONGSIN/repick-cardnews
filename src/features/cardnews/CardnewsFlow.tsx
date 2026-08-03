@@ -1,9 +1,10 @@
 "use client";
 
-import { useReducer } from "react";
+import { useReducer, useState } from "react";
 import { CaptureStage } from "@/features/studio/CaptureStage";
 import { useExport } from "@/features/studio/useExport";
 import { TopicScreen } from "./screens/TopicScreen";
+import { MaterialFinderScreen } from "./screens/MaterialFinderScreen";
 import { WorkbenchScreen } from "./screens/WorkbenchScreen";
 import { ExportScreen } from "./screens/ExportScreen";
 import { toRenderCards } from "./render";
@@ -11,13 +12,33 @@ import { cardnewsReducer, initialCardnewsState } from "./reducer";
 
 export function CardnewsFlow() {
   const [state, dispatch] = useReducer(cardnewsReducer, initialCardnewsState);
+  // 소재 찾기는 **스텝이 아니다.** reducer 의 step 을 늘리면 진행 표시에 끼어들어 필수처럼
+  // 보인다 — 건너뛸 수 있는 도구이므로 이 화면의 로컬 상태로만 여닫는다.
+  const [finderOpen, setFinderOpen] = useState(false);
   const { registerRef, download, saveToFolder, captureImages } = useExport();
 
   const go = (step: number) => dispatch({ type: "SET_STEP", step });
 
   return (
     <>
-      {state.step === 0 && <TopicScreen state={state} dispatch={dispatch} onNext={() => go(1)} />}
+      {state.step === 0 &&
+        (finderOpen ? (
+          <MaterialFinderScreen
+            keyword={state.keyword}
+            onPick={(keyword) => {
+              dispatch({ type: "SET_KEYWORD", keyword });
+              setFinderOpen(false);
+            }}
+            onClose={() => setFinderOpen(false)}
+          />
+        ) : (
+          <TopicScreen
+            state={state}
+            dispatch={dispatch}
+            onNext={() => go(1)}
+            onOpenFinder={() => setFinderOpen(true)}
+          />
+        ))}
 
       {state.step === 1 && (
         <WorkbenchScreen state={state} dispatch={dispatch} onPrev={() => go(0)} onNext={() => go(2)} />
