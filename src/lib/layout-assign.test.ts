@@ -2,14 +2,15 @@ import { describe, it, expect } from "vitest";
 import { assignLayouts, CARD_LAYOUTS, LAYOUT_LABELS } from "@/lib/layout-assign";
 
 describe("assignLayouts", () => {
-  it("5장이면 표지 full-bleed · 중간 split · 마지막 text-only", () => {
-    expect(assignLayouts(5)).toEqual(["full-bleed", "split", "split", "split", "text-only"]);
+  // 예전에는 표지 full-bleed · 중간 split · 마지막 text-only 로 섞었다. 사용자가 "사진으로
+  // 고정"을 요청해 전부 full-bleed 로 바꿨다(2026-08-04) — 사진이 카드뉴스의 축이고, 구성은
+  // 툴바 '카드' 탭에서 카드마다 따로 바꿀 수 있다.
+  it("전부 사진 전면이다", () => {
+    expect(assignLayouts(5)).toEqual(["full-bleed", "full-bleed", "full-bleed", "full-bleed", "full-bleed"]);
   });
-  it("6장도 같은 규칙을 따른다", () => {
-    expect(assignLayouts(6)).toEqual(["full-bleed", "split", "split", "split", "split", "text-only"]);
-  });
-  it("2장이면 표지와 마무리만 남는다", () => {
-    expect(assignLayouts(2)).toEqual(["full-bleed", "text-only"]);
+  it("장수가 달라도 같은 규칙이다", () => {
+    expect(assignLayouts(6)).toEqual(Array.from({ length: 6 }, () => "full-bleed"));
+    expect(assignLayouts(2)).toEqual(["full-bleed", "full-bleed"]);
   });
   it("1장이면 full-bleed 하나다", () => {
     expect(assignLayouts(1)).toEqual(["full-bleed"]);

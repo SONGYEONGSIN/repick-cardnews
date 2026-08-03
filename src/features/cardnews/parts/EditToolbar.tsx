@@ -229,6 +229,24 @@ export function EditToolbar({
    * "body" 인 시점엔 탭이 이미 `body !== undefined` 로만 떴으므로 실제로는 늘 참이지만,
    * 타입은 그 사실을 모르니 단언(`as`) 대신 이 안쪽 `in` 체크로 좁힌다.
    */
+  /**
+   * 탭마다 아래에 한 줄로 붙는 **안내**. 예전엔 조작 사이사이에 설명문이 끼어 있어(헤드라인
+   * 탭은 일곱 덩어리 중 셋이 문장이었다) "무엇을 할 수 있나"가 한눈에 안 잡혔다. 조작은 위
+   * 줄, 설명은 아래 줄로 나눠 어느 탭을 눌러도 같은 자리를 보게 한다.
+   */
+  function hintFor(target: EditTarget): string {
+    if (target === "heading" || target === "body") {
+      return "카드에서 글자를 직접 눌러 고쳐요 · 손잡이를 끌어 글 위치를 위아래로 옮겨요";
+    }
+    if (target === "steps") return "순서 글도 카드에서 직접 눌러 고쳐요";
+    if (target === "photo") return "사진 위를 끌어 초점을 옮겨요";
+    // 사진 전면 카드는 사진이 바탕·글자색을 덮는다 — 안 적으면 "테마가 안 먹는다"로 읽힌다
+    // (실제로 그런 문의를 받았다). 해당 레이아웃일 때만 덧붙인다.
+    return card.layout === "full-bleed"
+      ? "구성은 이 카드에만, 테마는 다섯 장 전체에 적용돼요 · 이 카드는 사진이 덮어서 글꼴과 형광만 달라져요"
+      : "구성은 이 카드에만, 테마는 다섯 장 전체에 적용돼요";
+  }
+
   function clearActiveText() {
     if (active === "heading") {
       onPatch({ copy: { ...copy, heading: "" } });
@@ -258,15 +276,13 @@ export function EditToolbar({
         ))}
       </div>
 
-      <div role="tabpanel" className="flex min-h-[64px] flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
+      {/* 위는 **조작**, 아래는 **안내**. 예전엔 둘이 한 줄에 섞여 있어(헤드라인 탭은 일곱 덩어리
+          중 셋이 문장이었다) 무엇을 할 수 있는지가 한눈에 안 잡혔다. 어느 탭을 눌러도 같은
+          자리를 보게 한다. */}
+      <div role="tabpanel" className="flex flex-col gap-1.5 px-3 py-2.5">
+        <div className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-2">
         {isText && (
           <>
-            <span className="text-[14px] text-ink-2">카드에서 글자를 직접 눌러 고쳐요</span>
-            <Divider />
-            {/* 손잡이는 글을 고르는 동안에만 뜬다(CardCanvas). 여기 말고는 알 길이 없어 한 줄 둔다 —
-                컨트롤을 새로 만들지 않는다. 위치는 손잡이로만 바꾼다. */}
-            <span className="text-[14px] text-ink-2">손잡이를 끌어 글 위치를 위아래로 옮겨요</span>
-            <Divider />
             {/* 크기·정렬은 헤드라인·본문이 아니라 카드 전체에 한 번 적용된다(CardDraft.textScale·
                 textAlign) — 헤드라인 탭에서 고르든 본문 탭에서 고르든 같은 값을 보고 같은 값을
                 바꾼다. */}
@@ -323,8 +339,6 @@ export function EditToolbar({
 
         {active === "photo" && (
           <>
-            <span className="text-[14px] text-ink-2">사진 위를 끌어 초점을 옮겨요</span>
-            <Divider />
             {card.layout === "full-bleed" && (
               <Dial
                 label="글 배경"
@@ -354,8 +368,6 @@ export function EditToolbar({
 
         {active === "steps" && steps !== undefined && "steps" in copy && (
           <>
-            <span className="text-[14px] text-ink-2">글은 카드에서 직접 눌러 고쳐요</span>
-            <Divider />
             <span className="text-[14px] text-ink-2">
               단계 <span className="font-bold tabular-nums text-ink">{steps.length}</span>/{MAX_STEPS}
             </span>
@@ -410,18 +422,11 @@ export function EditToolbar({
                   />
                 ))}
               </Group>
-              {/* 사진 전면 카드는 사진이 바탕과 글자색을 덮는다 — 테마를 바꿔도 글꼴·형광만
-                  달라진다. 이 사실을 안 적으면 "테마가 안 먹는다"로 읽힌다(실제로 그런 문의를
-                  받았다). 해당 레이아웃일 때만 띄운다 — 늘 띄우면 잡음이다. */}
-              {card.layout === "full-bleed" && (
-                <span className="text-[13px] leading-relaxed text-ink-2">
-                  이 카드는 사진이 덮어서 <span className="font-bold">글꼴과 형광만</span> 달라져요.
-                  바탕·글자색까지 보려면 구성을 &lsquo;사진 + 글&rsquo; 이나 &lsquo;글만&rsquo; 으로 바꿔요.
-                </span>
-              )}
             </span>
           </>
         )}
+        </div>
+        <p className="text-[13px] leading-relaxed text-ink-2">{hintFor(active)}</p>
       </div>
     </div>
   );
