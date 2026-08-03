@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { contrastRatio } from "@/lib/contrast";
+import { scrimTint } from "./layout-utils";
 import { THEMES, THEME_IDS, type ThemeId } from "./themes";
 
 /**
@@ -88,5 +89,17 @@ describe("THEMES — 읽을 수 있어야 한다", () => {
   // 사진 위 글자는 어두운 스크림 위에 얹힌다(`layout-utils` 의 scrimGradient) — 밝아야 한다.
   it.each(THEME_IDS)("%s 의 사진 위 글자색은 검정 스크림 위에서 읽힌다", (id: ThemeId) => {
     expect(contrastRatio(THEMES[id].onPhoto, "#000000")).toBeGreaterThanOrEqual(MIN_FG_ON_BG);
+  });
+
+  /**
+   * 스크림에 테마 색(accent)을 입힌다(`scrimTint`). 원색을 그대로 쓰면 흰 글자가 안 읽히므로
+   * 어둡게 낮추는데, **그 낮춘 색 위에서도 읽혀야** 한다. 새 테마의 accent 가 너무 밝으면
+   * 여기서 걸린다.
+   */
+  it.each(THEME_IDS)("%s 의 색을 입힌 스크림 위에서도 사진 위 글자가 읽힌다", (id: ThemeId) => {
+    const { r, g, b } = scrimTint(THEMES[id].accent);
+    const hex = `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+
+    expect(contrastRatio(THEMES[id].onPhoto, hex)).toBeGreaterThanOrEqual(MIN_FG_ON_BG);
   });
 });

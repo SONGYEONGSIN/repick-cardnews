@@ -99,9 +99,34 @@ export function scrimStops(strength: number, textY: number): ScrimStop[] {
   ];
 }
 
-export function scrimGradient(strength: number, textY: number): string {
+export type ScrimTint = { r: number; g: number; b: number };
+
+/**
+ * 가림막에 입힐 색을 테마 색에서 만든다.
+ *
+ * 사진 전면 카드는 사진이 바탕·글자색을 덮어, 테마를 바꿔도 글꼴과 형광 말고는 달라지는 게
+ * 없었다. 가림막에 테마 색을 입혀 그 표면을 되살린다.
+ *
+ * **원색을 그대로 쓰면 안 된다** — 가림막 위에는 흰 글자가 올라간다. 각 채널을
+ * `TINT_DARKEN`(0.35) 배로 낮춰 어둡게 만든다. 이 값에서 여섯 테마 모두 흰 글자와 대비가
+ * 12.9 이상이다(순수 검정은 21) — 실측으로 고른 값이고 `themes.test.ts` 가 지킨다.
+ */
+const TINT_DARKEN = 0.35;
+
+export function scrimTint(hex: string): ScrimTint {
+  const h = hex.replace("#", "");
+  const channel = (i: number) => Math.round(Number.parseInt(h.slice(i, i + 2), 16) * TINT_DARKEN);
+  return { r: channel(0), g: channel(2), b: channel(4) };
+}
+
+/**
+ * 색을 안 주면 예전처럼 검정이다 — 정지점 위치와 진하기는 색과 무관하게 같아서, 색을 입혀도
+ * 글 배치가 달라지지 않는다.
+ */
+export function scrimGradient(strength: number, textY: number, tint?: ScrimTint): string {
+  const { r, g, b } = tint ?? { r: 0, g: 0, b: 0 };
   const stops = scrimStops(strength, textY)
-    .map((s) => `rgba(0,0,0,${s.alpha}) ${s.position}%`)
+    .map((s) => `rgba(${r},${g},${b},${s.alpha}) ${s.position}%`)
     .join(", ");
   return `linear-gradient(to bottom, ${stops})`;
 }

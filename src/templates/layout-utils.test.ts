@@ -15,6 +15,7 @@ import {
   DEFAULT_TEXT_SCALE,
   DEFAULT_TEXT_ALIGN,
   DEFAULT_HIGHLIGHT,
+  scrimTint,
 } from "@/templates/layout-utils";
 
 describe("objectPosition", () => {
@@ -250,5 +251,49 @@ describe("textScaleStepOf", () => {
   });
   it("세 값 중 어디에도 안 맞으면 보통으로 본다", () => {
     expect(textScaleStepOf(0.99)).toBe("md");
+  });
+});
+
+// 사진 전면 카드는 사진이 바탕·글자색을 덮어 테마가 글꼴·형광 말고는 안 보였다. 가림막에
+// 테마 색을 입혀 그 표면을 되살린다 — 다만 **흰 글자가 계속 읽혀야** 한다.
+describe("scrimTint — 테마 색을 가림막에 입힌다", () => {
+  it("색을 어둡게 낮춘다 — 원색 그대로면 흰 글자가 안 읽힌다", () => {
+    const tint = scrimTint("#ff5a36");
+
+    expect(tint.r).toBeLessThan(0xff);
+    expect(tint.g).toBeLessThan(0x5a);
+    expect(tint.b).toBeLessThan(0x36);
+  });
+
+  it("검정은 검정 그대로다", () => {
+    expect(scrimTint("#000000")).toEqual({ r: 0, g: 0, b: 0 });
+  });
+
+  it("대소문자를 가리지 않는다 — 테마 값에 둘 다 있다", () => {
+    expect(scrimTint("#6E56CF")).toEqual(scrimTint("#6e56cf"));
+  });
+});
+
+describe("scrimGradient — 색을 받을 수 있다", () => {
+  it("색을 안 주면 예전처럼 검정이다 — 기존 호출부가 그대로 동작한다", () => {
+    expect(scrimGradient(0.6, 1)).toContain("rgba(0,0,0,");
+  });
+
+  it("색을 주면 그 색으로 그린다", () => {
+    const tint = scrimTint("#6e56cf");
+    const css = scrimGradient(0.6, 1, tint);
+
+    expect(css).toContain(`rgba(${tint.r},${tint.g},${tint.b},`);
+    expect(css).not.toContain("rgba(0,0,0,");
+  });
+
+  it("정지점 위치와 진하기는 색과 무관하게 같다 — 배치가 바뀌면 안 된다", () => {
+    const plain = scrimGradient(0.6, 0.5);
+    const tinted = scrimGradient(0.6, 0.5, scrimTint("#6e56cf"));
+
+    const positions = (css: string) => css.match(/-?\d+(\.\d+)?%/g);
+    const alphas = (css: string) => css.match(/,([01](\.\d+)?)\)/g);
+    expect(positions(tinted)).toEqual(positions(plain));
+    expect(alphas(tinted)).toEqual(alphas(plain));
   });
 });

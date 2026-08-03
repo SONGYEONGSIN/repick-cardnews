@@ -1,5 +1,5 @@
 import type { Theme } from "@/templates/themes";
-import { objectPosition, scrimGradient, type Focal, type TextYSpacers } from "@/templates/layout-utils";
+import { objectPosition, scrimGradient, scrimTint, type Focal, type TextYSpacers } from "@/templates/layout-utils";
 
 export function FullBleedCard({
   theme,
@@ -38,7 +38,11 @@ export function FullBleedCard({
           }}
         />
       )}
-      {photoUrl && <div style={{ position: "absolute", inset: 0, background: scrimGradient(scrim, textY) }} />}
+      {/* 가림막에 테마 색(accent)을 입힌다 — 사진 전면에서는 바탕·글자색이 사진에 덮여
+          테마가 글꼴·형광 말고는 안 보였다. 색은 어둡게 낮춰(`scrimTint`) 흰 글자가 계속 읽힌다. */}
+      {photoUrl && (
+        <div style={{ position: "absolute", inset: 0, background: scrimGradient(scrim, textY, scrimTint(theme.accent)) }} />
+      )}
       <div
         style={{
           position: "relative",
