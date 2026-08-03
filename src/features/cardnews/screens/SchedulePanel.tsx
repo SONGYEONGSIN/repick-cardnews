@@ -141,6 +141,10 @@ export function SchedulePanel({
               value={when}
               min={toLocalInputValue(Date.now() + 60_000)}
               onChange={(e) => setWhen(e.target.value)}
+              // 칸 아무 곳이나 눌러도 달력이 뜨게 한다 — 기본 동작은 오른쪽 달력 아이콘을 정확히
+              // 눌러야만 열려서, 글자 부분을 누른 사람은 아무 일도 안 난다고 느낀다.
+              // `showPicker` 를 지원하지 않는 브라우저에서는 그냥 기본 동작으로 떨어진다.
+              onClick={(e) => e.currentTarget.showPicker?.()}
               disabled={busy || working}
               className={`h-11 rounded-lg border border-hair px-3 text-[14px] transition-colors duration-200 focus:border-ink focus:outline-none disabled:text-ink-disabled ${FOCUS_RING} motion-reduce:transition-none`}
             />

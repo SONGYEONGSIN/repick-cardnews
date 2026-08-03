@@ -335,6 +335,7 @@ export function ExportScreen({
               token={publishToken}
               imageCount={state.cards.length}
               keyword={state.keyword}
+              headings={state.cards.map((c) => c.copy.heading)}
               onCaptureImages={onCaptureImages}
             />
           )}

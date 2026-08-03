@@ -9,6 +9,7 @@ import { daysRemaining } from "@/lib/instagram-token-refresh";
 import type { PublishProgress } from "@/lib/publish-progress-store";
 import { TokenStatusBlock, type RefreshActionResult, type TokenStatusView } from "./TokenStatusBlock";
 import { HashtagInput } from "./HashtagInput";
+import { defaultCaption, defaultHashtags } from "./caption-draft";
 import { SchedulePanel } from "./SchedulePanel";
 
 /**
@@ -105,6 +106,7 @@ export function InstagramPublishPanel({
   token,
   imageCount,
   keyword,
+  headings,
   onCaptureImages,
 }: {
   /** 다른 내보내기 작업(다운로드·저장 등)이 진행 중이어도 버튼을 눌러선 안 된다. */
@@ -119,12 +121,16 @@ export function InstagramPublishPanel({
   imageCount: number;
   /** 예약 항목에 함께 남긴다 — 목록에서 어떤 카드인지 알아보려면 주제가 필요하다. */
   keyword: string;
+  /** 카드들의 헤드라인 — 캡션 초안을 여기서 뽑는다(`caption-draft`). */
+  headings: readonly string[];
   /** 예약할 때 카드 이미지를 그 자리에서 굳히기 위해 부른다(`ExportScreen` 의 캡처). */
   onCaptureImages: (count: number) => Promise<string[]>;
 }) {
   const [status, setStatus] = useState<ConnectionStatus>({ state: "loading" });
-  const [caption, setCaption] = useState("");
-  const [hashtags, setHashtags] = useState<string[]>([]);
+  // 빈 칸을 마주하는 대신 고칠 거리를 준다 — 카드의 헤드라인과 주제에서 뽑는다(`caption-draft`).
+  // 초기값으로만 쓴다: 사용자가 고친 뒤 카드가 바뀌어도 덮어쓰지 않는다.
+  const [caption, setCaption] = useState(() => defaultCaption(keyword, headings));
+  const [hashtags, setHashtags] = useState<string[]>(() => defaultHashtags(keyword));
   // 이 세션이 건 예약이 아직 대기 중인가. 예약해 놓고 "지금 올리기"를 또 누르면 같은 카드가
   // 두 번 올라간다(지금 한 번, 예약 시각에 한 번).
   const [schedulePending, setSchedulePending] = useState(false);
@@ -356,7 +362,7 @@ export function InstagramPublishPanel({
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 disabled={busy || publishing}
-                rows={3}
+                rows={8}
                 maxLength={2200}
                 placeholder="게시물에 함께 올릴 글을 적어 주세요"
                 className={`rounded-lg border border-hair px-3 py-2.5 text-[14px] leading-relaxed transition-colors duration-200 placeholder:text-ink-3 focus:border-ink focus:outline-none disabled:text-ink-disabled ${FOCUS_RING} motion-reduce:transition-none`}
