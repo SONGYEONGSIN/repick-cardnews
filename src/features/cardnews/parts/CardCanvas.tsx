@@ -37,7 +37,7 @@ import { TextYHandle } from "./TextYHandle";
  * 따라간다(카드 바탕 `bg`, 글 색 `fg`/`onPhoto`, cta 알약과 split 구분선의 `accent`, 헤드라인·
  * cta 알약의 `displayFont`). 캔버스가 결과와 다르게 보이면 편집 표면으로서 쓸모가 없다.
  *
- * 인라인 `style` 은 **열두 곳**이다. 앞 여섯은 0~1 연속값이라 Tailwind 클래스로 표현할 수 없고
+ * 인라인 `style` 은 **열세 곳**이다. 앞 여섯은 0~1 연속값이라 Tailwind 클래스로 표현할 수 없고
  * (JIT 은 런타임 값으로 클래스를 만들지 못한다), 뒤 여섯은 `themeId` 로 고른 테마 값이라 같은
  * 이유로 클래스가 될 수 없다(어느 테마가 골렸는지는 실행 중에만 안다):
  *   1. 초점 핸들 위치 — `card.focal`
@@ -59,6 +59,8 @@ import { TextYHandle } from "./TextYHandle";
  *  12. 형광 강조 배경·글자색 — `theme.highlight`/`theme.fg`(`card.highlight` 가 있고 편집 중이
  *      아닐 때만 그려지는 `<mark>`). `CardnewsBody`와 같은 조합 — onPhoto 라도 `theme.fg`를 쓴다
  *      (그 파일 주석 참고, 대비 확보가 이유다)
+ *  13. 순서 번호 원의 배경·글자색 — 12와 **같은 조합**(`theme.highlight`/`theme.fg`). 해법 카드의
+ *      `steps` 앞에 붙는 동그라미로, `CardnewsBody` 가 쓰는 값과 같다
  * 색 리터럴은 컴포넌트에 없다 — 전부 토큰 클래스이거나 `layout-utils`/`THEMES` 가 만든 값이고,
  * 인라인으로는 그 값만 그대로 넘긴다.
  *
@@ -123,6 +125,15 @@ const BODY_SCALE_CLASS: Record<TextScaleStep, string> = {
   sm: "text-[14px] leading-relaxed opacity-[0.92] sm:text-[15px]",
   md: "text-[16px] leading-relaxed opacity-[0.92] sm:text-[18px]",
   lg: "text-[19px] leading-relaxed opacity-[0.92] sm:text-[22px]",
+};
+/**
+ * 순서 목록 글자 — 출력(`CardnewsBody`)의 26/30px 을 이 캔버스 비율(본문 30→16px, ≈0.53)로
+ * 줄인 값이다. 본문보다 한 단계 작게 두는 관계도 출력과 같다.
+ */
+const STEP_SCALE_CLASS: Record<TextScaleStep, string> = {
+  sm: "text-[12px] leading-snug sm:text-[14px]",
+  md: "text-[14px] leading-snug sm:text-[16px]",
+  lg: "text-[17px] leading-snug sm:text-[19px]",
 };
 const ACTION_SCALE_CLASS: Record<TextScaleStep, string> = {
   sm: "text-[13px]",
@@ -254,7 +265,7 @@ function FocalHandle({ focal, onFocal }: { focal: Focal; onFocal: (focal: Focal)
       // 이름에 현재 값을 담는다 — 방향키로 값이 바뀌면 포커스된 요소의 이름이 다시 읽힌다
       aria-label={`사진 초점 — 가로 ${Math.round(focal.x * 100)}%, 세로 ${Math.round(focal.y * 100)}%. 방향키로 옮겨요`}
       onKeyDown={handleKey}
-      // 인라인 style 1/12 — 초점은 0~1 연속값이라 자리를 Tailwind 클래스로 표현할 수 없다
+      // 인라인 style 1/13 — 초점은 0~1 연속값이라 자리를 Tailwind 클래스로 표현할 수 없다
       style={{ left: pct(focal.x), top: pct(focal.y) }}
       className={`pointer-events-none absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-ink bg-surface ${FOCUS_RING}`}
     >
@@ -307,7 +318,7 @@ function PhotoSurface({
 
   return (
     <div
-      // 인라인 style 4/12 — split 사진 높이는 card.band(0~1 연속값) 라 클래스로 표현할 수 없다
+      // 인라인 style 4/13 — split 사진 높이는 card.band(0~1 연속값) 라 클래스로 표현할 수 없다
       style={bandRatio === undefined ? undefined : { height: pct(bandRatio) }}
       className={`${wrapperClass} overflow-hidden bg-hair-soft`}
     >
@@ -331,7 +342,7 @@ function PhotoSurface({
             src={photo.thumbUrl}
             alt={photo.name}
             draggable={false}
-            // 인라인 style 2/12 — 크롭 기준점. 출력 템플릿과 같은 objectPosition(focal) 을 쓴다
+            // 인라인 style 2/13 — 크롭 기준점. 출력 템플릿과 같은 objectPosition(focal) 을 쓴다
             style={{ objectPosition: objectPosition(focal) }}
             className="h-full w-full object-cover"
           />
@@ -431,6 +442,10 @@ export function CardCanvas({
   // opacity-[0.92] 는 CardnewsBody 의 Body 컴포넌트가 쓰는 고정 불투명도(테마 값이 아니라
   // 상수라 인라인이 아니라 클래스로 둔다)
   const bodyClass = `${BODY_SCALE_CLASS[scaleStep]} ${alignTextClass}`;
+  // 순서 목록은 번호 원과 글이 한 줄이라 글 자체는 늘 왼쪽 정렬이고, **줄 묶음 전체**가
+  // 가운데로 간다(출력의 `textAlign` 이 부모에 걸리는 것과 같은 결과).
+  const stepClass = `${STEP_SCALE_CLASS[scaleStep]} text-left`;
+  const alignStepsClass = card.textAlign === "center" ? "items-center" : "items-start";
   // 헤드라인·본문이 비었을 때 쓰는 자리 표시 크기 — headingClass·bodyClass(56~72px·30~34px)를
   // 그대로 쓰면 빈 칸이 실제 글만큼 커 보여 textY 배치가 출력과 어긋난다(파일 상단 주석 참고).
   // 자리 표시는 크기·정렬 조작 대상이 아니라 고정 크기로 둔다(위 이유와 같다 — 실제 스타일을
@@ -470,6 +485,25 @@ export function CardCanvas({
       ? { value: copy.body, commit: (text: string) => onPatch({ copy: { ...copy, body: text } }) }
       : undefined;
 
+  /**
+   * 순서 목록(해법 카드 전용). **출력에는 있는데 이 캔버스에 없던 값이다** — 편집 화면에서
+   * 보이지도 고쳐지지도 않아 Claude 가 써 준 순서를 손댈 방법이 아예 없었다.
+   *
+   * 빈 단계를 걸러 내지 **않고** 그대로 그린다. 출력(`CardnewsBody`)은 빈 단계를 빼고 번호를
+   * 다시 매기지만, 편집 중에는 빈 칸이 남아 있어야 거기에 글을 넣을 수 있다 — 자리 표시가
+   * 그 사실을 말한다. 저장하면 출력 규칙대로 빠진다.
+   */
+  const stepsEdit =
+    "steps" in copy
+      ? {
+          values: copy.steps ?? [],
+          commit: (index: number, text: string) =>
+            onPatch({
+              copy: { ...copy, steps: (copy.steps ?? []).map((v, i) => (i === index ? text : v)) },
+            }),
+        }
+      : undefined;
+
   // 버튼 문구(cta 전용, 상한 40자)도 같은 방식으로 좁힌 안쪽에서 패치한다. 스키마가 마지막
   // 카드를 cta 로 강제하므로 모든 세트에 하나씩 있다 — 여기서 못 고치면 어디서도 못 고친다.
   const actionEdit =
@@ -485,7 +519,7 @@ export function CardCanvas({
     headingSplit.match.length > 0 ? (
       <>
         {headingSplit.before}
-        {/* 인라인 style 12/12 — 형광 배경·글자색(theme.highlight/theme.fg). CardnewsBody 와 같은
+        {/* 인라인 style 12/13 — 형광 배경·글자색(theme.highlight/theme.fg). CardnewsBody 와 같은
             조합 — onPhoto 라도 theme.fg 를 쓴다(그 파일 주석 참고, 대비 확보가 이유다) */}
         <mark style={{ background: theme.highlight, color: theme.fg }}>{headingSplit.match}</mark>
         {headingSplit.after}
@@ -499,7 +533,7 @@ export function CardCanvas({
    */
   const textLayer = (scrim?: number, splitDivider?: boolean) => (
     <div
-      // 인라인 style 11/12 — split 구분선 색(theme.accent). 두께(border-t-[6px])는 고정값이라
+      // 인라인 style 11/13 — split 구분선 색(theme.accent). 두께(border-t-[6px])는 고정값이라
       // 클래스로 둔다. splitDivider 가 아니면 스타일을 아예 안 준다(SplitPhotoCard 와 동일 조건).
       style={splitDivider ? { borderTopColor: theme.accent } : undefined}
       className={`pointer-events-none relative flex flex-1 flex-col p-7 ${splitDivider ? "border-t-[6px]" : ""}`}
@@ -507,13 +541,13 @@ export function CardCanvas({
       {scrim !== undefined && (
         <span
           aria-hidden="true"
-          // 인라인 style 3/12 — 글 배경. 진하기(card.scrim)도 앵커(card.textY)도 0~1 연속값이라
+          // 인라인 style 3/13 — 글 배경. 진하기(card.scrim)도 앵커(card.textY)도 0~1 연속값이라
           // 클래스로 표현할 수 없다. 색 리터럴은 layout-utils 의 scrimGradient 가 만든다
           style={{ background: scrimGradient(scrim, card.textY) }}
           className="absolute inset-0"
         />
       )}
-      {/* 인라인 style 5/12 — 위 여백이 가져갈 몫(card.textY). 나머지 세 속성은 클래스로 둔다 */}
+      {/* 인라인 style 5/13 — 위 여백이 가져갈 몫(card.textY). 나머지 세 속성은 클래스로 둔다 */}
       <div ref={topSpacerRef} style={{ flexGrow: spacers.top }} className="min-h-0 shrink-0 basis-0" />
       <div ref={blockRef} className="relative flex flex-col gap-3">
         <EditableText
@@ -531,7 +565,7 @@ export function CardCanvas({
           placeholderClassName={textPlaceholderClass}
           placeholder="헤드라인 없음 — 눌러서 입력"
           elRef={headingRef}
-          // 인라인 style 8/12 — 헤드라인 색(onPhoto ? theme.onPhoto : theme.fg)
+          // 인라인 style 8/13 — 헤드라인 색(onPhoto ? theme.onPhoto : theme.fg)
           style={{ color: fg }}
           displayNode={headingHighlighted}
           onSelectionChange={() => onHeadlineSelect(window.getSelection()?.toString() ?? "")}
@@ -549,9 +583,39 @@ export function CardCanvas({
             placeholderClassName={textPlaceholderClass}
             placeholder="본문 없음 — 눌러서 입력"
             elRef={bodyRef}
-            // 인라인 style 9/12 — 본문 색. 헤드라인과 같은 fg 값(불투명도는 opacity-[0.92] 클래스)
+            // 인라인 style 9/13 — 본문 색. 헤드라인과 같은 fg 값(불투명도는 opacity-[0.92] 클래스)
             style={{ color: fg }}
           />
+        )}
+        {stepsEdit && stepsEdit.values.length > 0 && (
+          <div className={`mt-3 flex flex-col gap-1.5 ${alignStepsClass}`}>
+            {stepsEdit.values.map((step, i) => (
+              <span key={`${card.id}-step-${i}`} className="flex items-center gap-2">
+                {/* 인라인 style 13/13 — 순서 번호 원(theme.highlight/theme.fg). CardnewsBody 와
+                    같은 조합이다. 지름·글꼴은 클래스로 둔다(고정값이거나 CSS 변수 상속).
+                    아래 단계 글자의 `color: fg` 는 9번(본문 색)과 **같은 값**이라 따로 세지 않는다. */}
+                <span
+                  className="flex h-5 w-5 flex-none items-center justify-center rounded-full text-[11px] font-bold tabular-nums font-[family-name:var(--card-display-font)] sm:h-[23px] sm:w-[23px] sm:text-[13px]"
+                  style={{ background: theme.highlight, color: theme.fg }}
+                >
+                  {i + 1}
+                </span>
+                <EditableText
+                  key={`${card.id}-step-${i}-${step}`}
+                  value={step}
+                  editing={target === "steps"}
+                  ringClass={ring(target === "steps", onPhoto)}
+                  onActivate={() => onSelect("steps")}
+                  onCommit={(text) => stepsEdit.commit(i, text)}
+                  label={`${i + 1}번째 순서`}
+                  className={stepClass}
+                  placeholderClassName={textPlaceholderClass}
+                  placeholder="빈 순서 — 눌러서 입력"
+                  style={{ color: fg }}
+                />
+              </span>
+            ))}
+          </div>
         )}
         {actionEdit && (
           <EditableText
@@ -564,7 +628,7 @@ export function CardCanvas({
             className={actionClass}
             placeholderClassName={actionPlaceholderClass}
             placeholder="버튼 문구 없음 — 눌러서 입력"
-            // 인라인 style 10/12 — cta 알약 배경·글자색(actionStyle, 위 선언부 주석 참고)
+            // 인라인 style 10/13 — cta 알약 배경·글자색(actionStyle, 위 선언부 주석 참고)
             style={actionStyle}
           />
         )}
@@ -572,7 +636,7 @@ export function CardCanvas({
           <TextYHandle textY={card.textY} measure={measureText} onTextY={(textY) => onPatch({ textY })} />
         )}
       </div>
-      {/* 인라인 style 6/12 — 아래 여백이 가져갈 몫(1 − card.textY). 두 몫의 합은 늘 1 이다 */}
+      {/* 인라인 style 6/13 — 아래 여백이 가져갈 몫(1 − card.textY). 두 몫의 합은 늘 1 이다 */}
       <div ref={bottomSpacerRef} style={{ flexGrow: spacers.bottom }} className="min-h-0 shrink-0 basis-0" />
     </div>
   );
@@ -591,7 +655,7 @@ export function CardCanvas({
 
   return (
     <div
-      // 인라인 style 7/12 — 카드 바탕색 + 표시 글꼴 변수(containerStyle, 위 선언부 주석 참고)
+      // 인라인 style 7/13 — 카드 바탕색 + 표시 글꼴 변수(containerStyle, 위 선언부 주석 참고)
       style={containerStyle}
       className="relative flex aspect-[4/5] h-[min(70vh,760px)] max-w-full flex-col overflow-hidden rounded-2xl border border-hair xl:h-auto xl:max-h-full"
     >

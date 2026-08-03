@@ -92,8 +92,10 @@ function Thumb({ photo, index }: { photo: Photo | undefined; index?: number }) {
         // 로컬 dataURL 프리뷰 — next/image 는 이 URL 을 최적화할 수 없다. alt 는 옆 글이 대신한다
         <img src={photo.thumbUrl} alt="" className="h-full w-full object-cover" />
       ) : (
-        <span className="flex h-full w-full items-center justify-center text-ink-2">
+        // 아이콘만으로는 "사진이 아직 안 붙었나, 깨졌나"가 안 읽힌다 — 말로 적는다.
+        <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-ink-2">
           <ImageOff size={14} aria-hidden="true" />
+          <span className="text-[11px] font-bold">사진 없음</span>
         </span>
       )}
       {index !== undefined && (

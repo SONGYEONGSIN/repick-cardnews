@@ -24,6 +24,7 @@ export const STEPS = [
 export function StudioFrame({
   step,
   summary,
+  sidebar,
   title,
   action,
   children,
@@ -31,6 +32,8 @@ export function StudioFrame({
   step: number;
   /** 사이드바 하단에 상시 노출되는 현재 작업 요약 */
   summary?: readonly { label: string; value: string }[];
+  /** 요약 아래에 붙는 화면별 블록(만들기 화면의 점검 목록 등). 없으면 자리도 안 만든다. */
+  sidebar?: React.ReactNode;
   title: string;
   action?: React.ReactNode;
   children: React.ReactNode;
@@ -138,6 +141,8 @@ export function StudioFrame({
             ))}
           </dl>
         )}
+
+        {sidebar && <div className="border-t border-hair pt-4">{sidebar}</div>}
 
         <p className="mt-auto border-t border-hair pt-4 text-[13px] leading-relaxed text-ink-2">
           저장하거나 폰으로 보낼 때는 사진이 이 집 네트워크를 벗어나지 않아요. 인스타그램에 올릴 때만

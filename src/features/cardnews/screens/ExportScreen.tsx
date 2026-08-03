@@ -2,6 +2,7 @@
 
 import { useState, type Dispatch } from "react";
 import { ArrowLeft, Check, CircleAlert, RotateCcw } from "lucide-react";
+import { FOCUS_RING } from "@/components/ui";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { CardRenderer } from "@/templates/CardRenderer";
 import { outputDir } from "@/lib/paths";
@@ -39,6 +40,20 @@ import { InstagramPublishPanel } from "./InstagramPublishPanel";
  * "처음부터 다시"(RESET)는 되돌릴 수 없는 조작이라 이 세 갈래보다 아래, 화면 맨 끝에 그대로
  * 둔다.
  */
+/**
+ * 내보내는 방법 — **고르는 것**이지 순서대로 하는 일 목록이 아니다. 셋을 한꺼번에 쌓아 두면
+ * 그 구분이 사라지고, 각 방법의 세부(저장될 파일 목록 등)가 어느 방법에 딸린 것인지도 흐려진다.
+ *
+ * `note` 는 **사진이 어디까지 나가는가** 다 — 방법마다 다르고, 고르기 전에 알아야 한다.
+ */
+type ExportMethod = "file" | "phone" | "instagram";
+
+const EXPORT_METHODS: readonly { id: ExportMethod; label: string; note: string }[] = [
+  { id: "file", label: "파일로 저장", note: "이 컴퓨터 안에만 남아요" },
+  { id: "phone", label: "폰으로 보내기", note: "같은 와이파이 안에서만 오가요" },
+  { id: "instagram", label: "인스타그램에 올리기", note: "사진이 인터넷으로 나가요" },
+];
+
 export function ExportScreen({
   state,
   dispatch,
@@ -66,6 +81,9 @@ export function ExportScreen({
   const [publishToken, setPublishToken] = useState<string | null>(null);
   // 되돌릴 수 없는 조작이라 확인을 한 번 거친다 — 이 화면 안의 지역 상태로, window.confirm 은 쓰지 않는다.
   const [resetConfirm, setResetConfirm] = useState(false);
+  // 어떤 방법으로 내보낼지. 셋을 한꺼번에 쌓아 두면 "고르는 것"이 아니라 "할 일 목록"으로
+  // 읽히고, 각 방법의 세부(저장될 파일 목록 등)가 어느 방법 것인지도 흐려진다.
+  const [method, setMethod] = useState<ExportMethod>("file");
 
   const rendered = toRenderCards(state);
   const dir = outputDir("cardnews", state.keyword, mmdd());
@@ -160,10 +178,31 @@ export function ExportScreen({
         { label: "저장 위치", value: dir },
       ]}
       action={
-        <LineButton disabled={state.busy} onClick={onPrev}>
+        <>
+          {/* 되돌릴 수 없는 조작은 본문 맨 아래가 아니라 헤더에 둔다 — 만들고·고르고·내보내는
+              본문 흐름과 섞이면 실수로 눌리기 쉽다(docs/ui-standards.md §4). 확인은 그 자리에서
+              버튼이 바뀌는 방식이다 — window.confirm 은 쓰지 않는다. */}
+          {resetConfirm ? (
+            <span className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[13px] font-bold">지금까지 만든 내용이 모두 사라져요.</span>
+              <LineButton disabled={state.busy} onClick={() => setResetConfirm(false)}>
+                취소
+              </LineButton>
+              <SolidButton disabled={state.busy} onClick={() => dispatch({ type: "RESET" })}>
+                처음부터 다시
+              </SolidButton>
+            </span>
+          ) : (
+            <LineButton disabled={state.busy} onClick={() => setResetConfirm(true)}>
+              <RotateCcw size={15} aria-hidden="true" />
+              처음부터 다시
+            </LineButton>
+          )}
+          <LineButton disabled={state.busy} onClick={onPrev}>
           <ArrowLeft size={16} aria-hidden="true" />
-          만들기로 돌아가기
-        </LineButton>
+            만들기로 돌아가기
+          </LineButton>
+        </>
       }
     >
       <div className="flex flex-col gap-9 px-5 py-8 sm:px-8 lg:gap-10 lg:px-10 lg:py-12">
@@ -191,74 +230,104 @@ export function ExportScreen({
           </p>
         )}
 
-        <div className="flex flex-col gap-9 lg:gap-10 xl:flex-row xl:items-start xl:gap-10">
-          {/* 왼쪽 = 미리보기 + 저장될 파일. `WorkbenchScreen` 의 카드 칸과 같은 역할(`xl:flex-1`,
-              상한 없음) — 남는 폭을 전부 가져간다. */}
-          <div className="flex flex-col gap-9 lg:gap-10 xl:min-w-0 xl:flex-1">
-            <section className="flex flex-col gap-4">
-              <SectionHead
-                title={`${state.cards.length}장 이어 보기`}
-                aside="인스타에서 넘어가는 순서 그대로예요"
-              />
-              <ol className="flex gap-4 overflow-x-auto pb-3">
-                {rendered.map((card, i) => {
-                  const draft = state.cards[i];
-                  return (
-                    <li key={draft.id} className="flex w-[270px] flex-none flex-col gap-2">
-                      {/* 순수 시각 미리보기 — 헤드라인·본문은 실제 템플릿 텍스트라 스크린리더에
-                          그대로 노출되면 아래 순번·역할 캡션, "저장될 파일" 목록과 카드 수만큼
-                          중복 낭독된다. 보이는 정보는 그 두 곳에 이미 텍스트로 있다. */}
-                      <div className="overflow-hidden rounded-xl border border-hair bg-surface" aria-hidden="true">
-                        <span className="block aspect-[4/5] w-full overflow-hidden bg-hair-soft">
-                          {/* 1080px 기준 템플릿을 0.25배(=270px)로 줄인다 — 옛 0.1407배(152px)는
-                              "너무 작아 안 보인다"는 실사용 피드백으로 키웠다. */}
-                          <span className="block origin-top-left scale-[0.25]">
-                            {/* 카드뉴스는 계정 핸들 워터마크를 쓰지 않는다 — 빈 문자열이면 CardFrame이 안 그린다. */}
-                            <CardRenderer card={card} themeId={state.themeId} handle="" />
-                          </span>
-                        </span>
-                      </div>
-                      <p className="text-[13px] font-bold tabular-nums text-ink-2">{i + 1}</p>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
+        {/* 세로로 쌓는다 — 예전엔 왼쪽(미리보기+저장될 파일) / 오른쪽(방법 셋)으로 갈랐는데,
+            방법을 하나만 보여 주게 되면서 반대쪽이 비었다. 폭을 통으로 쓰면 미리보기가 더 많이
+            들어가고 방법 패널도 제 세부를 옆에 펼칠 수 있다. */}
+        <section className="flex flex-col gap-4">
+          <SectionHead
+            title={`${state.cards.length}장 이어 보기`}
+            aside="인스타에서 넘어가는 순서 그대로예요"
+          />
+          <ol className="flex gap-4 overflow-x-auto pb-3">
+            {rendered.map((card, i) => {
+              const draft = state.cards[i];
+              return (
+                <li key={draft.id} className="flex w-[270px] flex-none flex-col gap-2">
+                  {/* 순수 시각 미리보기 — 헤드라인·본문은 실제 템플릿 텍스트라 스크린리더에
+                      그대로 노출되면 아래 순번·역할 캡션, "저장될 파일" 목록과 카드 수만큼
+                      중복 낭독된다. 보이는 정보는 그 두 곳에 이미 텍스트로 있다. */}
+                  <div className="overflow-hidden rounded-xl border border-hair bg-surface" aria-hidden="true">
+                    <span className="block aspect-[4/5] w-full overflow-hidden bg-hair-soft">
+                      {/* 1080px 기준 템플릿을 0.25배(=270px)로 줄인다 — 옛 0.1407배(152px)는
+                          "너무 작아 안 보인다"는 실사용 피드백으로 키웠다. */}
+                      <span className="block origin-top-left scale-[0.25]">
+                        {/* 카드뉴스는 계정 핸들 워터마크를 쓰지 않는다 — 빈 문자열이면 CardFrame이 안 그린다. */}
+                        <CardRenderer card={card} themeId={state.themeId} handle="" />
+                      </span>
+                    </span>
+                  </div>
+                  <p className="text-[13px] font-bold tabular-nums text-ink-2">{i + 1}</p>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
 
-            <section className="flex max-w-[640px] flex-col gap-4">
-              <SectionHead title="저장될 파일" />
-              <div className="flex flex-col gap-4 rounded-xl border border-hair p-6">
-                <p className="text-[17px] font-bold tracking-tight">{dir}/</p>
-                <ul className="flex flex-col gap-2">
-                  {state.cards.map((card, i) => (
-                    <li key={card.id} className="flex items-center gap-2.5 text-[14px] text-ink-2">
-                      <Check size={14} aria-hidden="true" className="flex-none" />
-                      <span className="tabular-nums">{i + 1}.png</span>
-                      <span className="text-ink-3">·</span>
-                      <span className="truncate">{card.copy.heading}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="border-t border-hair pt-4 text-[14px] leading-relaxed text-ink-2">
-                  같은 주제로 오늘 다시 저장하면 이 폴더를 덮어써요. 이전 회차를 남기려면 폴더 이름을 바꿔 주세요.
-                </p>
-              </div>
-            </section>
+        <section className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-[15px] font-bold">내보내는 방법</h2>
+            <p className="text-[13px] text-ink-2">
+              하나를 골라요. 사진이 어디까지 나가는지는 방법마다 달라요.
+            </p>
           </div>
 
-          {/* 오른쪽 = 내보내는 방법 세 갈래. `WorkbenchScreen` 의 레일 칸과 같은 역할 —
-              하한 380px·상한 480px 로 못박아 안의 글이 과하게 넓어지지 않게 한다. */}
-          <div className="flex flex-col gap-6 xl:max-w-[480px] xl:min-w-[380px] xl:flex-none xl:basis-[38%]">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-[15px] font-bold">내보내는 방법</h2>
-              <p className="text-[13px] text-ink-2">
-                셋 중 하나를 골라요. 인스타그램만 사진이 인터넷으로 나가요 — 나머지 둘은 이 컴퓨터를
-                벗어나지 않아요.
-              </p>
-            </div>
+          <div role="group" aria-label="내보내는 방법" className="flex flex-wrap gap-3">
+            {EXPORT_METHODS.map((m) => {
+              const on = m.id === method;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setMethod(m.id)}
+                  className={`flex min-w-[200px] flex-1 flex-col items-start gap-1 rounded-xl border-2 px-5 py-4 text-left transition-colors duration-200 ${
+                    on ? "border-ink" : "border-hair hover:border-ink-3"
+                  } ${FOCUS_RING} motion-reduce:transition-none`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-[17px] font-black tracking-tight">{m.label}</span>
+                    {on && (
+                      <span className="rounded bg-ink px-2 py-0.5 text-[12px] font-bold text-surface">선택</span>
+                    )}
+                  </span>
+                  <span className="text-[13px] text-ink-2">{m.note}</span>
+                </button>
+              );
+            })}
+          </div>
 
-            <FileSavePanel busy={state.busy} dir={dir} saved={saved} onDownload={downloadFiles} onSave={saveFiles} />
+          {/* 고른 방법의 세부만 나온다. '파일로 저장'은 저장될 파일 목록을 **옆에** 둔다 —
+              예전엔 이 목록이 방법과 떨어진 자리에 홀로 떠 있어 어느 방법에 딸린 것인지 흐렸다. */}
+          {method === "file" && (
+            <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+              <FileSavePanel busy={state.busy} dir={dir} saved={saved} onDownload={downloadFiles} onSave={saveFiles} />
+              <div className="flex flex-col gap-4">
+                <SectionHead title="저장될 파일" />
+                <div className="flex flex-col gap-4 rounded-xl border border-hair p-6">
+                  <p className="text-[17px] font-bold tracking-tight">{dir}/</p>
+                  <ul className="flex flex-col gap-2">
+                    {state.cards.map((card, i) => (
+                      <li key={card.id} className="flex items-center gap-2.5 text-[14px] text-ink-2">
+                        <Check size={14} aria-hidden="true" className="flex-none" />
+                        <span className="tabular-nums">{i + 1}.png</span>
+                        <span className="text-ink-3">·</span>
+                        <span className="truncate">{card.copy.heading}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="border-t border-hair pt-4 text-[14px] leading-relaxed text-ink-2">
+                    같은 주제로 오늘 다시 저장하면 이 폴더를 덮어써요. 이전 회차를 남기려면 폴더 이름을 바꿔 주세요.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {method === "phone" && (
             <SharePanel share={share} busy={state.busy} onRequest={requestShare} />
+          )}
+
+          {method === "instagram" && (
             <InstagramPublishPanel
               busy={state.busy}
               published={published}
@@ -266,32 +335,9 @@ export function ExportScreen({
               token={publishToken}
               imageCount={state.cards.length}
             />
-          </div>
-        </div>
-
-        <section className="flex max-w-[640px] flex-col gap-4">
-          <SectionHead title="새로 만들기" />
-          {resetConfirm ? (
-            <div className="flex flex-col gap-3 rounded-xl border border-hair p-6">
-              <p className="text-[14px] leading-relaxed text-ink-2">
-                정말 처음부터 다시 할까요? 지금까지 만든 내용이 모두 사라져요.
-              </p>
-              <div className="flex gap-2.5">
-                <LineButton disabled={state.busy} onClick={() => setResetConfirm(false)}>
-                  취소
-                </LineButton>
-                <SolidButton disabled={state.busy} onClick={() => dispatch({ type: "RESET" })}>
-                  처음부터 다시
-                </SolidButton>
-              </div>
-            </div>
-          ) : (
-            <LineButton disabled={state.busy} onClick={() => setResetConfirm(true)}>
-              <RotateCcw size={15} aria-hidden="true" />
-              처음부터 다시
-            </LineButton>
           )}
         </section>
+
       </div>
     </StudioFrame>
   );
