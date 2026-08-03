@@ -115,9 +115,12 @@ function TopicList({
 
 export function TopicSuggestPanel({
   keyword,
+  query,
   onSelect,
 }: {
   keyword: string;
+  /** `buildTopicsQuery` 가 만든 쿼리 문자열 — 순위 렌즈와 쇼핑 분야가 담긴다. */
+  query: string;
   onSelect: (keyword: string) => void;
 }) {
   const [panel, setPanel] = useState<PanelState>({ kind: "idle" });
@@ -146,7 +149,7 @@ export function TopicSuggestPanel({
     setElapsed(0);
     setPanel({ kind: "loading" });
     try {
-      const res = await fetch("/api/topics", { signal: controller.signal });
+      const res = await fetch(`/api/topics?${query}`, { signal: controller.signal });
       const body: unknown = await res.json().catch(() => null);
       setPanel({ kind: "done", view: toTopicsView(res.status, body) });
     } catch (e) {

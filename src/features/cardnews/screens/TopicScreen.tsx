@@ -7,6 +7,7 @@ import { FOCUS_RING } from "@/components/ui";
 import { StudioFrame, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { TopicSuggestPanel } from "./TopicSuggestPanel";
 import { canLeaveTopic, type CardnewsAction, type CardnewsState } from "../reducer";
+import { buildTopicsQuery } from "./material-finder";
 
 /**
  * 화면 1 — 주제. `src/app/lab2/Hub.tsx` 시안을 실제 상태에 물렸다.
@@ -61,6 +62,7 @@ export function TopicScreen({
             고른 결과는 그냥 keyword 가 되므로 위 칸에서 그대로 고칠 수 있다. */}
         <TopicSuggestPanel
           keyword={state.keyword}
+          query={buildTopicsQuery("search-trend", "")}
           onSelect={(keyword) => dispatch({ type: "SET_KEYWORD", keyword })}
         />
 
