@@ -394,9 +394,19 @@ export function WorkbenchScreen({
                       onHeadlineSelect={setHeadlineSelection}
                     />
                   </div>
-                  <p className="flex-none text-center text-[13px] text-ink-2">
-                    고칠 곳을 눌러요. 글은 그 자리에서 바로 고쳐요.
-                  </p>
+                  {/* 사진이 없는 카드는 그 사실을 **말로** 알린다. 레일의 14px 아이콘 하나로는
+                      "왜 비었지?"가 풀리지 않는다 — 사진은 `빼기` 로만 사라지는데 되돌리기가
+                      없으므로, 지금 무슨 상태인지와 되돌리는 길을 여기서 함께 준다. */}
+                  {photo ? (
+                    <p className="flex-none text-center text-[13px] text-ink-2">
+                      고칠 곳을 눌러요. 글은 그 자리에서 바로 고쳐요.
+                    </p>
+                  ) : (
+                    <div className="flex flex-none flex-wrap items-center justify-center gap-3 text-[13px]">
+                      <span className="font-bold">이 카드에는 사진이 없어요 — 글만 남아요.</span>
+                      <LineButton onClick={() => setAdding(true)}>사진 넣기</LineButton>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

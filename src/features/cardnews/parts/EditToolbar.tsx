@@ -317,19 +317,39 @@ export function EditToolbar({
         )}
 
         {active === "card" && (
-          <span className="flex items-center gap-2.5">
-            <span className="text-[14px] text-ink-2">구성</span>
-            <Group>
-              {CARD_LAYOUTS.map((l) => (
-                <Opt
-                  key={l}
-                  label={LAYOUT_LABELS[l]}
-                  on={l === card.layout}
-                  onClick={() => onPatch({ layout: l })}
-                />
-              ))}
-            </Group>
-          </span>
+          <>
+            <span className="flex items-center gap-2.5">
+              <span className="text-[14px] text-ink-2">구성</span>
+              <Group>
+                {CARD_LAYOUTS.map((l) => (
+                  <Opt
+                    key={l}
+                    label={LAYOUT_LABELS[l]}
+                    on={l === card.layout}
+                    onClick={() => onPatch({ layout: l })}
+                  />
+                ))}
+              </Group>
+            </span>
+
+            {/* 테마만 적용 범위가 다르다(이 카드가 아니라 다섯 장 전체) — 같은 줄에 두되
+                라벨에 "5장 전체"를 붙여 문구로만 구분한다. 파일 상단 주석 참고. */}
+            <span className="flex items-center gap-2.5">
+              <span className="text-[14px] text-ink-2">
+                테마 <span className="font-bold text-ink">5장 전체</span>
+              </span>
+              <Group>
+                {THEME_IDS.map((id) => (
+                  <Opt
+                    key={id}
+                    label={THEMES[id].label}
+                    on={id === themeId}
+                    onClick={() => onThemeChange(id)}
+                  />
+                ))}
+              </Group>
+            </span>
+          </>
         )}
       </div>
     </div>
