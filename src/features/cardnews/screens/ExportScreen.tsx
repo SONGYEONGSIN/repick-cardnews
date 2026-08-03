@@ -334,6 +334,8 @@ export function ExportScreen({
               onPublish={publishToInstagram}
               token={publishToken}
               imageCount={state.cards.length}
+              keyword={state.keyword}
+              onCaptureImages={onCaptureImages}
             />
           )}
         </section>

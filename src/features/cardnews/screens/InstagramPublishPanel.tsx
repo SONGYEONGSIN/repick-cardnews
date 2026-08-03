@@ -9,6 +9,7 @@ import { daysRemaining } from "@/lib/instagram-token-refresh";
 import type { PublishProgress } from "@/lib/publish-progress-store";
 import { TokenStatusBlock, type RefreshActionResult, type TokenStatusView } from "./TokenStatusBlock";
 import { HashtagInput } from "./HashtagInput";
+import { SchedulePanel } from "./SchedulePanel";
 
 /**
  * "인스타그램에 올리기" 패널. 연결 여부는 이 컴포넌트가 마운트 시 `GET /api/instagram-status`
@@ -103,6 +104,8 @@ export function InstagramPublishPanel({
   onPublish,
   token,
   imageCount,
+  keyword,
+  onCaptureImages,
 }: {
   /** 다른 내보내기 작업(다운로드·저장 등)이 진행 중이어도 버튼을 눌러선 안 된다. */
   busy: boolean;
@@ -114,6 +117,10 @@ export function InstagramPublishPanel({
   token: string | null;
   /** 이번에 게시할 사진 장수 — 최대 소요 시간 안내에 쓴다. */
   imageCount: number;
+  /** 예약 항목에 함께 남긴다 — 목록에서 어떤 카드인지 알아보려면 주제가 필요하다. */
+  keyword: string;
+  /** 예약할 때 카드 이미지를 그 자리에서 굳히기 위해 부른다(`ExportScreen` 의 캡처). */
+  onCaptureImages: (count: number) => Promise<string[]>;
 }) {
   const [status, setStatus] = useState<ConnectionStatus>({ state: "loading" });
   const [caption, setCaption] = useState("");
@@ -375,6 +382,19 @@ export function InstagramPublishPanel({
             </SolidButton>
             </div>
           </div>
+        )}
+
+        {/* 예약도 게시의 한 갈래라 같은 방법 안에 둔다. 지금 화면의 캡션·해시태그를 그대로
+            넘긴다 — 예약한 그대로가 올라가야 한다. */}
+        {status.state === "ready" && (
+          <SchedulePanel
+            busy={busy || publishing}
+            imageCount={imageCount}
+            keyword={keyword}
+            caption={caption}
+            hashtags={hashtags}
+            onCaptureImages={onCaptureImages}
+          />
         )}
       </div>
     </section>
