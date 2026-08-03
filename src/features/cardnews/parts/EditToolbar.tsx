@@ -50,18 +50,46 @@ function Group({ children }: { children: React.ReactNode }) {
   return <span className="flex items-center rounded-lg border border-hair p-1">{children}</span>;
 }
 
-function Opt({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+function Opt({
+  label,
+  on,
+  onClick,
+  swatch,
+}: {
+  label: string;
+  on: boolean;
+  onClick: () => void;
+  /** 앞에 붙는 시각 견본. 색 자체가 고르는 대상일 때만 쓴다(docs/ui-standards.md §5). */
+  swatch?: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={`h-9 rounded px-3 text-[14px] font-bold leading-9 transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
+      className={`flex h-9 items-center gap-2 rounded px-3 text-[14px] font-bold transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
         on ? "bg-ink text-surface" : "text-ink-2 hover:text-ink"
       }`}
     >
+      {swatch}
       {label}
     </button>
+  );
+}
+
+/**
+ * 테마 견본 — 한 칩에 **바탕·강조·글자색** 세 값을 담는다. 이 화면은 색을 쓰지 않는 것이
+ * 원칙이지만, 여기서는 **색 자체가 고르는 대상**이라 예외가 선다(docs/ui-standards.md §5).
+ * 값은 전부 `THEMES` 에서 오고 하드코딩 리터럴은 없다.
+ */
+function ThemeSwatch({ themeId }: { themeId: ThemeId }) {
+  const t = THEMES[themeId];
+  return (
+    <span
+      aria-hidden="true"
+      className="h-4 w-4 flex-none rounded-full"
+      style={{ background: t.bg, boxShadow: `inset 0 0 0 3px ${t.accent}, inset 0 0 0 4px ${t.fg}` }}
+    />
   );
 }
 
@@ -366,7 +394,7 @@ export function EditToolbar({
 
             {/* 테마만 적용 범위가 다르다(이 카드가 아니라 다섯 장 전체) — 같은 줄에 두되
                 라벨에 "5장 전체"를 붙여 문구로만 구분한다. 파일 상단 주석 참고. */}
-            <span className="flex items-center gap-2.5">
+            <span className="flex flex-wrap items-center gap-2.5">
               <span className="text-[14px] text-ink-2">
                 테마 <span className="font-bold text-ink">5장 전체</span>
               </span>
@@ -377,9 +405,19 @@ export function EditToolbar({
                     label={THEMES[id].label}
                     on={id === themeId}
                     onClick={() => onThemeChange(id)}
+                    swatch={<ThemeSwatch themeId={id} />}
                   />
                 ))}
               </Group>
+              {/* 사진 전면 카드는 사진이 바탕과 글자색을 덮는다 — 테마를 바꿔도 글꼴·형광만
+                  달라진다. 이 사실을 안 적으면 "테마가 안 먹는다"로 읽힌다(실제로 그런 문의를
+                  받았다). 해당 레이아웃일 때만 띄운다 — 늘 띄우면 잡음이다. */}
+              {card.layout === "full-bleed" && (
+                <span className="text-[13px] leading-relaxed text-ink-2">
+                  이 카드는 사진이 덮어서 <span className="font-bold">글꼴과 형광만</span> 달라져요.
+                  바탕·글자색까지 보려면 구성을 &lsquo;사진 + 글&rsquo; 이나 &lsquo;글만&rsquo; 으로 바꿔요.
+                </span>
+              )}
             </span>
           </>
         )}
