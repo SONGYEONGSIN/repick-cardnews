@@ -76,3 +76,14 @@ export function toLocalInputValue(ms: number): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/**
+ * **이 세션에서 건 예약**이 아직 대기 중인가. 예약해 놓고 "인스타에 올리기"를 또 누르면 같은
+ * 카드가 두 번 올라간다(지금 한 번, 예약 시각에 한 번) — 그걸 막는 데 쓴다.
+ *
+ * 큐는 전역이라 **남이 옛날에 건 예약까지 막으면 안 된다.** 그래서 이 세션이 만든 id 만 본다.
+ */
+export function hasPendingFrom(items: ScheduleView[], sessionIds: readonly string[]): boolean {
+  const mine = new Set(sessionIds);
+  return items.some((item) => mine.has(item.id) && item.status === "pending");
+}

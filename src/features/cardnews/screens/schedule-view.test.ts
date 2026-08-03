@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { STATUS_LABELS, isPending, toLocalInputValue, toScheduleView } from "./schedule-view";
+import { STATUS_LABELS, hasPendingFrom, isPending, toLocalInputValue, toScheduleView } from "./schedule-view";
 
 function row(over: Record<string, unknown> = {}) {
   return {
@@ -74,5 +74,37 @@ describe("toLocalInputValue — datetime-local 이 읽는 형식", () => {
     const t = new Date(2026, 0, 1, 0, 30).getTime();
 
     expect(toLocalInputValue(t)).toBe("2026-01-01T00:30");
+  });
+});
+
+// 예약해 놓고 "인스타에 올리기"를 또 누르면 같은 카드가 두 번 올라간다.
+// 이 세션에서 건 예약이 아직 대기 중인지로 판단한다 — 남이 옛날에 건 예약까지 막으면 안 된다.
+describe("hasPendingFrom — 이 세션이 건 예약이 아직 남았나", () => {
+  const items = toScheduleView(200, {
+    items: [row({ id: "mine", status: "pending" }), row({ id: "other", status: "pending" })],
+  });
+
+  it("이 세션이 건 것이 대기 중이면 참이다", () => {
+    expect(hasPendingFrom(items, ["mine"])).toBe(true);
+  });
+
+  it("이 세션이 건 게 없으면 거짓이다 — 다른 예약이 대기 중이어도 막지 않는다", () => {
+    expect(hasPendingFrom(items, [])).toBe(false);
+    expect(hasPendingFrom(items, ["없는id"])).toBe(false);
+  });
+
+  it("이 세션이 건 것이 끝났으면 거짓이다 — 다시 올릴 수 있어야 한다", () => {
+    const done = toScheduleView(200, { items: [row({ id: "mine", status: "published" })] });
+    expect(hasPendingFrom(done, ["mine"])).toBe(false);
+
+    const canceled = toScheduleView(200, { items: [row({ id: "mine", status: "canceled" })] });
+    expect(hasPendingFrom(canceled, ["mine"])).toBe(false);
+  });
+
+  it("여러 번 걸었으면 하나라도 남으면 참이다", () => {
+    const mixed = toScheduleView(200, {
+      items: [row({ id: "a", status: "published" }), row({ id: "b", status: "pending" })],
+    });
+    expect(hasPendingFrom(mixed, ["a", "b"])).toBe(true);
   });
 });

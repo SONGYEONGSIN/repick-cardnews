@@ -125,6 +125,9 @@ export function InstagramPublishPanel({
   const [status, setStatus] = useState<ConnectionStatus>({ state: "loading" });
   const [caption, setCaption] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
+  // 이 세션이 건 예약이 아직 대기 중인가. 예약해 놓고 "지금 올리기"를 또 누르면 같은 카드가
+  // 두 번 올라간다(지금 한 번, 예약 시각에 한 번).
+  const [schedulePending, setSchedulePending] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [verify, setVerify] = useState<VerifyResult>({ state: "idle" });
   const [progress, setProgress] = useState<PublishProgress | null>(null);
@@ -204,7 +207,7 @@ export function InstagramPublishPanel({
     };
   }, [token]);
 
-  const canPublish = status.state === "ready" && !busy && !publishing;
+  const canPublish = status.state === "ready" && !busy && !publishing && !schedulePending;
   const maxWaitMinutes = Math.round(maxPublishWaitMs(imageCount) / 60_000);
   const label = progressLabel(progress);
 
@@ -376,6 +379,14 @@ export function InstagramPublishPanel({
               </p>
             )}
 
+            {/* 막힌 이유를 적는다 — 회색 버튼만 두면 왜 안 눌리는지 알 수 없다. */}
+            {schedulePending && (
+              <p role="status" className="flex items-start gap-2 text-[14px] font-bold leading-relaxed">
+                <CircleAlert size={15} aria-hidden="true" className="mt-0.5 flex-none" />
+                예약이 걸려 있어요. 지금 올리면 예약 시각에 한 번 더 올라가요 — 지금 올리려면 아래에서
+                예약을 먼저 취소해 주세요.
+              </p>
+            )}
             <SolidButton disabled={!canPublish} onClick={() => void handleClick()}>
               <Send size={15} aria-hidden="true" />
               인스타에 올리기
@@ -394,6 +405,7 @@ export function InstagramPublishPanel({
             caption={caption}
             hashtags={hashtags}
             onCaptureImages={onCaptureImages}
+            onPendingChange={setSchedulePending}
           />
         )}
       </div>

@@ -7,6 +7,7 @@ import { LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFra
 import { inKorean } from "./errors";
 import {
   STATUS_LABELS,
+  hasPendingFrom,
   isPending,
   toLocalInputValue,
   toScheduleView,
@@ -30,6 +31,7 @@ export function SchedulePanel({
   caption,
   hashtags,
   onCaptureImages,
+  onPendingChange,
 }: {
   busy: boolean;
   imageCount: number;
@@ -37,11 +39,15 @@ export function SchedulePanel({
   caption: string;
   hashtags: string[];
   onCaptureImages: (count: number) => Promise<string[]>;
+  /** 이 세션이 건 예약이 아직 대기 중인지 부모에게 알린다 — 부모가 "지금 올리기"를 막는다. */
+  onPendingChange: (hasPending: boolean) => void;
 }) {
   const [when, setWhen] = useState("");
   const [items, setItems] = useState<ScheduleView[]>([]);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // **이 세션이 만든** 예약 id 들. 큐는 전역이라 남이 옛날에 건 예약까지 막으면 안 된다.
+  const [mine, setMine] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -54,6 +60,14 @@ export function SchedulePanel({
     }
   }, []);
 
+  // 이 세션이 건 예약이 아직 대기 중인가. 두 번 걸면 두 번 올라간다.
+  const pending = hasPendingFrom(items, mine);
+
+  // 목록이 바뀔 때마다 부모에게 알린다 — 예약이 끝나면 다시 올릴 수 있어야 한다.
+  useEffect(() => {
+    onPendingChange(pending);
+  }, [pending, onPendingChange]);
+
   useEffect(() => {
     void load();
     // 스케줄러가 1분마다 도므로 화면도 그 주기로 따라간다.
@@ -62,7 +76,8 @@ export function SchedulePanel({
   }, [load]);
 
   async function schedule() {
-    if (working || !when) return;
+    // 두 번 걸면 두 번 올라간다 — 버튼도 잠기지만 여기서도 막는다.
+    if (working || !when || pending) return;
     setWorking(true);
     setError(null);
     try {
@@ -85,6 +100,8 @@ export function SchedulePanel({
         setError(inKorean(typeof message === "string" ? message : "", "예약하지 못했어요. 잠시 후 다시 시도해 주세요."));
         return;
       }
+      const id = typeof body === "object" && body !== null ? (body as { id?: unknown }).id : undefined;
+      if (typeof id === "string") setMine((prev) => [...prev, id]);
       setWhen("");
       await load();
     } catch (e) {
@@ -129,7 +146,13 @@ export function SchedulePanel({
             />
           </label>
 
-          <SolidButton disabled={busy || working || !when} onClick={() => void schedule()}>
+          {pending && (
+            <p role="status" className="flex items-start gap-2 text-[14px] font-bold leading-relaxed">
+              <CircleAlert size={15} aria-hidden="true" className="mt-0.5 flex-none" />
+              이미 예약이 걸려 있어요. 또 걸면 두 번 올라가요 — 바꾸려면 오른쪽에서 먼저 취소해 주세요.
+            </p>
+          )}
+          <SolidButton disabled={busy || working || !when || pending} onClick={() => void schedule()}>
             {working ? (
               <LoaderCircle size={15} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
             ) : (
