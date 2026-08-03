@@ -256,10 +256,10 @@ export function InstagramPublishPanel({
   }
 
   return (
-    // 표준: 제목/구분선 밖 + 상태(왼쪽) / 게시 준비(오른쪽) 2단 — docs/ui-standards.md §1,§3
+    // 표준: 제목/구분선 밖, 내용은 박스 안 + 상태(왼쪽)/게시 준비(오른쪽) 2단 — docs/ui-standards.md §1,§3
     <section className="flex flex-col gap-4">
       <SectionHead title="인스타그램에 올리기" aside="누르면 사진이 인스타그램 서버로 나가요" />
-      <div role="status" className="flex flex-col gap-4">
+      <div role="status" className="flex flex-col gap-4 rounded-xl border border-hair p-6">
         {status.state === "loading" && (
           <p className="text-[14px] text-ink-2">연결 상태를 확인하는 중이에요.</p>
         )}

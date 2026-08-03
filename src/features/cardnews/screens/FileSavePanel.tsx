@@ -27,9 +27,10 @@ export function FileSavePanel({
   onSave: () => void;
 }) {
   return (
-    // 표준: 제목/구분선(SectionHead) 밖, 내용 안 — docs/ui-standards.md §1
+    // 표준: 제목/구분선(SectionHead) 밖, 내용은 박스 안 — docs/ui-standards.md §1
     <section className="flex flex-col gap-4">
       <SectionHead title="파일로 저장" aside="이 컴퓨터 안에만 남아요" />
+      <div className="flex flex-col gap-4 rounded-xl border border-hair p-6">
       <p className="max-w-[62ch] text-[14px] leading-relaxed text-ink-2">
         네트워크 밖으로 나가지 않아요. <span className="font-mono text-[13px]">{dir}/</span> 에 장수만큼
         PNG 로 남거나, 브라우저 다운로드 폴더에 한 장씩 내려받아요.
@@ -53,6 +54,7 @@ export function FileSavePanel({
           </span>
         </p>
       )}
+      </div>
     </section>
   );
 }

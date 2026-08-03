@@ -57,10 +57,10 @@ export function SharePanel({
   }, []);
 
   return (
-    // 표준: 제목/구분선 밖 + 설명(왼쪽) / 조작·결과(오른쪽) 2단 — docs/ui-standards.md §1,§3
+    // 표준: 제목/구분선 밖, 내용은 박스 안 + 설명(왼쪽)/조작·결과(오른쪽) 2단 — docs/ui-standards.md §1,§3
     <section className="flex flex-col gap-4">
       <SectionHead title="폰으로 보내기" aside="같은 와이파이에서만 열려요" />
-      <div role="status" className="grid gap-6 xl:grid-cols-2 xl:items-start">
+      <div role="status" className="grid gap-6 rounded-xl border border-hair p-6 xl:grid-cols-2 xl:items-start">
         <div className="flex flex-col gap-3">
           {/* 이 방법이 "확인용"으로만 읽히던 문제 — 링크 조건만 적혀 있고 **무엇에 쓰는지**가
               없었다. 폰에 저장한 뒤 인스타 앱으로 올리는 길이라는 걸 먼저 말한다. */}
