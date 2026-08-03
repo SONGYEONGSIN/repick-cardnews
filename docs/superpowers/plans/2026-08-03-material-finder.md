@@ -1206,8 +1206,13 @@ git commit -m "feat: 주제 순위 렌즈를 고를 수 있게"
 - Produces:
   - `FINDER_MODES: readonly { id: FinderMode; label: string; hint: string }[]`, `FinderMode = "trending" | "search" | "curated"`
   - `RANK_LENSES: readonly { id: RankLens; label: string; hint: string }[]`, `RankLens = "search-trend" | "shopping" | "claude"`
-  - `MaterialsView = { kind: "items"; items: MaterialItem[]; categories: string[]; skipped: string[] } | { kind: "empty"; categories: string[]; skipped: string[] } | { kind: "error"; message: string }`
+  - `MaterialsView = { kind: "items"; items: MaterialItem[]; mode: FinderMode; query: string; categories: string[]; skipped: string[] } | { kind: "empty"; mode: FinderMode; query: string; categories: string[]; skipped: string[] } | { kind: "error"; message: string }`
   - `toMaterialsView(status: number, body: unknown): MaterialsView`
+  - `materialsSourceLine(view: MaterialsView): string | null` — 결과가 **어느 모드로** 나온 것인지 밝힌다
+
+> **`mode` 를 반드시 응답에서 읽어 뷰에 담아라.** 화면의 현재 탭에서 가져오면 안 된다 — 이
+> 화면은 탭을 바꿔도 이미 가져온 결과를 지우지 않으므로, 급상승 결과를 띄운 채 키워드 탭으로
+> 옮기면 출처가 "인기 급상승"으로 **거짓 표시**된다. 출처는 언제나 그 결과를 만든 요청을 따른다.
   - `buildMaterialsQuery(mode: FinderMode, opts: { categoryIds: string[]; query: string }): string`
   - `buildTopicsQuery(lens: RankLens, shoppingCategoryId: string): string`
   - `lensAvailability(lens: RankLens, naverConfigured: boolean): { enabled: boolean; reason: string | null }`
@@ -1306,6 +1311,21 @@ describe("toMaterialsView", () => {
     expect(view.skipped).toEqual([]);
   });
 
+  // 탭을 바꿔도 결과는 남는다 — 출처는 화면의 현재 탭이 아니라 이 결과를 만든 요청을 따라야 한다.
+  it("모드를 응답에서 읽어 담는다 — 화면의 현재 탭을 믿지 않는다", () => {
+    const trending = toMaterialsView(200, body);
+    const search = toMaterialsView(200, { items: body.items, mode: "search", query: "전기세" });
+
+    expect(trending.kind === "items" && trending.mode).toBe("trending");
+    expect(search.kind === "items" && search.mode).toBe("search");
+    expect(search.kind === "items" && search.query).toBe("전기세");
+  });
+
+  it("모드를 모르면 오류로 접는다 — 출처를 지어내지 않는다", () => {
+    expect(toMaterialsView(200, { items: body.items }).kind).toBe("error");
+    expect(toMaterialsView(200, { items: body.items, mode: "nope" }).kind).toBe("error");
+  });
+
   it("결과가 0개면 '없음' 상태다 — 빈 목록을 그냥 두지 않는다", () => {
     const view = toMaterialsView(200, { ...body, items: [] });
 
@@ -1323,6 +1343,37 @@ describe("toMaterialsView", () => {
       kind: "error",
       message: expect.stringMatching(/[가-힣]/),
     });
+  });
+});
+
+describe("materialsSourceLine — 어디서 가져온 것인지", () => {
+  it("급상승이면 인기 급상승과 실제로 쓴 카테고리를 말한다", () => {
+    const view = toMaterialsView(200, {
+      items: [{ videoId: "v1", title: "제목1", channelTitle: "채널1" }],
+      mode: "trending",
+      youtubeCategories: ["살림·요리·꿀팁", "일상·브이로그"],
+    });
+
+    const line = materialsSourceLine(view)!;
+    expect(line).toContain("인기 급상승");
+    expect(line).toContain("살림·요리·꿀팁, 일상·브이로그");
+  });
+
+  it("키워드 검색이면 검색이라는 것과 무엇으로 찾았는지를 말한다 — 급상승이라고 하지 않는다", () => {
+    const view = toMaterialsView(200, {
+      items: [{ videoId: "v1", title: "제목1", channelTitle: "채널1" }],
+      mode: "search",
+      query: "에어컨 전기세",
+    });
+
+    const line = materialsSourceLine(view)!;
+    expect(line).toContain("검색");
+    expect(line).toContain("에어컨 전기세");
+    expect(line).not.toContain("급상승");
+  });
+
+  it("오류일 때는 출처를 말하지 않는다", () => {
+    expect(materialsSourceLine(toMaterialsView(502, { error: "실패" }))).toBeNull();
   });
 
   it("200 인데 형태가 어긋나면 raw 를 보이지 않고 오류로 접는다", () => {
@@ -1424,8 +1475,8 @@ export function buildTopicsQuery(lens: RankLens, shoppingCategoryId: string): st
 }
 
 export type MaterialsView =
-  | { kind: "items"; items: MaterialItem[]; categories: string[]; skipped: string[] }
-  | { kind: "empty"; categories: string[]; skipped: string[] }
+  | { kind: "items"; items: MaterialItem[]; mode: FinderMode; query: string; categories: string[]; skipped: string[] }
+  | { kind: "empty"; mode: FinderMode; query: string; categories: string[]; skipped: string[] }
   | { kind: "error"; message: string };
 
 const FALLBACK_ERROR = "소재를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.";
@@ -1455,18 +1506,35 @@ function toItems(value: unknown): MaterialItem[] | null {
   return items;
 }
 
+/** 응답이 밝힌 모드만 인정한다 — 모르면 출처를 지어내느니 오류로 접는다. */
+function toMode(value: unknown): FinderMode | null {
+  return value === "trending" || value === "search" || value === "curated" ? value : null;
+}
+
 export function toMaterialsView(status: number, body: unknown): MaterialsView {
   const record = asRecord(body);
   if (status !== 200) {
     return { kind: "error", message: inKorean(asString(record?.error) ?? "", FALLBACK_ERROR) };
   }
   const items = record && toItems(record.items);
-  if (!record || !items) return { kind: "error", message: FALLBACK_ERROR };
+  // 모드는 **응답에서** 읽는다. 화면의 현재 탭에서 가져오면, 탭을 바꿨을 때 남아 있는 결과의
+  // 출처를 거짓으로 말하게 된다(이 화면은 탭을 바꿔도 결과를 지우지 않는다).
+  const mode = record && toMode(record.mode);
+  if (!record || !items || !mode) return { kind: "error", message: FALLBACK_ERROR };
 
+  const query = asString(record.query) ?? "";
   const categories = toStringList(record.youtubeCategories);
   const skipped = toStringList(record.skippedYoutubeCategories);
-  if (items.length === 0) return { kind: "empty", categories, skipped };
-  return { kind: "items", items, categories, skipped };
+  if (items.length === 0) return { kind: "empty", mode, query, categories, skipped };
+  return { kind: "items", items, mode, query, categories, skipped };
+}
+
+/** 결과 위에 붙일 후보 출처 한 줄. **그 결과를 만든 요청**을 따른다. */
+export function materialsSourceLine(view: MaterialsView): string | null {
+  if (view.kind === "error") return null;
+  if (view.mode === "search") return `유튜브 검색 · “${view.query}”`;
+  const base = "유튜브 인기 급상승(한국)";
+  return view.categories.length > 0 ? `${base} · ${view.categories.join(", ")}` : base;
 }
 ```
 
