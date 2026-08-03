@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type Dispatch } from "react";
-import { ArrowLeft, ArrowRight, CircleAlert, LoaderCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleAlert, LoaderCircle, Sparkles } from "lucide-react";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { Dropzone } from "@/features/photos/Dropzone";
 import { requestSpec } from "@/features/studio/useGenerate";
@@ -10,6 +10,8 @@ import { CardCanvas } from "../parts/CardCanvas";
 import { EditToolbar, type EditTarget } from "../parts/EditToolbar";
 import { WorkbenchRail, type RailItem } from "./WorkbenchRail";
 import { inKorean } from "./errors";
+import { THEMES } from "@/templates/themes";
+import { workbenchChecks } from "../checks";
 import {
   CARDNEWS_MAX,
   CARDNEWS_MIN,
@@ -97,6 +99,8 @@ export function WorkbenchScreen({
   const [focusToken, setFocusToken] = useState(0);
 
   const slots = slotPhotos(state);
+  // 카드 전체를 훑어야 알 수 있는 사실 — 툴바는 고른 카드 하나만 보여 준다.
+  const checks = workbenchChecks(state);
 
   // 칩 하나가 가리키는 것. 카피가 나오면 카드가 기준이 된다 — 사진이 모자란 카드도 칩을 가져야
   // 글을 고칠 수 있다. 카드의 사진은 order 가 아니라 card.photoId 로 찾는다(출력 `toRenderCards`
@@ -199,7 +203,29 @@ export function WorkbenchScreen({
         // 적게 올 수 있어(스키마 5~6장) 사진 장수를 계속 쓰면 사이드바가 거짓을 말한다.
         { label: "형태", value: `카드뉴스 ${state.cards.length > 0 ? state.cards.length : slots.length}장` },
         { label: "올린 사진", value: `${state.photos.length}장` },
+        // 다섯 장 전체에 걸리는 값이라 카드를 넘겨도 안 바뀐다 — 사이드바가 제자리다.
+        { label: "테마", value: THEMES[state.themeId].label },
+        { label: "저장 크기", value: "1080 × 1350 PNG" },
       ]}
+      sidebar={
+        checks.length > 0 ? (
+          <section className="flex flex-col gap-2.5">
+            <h2 className="text-[13px] text-ink-2">점검</h2>
+            <ul className="flex flex-col gap-1.5">
+              {checks.map((c) => (
+                <li key={c.text} className="flex items-start gap-2 text-[14px] font-bold leading-snug">
+                  {c.tone === "ok" ? (
+                    <Check size={14} aria-hidden="true" className="mt-0.5 flex-none" />
+                  ) : (
+                    <CircleAlert size={14} aria-hidden="true" className="mt-0.5 flex-none" />
+                  )}
+                  {c.text}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : undefined
+      }
       action={
         <>
           {/* 생성 중에는 나갈 수 없다. 나가서 주제를 고치고 돌아오면 busy 가 안 풀린 채로 화면이

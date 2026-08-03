@@ -13,6 +13,7 @@ import {
   textScaleStepOf,
 } from "@/templates/layout-utils";
 import { THEMES, THEME_IDS, type ThemeId } from "@/templates/themes";
+import { BODY_MAX, HEADING_MAX } from "../checks";
 import type { CardDraft } from "../reducer";
 
 /**
@@ -219,7 +220,7 @@ export function EditToolbar({
   const activeText = active === "body" ? (body ?? "") : copy.heading;
   const textBlank = isBlankText(activeText);
   const len = active === "body" ? (body?.length ?? 0) : copy.heading.length;
-  const max = active === "body" ? 120 : 40;
+  const max = active === "body" ? BODY_MAX : HEADING_MAX;
 
   /**
    * "지우기" — heading 은 다섯 역할 전부에 있어 그대로 지운다. body 는 problem·evidence·
