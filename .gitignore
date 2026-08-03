@@ -4,3 +4,7 @@ node_modules
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+
+# /api/save 가 만드는 결과물 폴더만 무시한다 — 두 폴더의 .gitkeep 과 참고용 원본은 그대로 추적한다
+cardnews/*/
+informationsend/*/

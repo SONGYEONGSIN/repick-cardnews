@@ -1,0 +1,169 @@
+/**
+ * 네이버 데이터랩 검색어트렌드로 후보 키워드 순위를 매긴다 — 트렌드 주제 파이프라인의
+ * 4단계. `@/lib/topic-curation`이 추려준 키워드들을 30~40대 여성이 실제로 검색하는지
+ * 상대값으로 확인해 정렬한다.
+ *
+ * **NAVER API HUB(네이버 클라우드 플랫폼)를 통해 부른다** — `developers.naver.com` 이 아니다.
+ * 둘은 같은 데이터를 주지만 **호스트도 인증 헤더도 다르고, 자격 증명이 서로 호환되지 않는다**.
+ * API HUB 키로 `openapi.naver.com` 을 부르면 `errorCode 024`(인증 실패)로 거절당한다 —
+ * 키가 틀린 것처럼 보여서 헤매기 쉽다(2026-08-02 실제로 겪음).
+ *
+ * `POST https://naverapihub.apigw.ntruss.com/search-trend/v1/search`, 헤더
+ * `X-NCP-APIGW-API-KEY-ID`·`X-NCP-APIGW-API-KEY`·`Content-Type: application/json`. 본문은
+ * `startDate`·`endDate`·`timeUnit`·`keywordGroups`(그룹명+키워드)·`device`·`ages`·`gender`.
+ * **한 요청에 키워드 그룹 최대 5개**까지만 담을 수 있어 후보가 많으면 나눠 보낸다.
+ *
+ * **응답값은 절대 검색량이 아니라 상대값**이다(공식 문서) — 그래서 여기서 만드는 `score`도
+ * 후보끼리 비교하는 용도로만 쓰고, 호출 쪽에서 "검색 N회"처럼 절대치로 포장하면 안 된다.
+ *
+ * **기간 선택(최근 30일, timeUnit=date)**: 후보가 유튜브 인기 급상승에서 온 것이라
+ * 최신 화제성이 중요하다. `month` 단위는 이번 달 데이터가 다 안 쌓였을 수 있어 데이터
+ * 포인트가 1~2개뿐이라 트렌드 판단에 부적합하고, 일 단위 평균은 단발성 급증을 완화하면서도
+ * 오래된 데이터에 희석되지 않는다.
+ *
+ * **`ages` 코드와 연령대의 대응 — 확인함(2026-08-02)**: 1=0\~12, 2=13\~18, 3=19\~24,
+ * 4=25\~29, 5=30\~34, 6=35\~39, 7=40\~44, 8=45\~49, 9=50\~54, 10=55\~59, 11=60세 이상.
+ * 데이터랩 화면(datalab.naver.com/keyword/trendSearch.naver)의 연령 구간과도 일치한다.
+ * 따라서 `NAVER_AGES_30S_40S` = 30\~49세다.
+ */
+import { z } from "zod/v4";
+
+/** NAVER API HUB 게이트웨이의 검색어트렌드 경로. 파일 상단 주석 참고. */
+const DATALAB_URL = "https://naverapihub.apigw.ntruss.com/search-trend/v1/search";
+
+/** 30~49세 — 5=30~34, 6=35~39, 7=40~44, 8=45~49. 파일 상단 주석 참고. */
+export const NAVER_AGES_30S_40S: readonly string[] = ["5", "6", "7", "8"];
+export const NAVER_GENDER_FEMALE = "f";
+
+/** 공식 문서상 한 요청에 담을 수 있는 키워드 그룹 최대치. */
+export const MAX_GROUPS_PER_REQUEST = 5;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const LOOKBACK_DAYS = 30;
+
+export type DatalabPeriod = { startDate: string; endDate: string; timeUnit: "date" };
+
+function toDateString(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/** 기준 시각으로부터 최근 30일 — 근거는 파일 상단 주석 참고. */
+export function buildRecentPeriod(now: Date): DatalabPeriod {
+  const start = new Date(now.getTime() - LOOKBACK_DAYS * MS_PER_DAY);
+  return { startDate: toDateString(start), endDate: toDateString(now), timeUnit: "date" };
+}
+
+export type DatalabKeywordGroup = { groupName: string; keywords: string[] };
+export type DatalabRequestBody = DatalabPeriod & {
+  keywordGroups: DatalabKeywordGroup[];
+  ages: string[];
+  gender: string;
+};
+
+/** 키워드 각각을 자기 자신만 담은 독립 그룹으로 만든다 — 그룹별 순위가 곧 키워드별
+ * 순위다. 그룹은 요청당 최대 5개까지만 담을 수 있어(공식 문서) `MAX_GROUPS_PER_REQUEST`
+ * 개씩 나눠 여러 요청으로 쪼갠다. */
+export function chunkKeywordsIntoRequests(keywords: string[], period: DatalabPeriod): DatalabRequestBody[] {
+  const requests: DatalabRequestBody[] = [];
+  for (let i = 0; i < keywords.length; i += MAX_GROUPS_PER_REQUEST) {
+    const chunk = keywords.slice(i, i + MAX_GROUPS_PER_REQUEST);
+    requests.push({
+      ...period,
+      keywordGroups: chunk.map((keyword) => ({ groupName: keyword, keywords: [keyword] })),
+      ages: [...NAVER_AGES_30S_40S],
+      gender: NAVER_GENDER_FEMALE,
+    });
+  }
+  return requests;
+}
+
+/** 기간 내 `ratio` 점들의 평균 — 하루 단위 노이즈를 완화한 대표 점수. */
+export function averageRatio(data: { period: string; ratio: number }[]): number {
+  if (data.length === 0) return 0;
+  return data.reduce((sum, point) => sum + point.ratio, 0) / data.length;
+}
+
+export type RankedTopic = { keyword: string; score: number };
+
+export class NaverDatalabApiError extends Error {
+  readonly body: unknown;
+  constructor(message: string, body: unknown) {
+    super(message);
+    this.name = "NaverDatalabApiError";
+    this.body = body;
+  }
+}
+
+/** 실패를 한국어 안내로 바꾼다. 네이버가 준 영문 사유를 그대로 보여주지 않는다. */
+export function friendlyNaverDatalabError(e: unknown): string {
+  if (e instanceof NaverDatalabApiError) {
+    return "네이버 데이터랩 순위를 가져오지 못했어요. 클라이언트 ID·시크릿을 확인해 주세요.";
+  }
+  return "네이버 서버에 연결하지 못했어요. 네트워크를 확인해 주세요.";
+}
+
+const DatalabResponseSchema = z.object({
+  results: z.array(
+    z.object({
+      title: z.string(),
+      data: z.array(z.object({ period: z.string(), ratio: z.number() })),
+    }),
+  ),
+});
+
+async function parseJson(res: Response): Promise<unknown> {
+  try {
+    const data: unknown = await res.json();
+    return data;
+  } catch {
+    return undefined;
+  }
+}
+
+export type NaverDatalabConfig = { clientId: string; clientSecret: string };
+
+async function callDatalab(
+  auth: NaverDatalabConfig,
+  body: DatalabRequestBody,
+  fetchImpl: typeof fetch,
+): Promise<RankedTopic[]> {
+  const res = await fetchImpl(DATALAB_URL, {
+    method: "POST",
+    headers: {
+      "X-NCP-APIGW-API-KEY-ID": auth.clientId,
+      "X-NCP-APIGW-API-KEY": auth.clientSecret,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await parseJson(res);
+  if (!res.ok) {
+    throw new NaverDatalabApiError(`네이버 데이터랩 API 실패 (HTTP ${res.status})`, json);
+  }
+  const parsed = DatalabResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    throw new NaverDatalabApiError("네이버 데이터랩 응답 형식이 예상과 달라요", json);
+  }
+  // 그룹명(title)이 곧 keywordGroups 를 만들 때 넣은 키워드 자신이다(chunkKeywordsIntoRequests 참고).
+  return parsed.data.results.map((result) => ({ keyword: result.title, score: averageRatio(result.data) }));
+}
+
+/**
+ * 후보 키워드들을 데이터랩에 보내 30~40대 여성 기준 상대값으로 순위를 매긴다(점수
+ * 내림차순). 그룹 5개 제한 때문에 여러 요청으로 나눠 **순차** 호출한다 — 네이버 쪽 순간
+ * 호출량을 늘리지 않기 위해서다(응답 시간이 늘어나는 대신 안전한 쪽을 택했다).
+ */
+export async function rankKeywordsByNaverDatalab(
+  keywords: string[],
+  auth: NaverDatalabConfig,
+  now: Date = new Date(),
+  fetchImpl: typeof fetch = fetch,
+): Promise<RankedTopic[]> {
+  const period = buildRecentPeriod(now);
+  const requests = chunkKeywordsIntoRequests(keywords, period);
+  const ranked: RankedTopic[] = [];
+  for (const body of requests) {
+    ranked.push(...(await callDatalab(auth, body, fetchImpl)));
+  }
+  return ranked.sort((a, b) => b.score - a.score);
+}

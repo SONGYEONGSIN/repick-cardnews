@@ -1,0 +1,337 @@
+"use client";
+
+import { Image as ImageIcon } from "lucide-react";
+import { FOCUS_RING } from "@/components/ui";
+import { CARD_LAYOUTS, LAYOUT_LABELS } from "@/lib/layout-assign";
+import {
+  isBlankText,
+  TEXT_ALIGNS,
+  TEXT_ALIGN_LABELS,
+  TEXT_SCALE_STEPS,
+  TEXT_SCALE_LABELS,
+  textScaleFor,
+  textScaleStepOf,
+} from "@/templates/layout-utils";
+import { THEMES, THEME_IDS, type ThemeId } from "@/templates/themes";
+import type { CardDraft } from "../reducer";
+
+/**
+ * 툴바 — 만들기 화면의 유일한 컨트롤 표면.
+ *
+ * 옆 패널(`CardInspector`)을 없애고 전부 여기로 올렸다. 그래서 캔버스가 전체 폭을 쓴다 —
+ * 사진을 고치는 도구에서 가장 넓어야 할 것은 사진이다.
+ *
+ * 왼쪽 **요소 선택기**(헤드라인·본문·사진·카드)가 축이다. 무엇을 고르느냐에 따라 그 옆이
+ * 통째로 바뀐다. 캔버스를 눌러도 같이 바뀐다 — 두 입구가 같은 상태를 가리킨다.
+ *
+ * 시안(`src/app/lab2/Editor.tsx`)에는 있었지만 여기서 **뺀 것**: 글 위치(대신 캔버스의 손잡이로
+ * 옮긴다)·사진 배율·형광·역할 배지·다시 쓰기·빼기. `CardDraft` 가 받지 않는 값이라 조작해도
+ * 저장될 곳이 없다 — 눌리는데 아무 일도 안 나는 버튼을 두지 않는다. 글자 크기·정렬은 이제
+ * `CardDraft.textScale`·`textAlign`으로 받으므로 헤드라인·본문을 고른 동안 아래에 컨트롤을 둔다
+ * — 카드 전체에 한 번에 적용되는 값이라 두 탭에서 같은 컨트롤·같은 값을 보여 준다.
+ *
+ * **테마**(`CardnewsState.themeId`, 다섯 장 전체에 적용)는 예전에 화면 전체 폭을 차지하던
+ * `WorkbenchSetBar` 띠에 있었다. 그 띠를 없애면서 여기 '카드' 탭 안으로 옮겼다 — 새 탭을 따로
+ * 만들지 않은 이유는, 이 툴바의 다른 네 탭이 전부 "지금 고른 카드 하나"를 향한 요소 선택기라 그
+ * 축에 다섯 장 전체에 걸리는 탭을 하나 더 얹으면 "이것도 카드 하나만의 설정"으로 잘못 읽히기
+ * 쉽기 때문이다. '카드' 탭은 이미 카드 자체(구성=레이아웃)를 다루는 자리이자 어느 카드를 보고
+ * 있어도 늘 뜨는 탭이라, 옆에 "5장 전체" 라벨을 붙여 구성과 테마의 적용 범위를 문구로만
+ * 구분했다.
+ *
+ * 액센트 색을 쓰지 않는다. 선택 상태는 검정 채움(`bg-ink text-surface`)과 굵기로만 만든다.
+ */
+
+export type EditTarget = "heading" | "body" | "photo" | "card";
+
+function Group({ children }: { children: React.ReactNode }) {
+  return <span className="flex items-center rounded-lg border border-hair p-1">{children}</span>;
+}
+
+function Opt({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className={`h-9 rounded px-3 text-[14px] font-bold leading-9 transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
+        on ? "bg-ink text-surface" : "text-ink-2 hover:text-ink"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function Btn({
+  children,
+  onClick,
+  disabled = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex h-11 items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * 0~100 슬라이더. `min`/`max` 는 옛 `CardInspector` 가 쓰던 폭을 그대로 가져왔다 —
+ * 글 배경 30 미만은 사진 위 글이 안 읽히고, 사진 높이 70 초과는 글 자리가 남지 않는다.
+ */
+function Dial({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2.5">
+      <span className="flex-none text-[14px] text-ink-2">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={`h-1 w-[104px] flex-none accent-ink ${FOCUS_RING}`}
+      />
+      <span className="w-10 flex-none text-right text-[13px] tabular-nums text-ink-2">{value}%</span>
+    </label>
+  );
+}
+
+/** 글자수. 넘치면 액센트 색 대신 검정 채움으로 뒤집는다 — 이 화면의 강조 수단은 그것뿐이다. */
+function Counter({ len, max }: { len: number; max: number }) {
+  const over = len > max;
+  return (
+    <span
+      className={`ml-auto rounded px-2 py-0.5 text-[13px] font-bold tabular-nums ${
+        over ? "bg-ink text-surface" : "text-ink-2"
+      }`}
+    >
+      {len}/{max}
+    </span>
+  );
+}
+
+function Divider() {
+  return <span className="h-7 w-px flex-none bg-hair" aria-hidden="true" />;
+}
+
+export function EditToolbar({
+  card,
+  target,
+  onSelect,
+  onPatch,
+  onSwapPhoto,
+  onRequestFocus,
+  headlineSelection,
+  themeId,
+  onThemeChange,
+}: {
+  card: CardDraft;
+  target: EditTarget;
+  onSelect: (t: EditTarget) => void;
+  onPatch: (patch: Partial<Omit<CardDraft, "id" | "photoId">>) => void;
+  onSwapPhoto: () => void;
+  /** 헤드라인·본문이 이미 비어 있을 때 "추가" 버튼이 부르는 콜백 — 값은 이미 ""라 onPatch로는
+      아무 변화가 없다. 캔버스의 그 칸에 포커스를 옮기는 게 실제 효과다(CardCanvas 참고). */
+  onRequestFocus: () => void;
+  /** 캔버스의 헤드라인에서 지금 드래그·키보드로 고른 글자(CardCanvas 참고). 형광 버튼이 이 값을
+      그대로 저장한다 — 비어 있으면 아직 아무것도 안 골랐다는 뜻이라 버튼을 비활성으로 둔다. */
+  headlineSelection: string;
+  /** 다섯 장 전체에 적용되는 테마 — `CardDraft` 가 아니라 `CardnewsState` 소속이라 `onPatch` 로
+      보내지 않고 따로 받는다. '카드' 탭 안에서만 보여준다(위 파일 상단 주석 참고). */
+  themeId: ThemeId;
+  onThemeChange: (themeId: ThemeId) => void;
+}) {
+  const copy = card.copy;
+  // hook·cta 에는 본문이 없다. 없는 카드에서는 본문 탭 자체를 띄우지 않는다.
+  const body = "body" in copy ? copy.body : undefined;
+  const hasPhoto = card.layout !== "text-only";
+
+  const picks: { id: EditTarget; label: string; show: boolean }[] = [
+    { id: "heading", label: "헤드라인", show: true },
+    { id: "body", label: "본문", show: body !== undefined },
+    { id: "photo", label: "사진", show: hasPhoto },
+    { id: "card", label: "카드", show: true },
+  ];
+  const tabs = picks.filter((p) => p.show);
+
+  // 카드를 넘기면 지금 카드에 없는 요소를 가리키고 있을 수 있다(problem 에서 "본문"을 고른 뒤
+  // cta 로 이동, text-only 에서 "사진"). 그대로 두면 어느 탭도 선택 표시가 안 되고 패널이
+  // 엉뚱하게 비므로, **렌더 중에 순수 계산으로** 항상 있는 "카드"로 떨어뜨린다.
+  // effect 로 부모 상태를 고치지 않는다 — 한 프레임 어긋난 화면이 먼저 보이고 렌더가 두 번 돈다.
+  const active: EditTarget = tabs.some((p) => p.id === target) ? target : "card";
+
+  const isText = active === "heading" || active === "body";
+  const activeText = active === "body" ? (body ?? "") : copy.heading;
+  const textBlank = isBlankText(activeText);
+  const len = active === "body" ? (body?.length ?? 0) : copy.heading.length;
+  const max = active === "body" ? 120 : 40;
+
+  /**
+   * "지우기" — heading 은 다섯 역할 전부에 있어 그대로 지운다. body 는 problem·evidence·
+   * solution 에만 있어 `"body" in copy` 로 좁힌 **안쪽에서** 패치를 만든다(CardCanvas의
+   * bodyEdit 과 같은 이유 — 바깥에서 만들면 hook·cta 유니온에 없는 body 가 섞인다). `active`가
+   * "body" 인 시점엔 탭이 이미 `body !== undefined` 로만 떴으므로 실제로는 늘 참이지만,
+   * 타입은 그 사실을 모르니 단언(`as`) 대신 이 안쪽 `in` 체크로 좁힌다.
+   */
+  function clearActiveText() {
+    if (active === "heading") {
+      onPatch({ copy: { ...copy, heading: "" } });
+    } else if (active === "body" && "body" in copy) {
+      onPatch({ copy: { ...copy, body: "" } });
+    }
+  }
+
+  return (
+    <div className="flex flex-col rounded-xl border border-hair">
+      {/* 무엇을 고칠지 고르는 줄. 컨트롤은 바로 아래에 붙는다 — 한 줄에 다 밀어 넣으면
+          좁은 폭에서 줄바꿈이 지저분해지고, 고른 것과 그 도구의 관계도 흐려진다. */}
+      <div className="flex gap-1 border-b border-hair p-2" role="tablist" aria-label="고칠 요소">
+        {tabs.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            aria-selected={active === p.id}
+            onClick={() => onSelect(p.id)}
+            className={`h-10 rounded-lg px-4 text-[14px] font-bold transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
+              active === p.id ? "bg-ink text-surface" : "text-ink-2 hover:bg-hair-soft hover:text-ink"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel" className="flex min-h-[64px] flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
+        {isText && (
+          <>
+            <span className="text-[14px] text-ink-2">카드에서 글자를 직접 눌러 고쳐요</span>
+            <Divider />
+            {/* 손잡이는 글을 고르는 동안에만 뜬다(CardCanvas). 여기 말고는 알 길이 없어 한 줄 둔다 —
+                컨트롤을 새로 만들지 않는다. 위치는 손잡이로만 바꾼다. */}
+            <span className="text-[14px] text-ink-2">손잡이를 끌어 글 위치를 위아래로 옮겨요</span>
+            <Divider />
+            {/* 크기·정렬은 헤드라인·본문이 아니라 카드 전체에 한 번 적용된다(CardDraft.textScale·
+                textAlign) — 헤드라인 탭에서 고르든 본문 탭에서 고르든 같은 값을 보고 같은 값을
+                바꾼다. */}
+            <span className="flex items-center gap-2.5">
+              <span className="text-[14px] text-ink-2">크기</span>
+              <Group>
+                {TEXT_SCALE_STEPS.map((step) => (
+                  <Opt
+                    key={step}
+                    label={TEXT_SCALE_LABELS[step]}
+                    on={textScaleStepOf(card.textScale) === step}
+                    onClick={() => onPatch({ textScale: textScaleFor(step) })}
+                  />
+                ))}
+              </Group>
+            </span>
+            <span className="flex items-center gap-2.5">
+              <span className="text-[14px] text-ink-2">정렬</span>
+              <Group>
+                {TEXT_ALIGNS.map((a) => (
+                  <Opt key={a} label={TEXT_ALIGN_LABELS[a]} on={card.textAlign === a} onClick={() => onPatch({ textAlign: a })} />
+                ))}
+              </Group>
+            </span>
+            {/* 형광은 본문이 아니라 헤드라인에만 있다(카드뉴스 형광은 거의 다 헤드라인이라 범위를
+                좁혔다) — 크기·정렬과 달리 본문 탭에서는 이 컨트롤 자체를 안 보여준다. 이미 강조가
+                있으면 지우기로 바뀐다(크기·정렬의 지우기/추가 짝과 같은 방식). 선택이 없으면
+                버튼을 비활성으로 두고 옆에 왜인지 말해 준다 — 조용히 아무 일도 안 나면 안 된다. */}
+            {active === "heading" && (
+              <span className="flex items-center gap-2.5">
+                {card.highlight ? (
+                  <Btn onClick={() => onPatch({ highlight: "" })}>형광 지우기</Btn>
+                ) : (
+                  <>
+                    <Btn disabled={!headlineSelection} onClick={() => onPatch({ highlight: headlineSelection })}>
+                      형광
+                    </Btn>
+                    {!headlineSelection && (
+                      <span className="text-[13px] text-ink-2">헤드라인 글자를 드래그로 선택하면 켤 수 있어요</span>
+                    )}
+                  </>
+                )}
+              </span>
+            )}
+            <Counter len={len} max={max} />
+            {/* 되돌리기가 없어 실수로 지우면 복구는 다시 입력뿐이다 — 그래도 그 복구가 한 번의
+                입력으로 충분하므로 확인 절차는 두지 않는다. 이미 비어 있으면 "추가"로 바뀌어
+                지우기를 다시 누를 일이 없다. */}
+            <span className="ml-auto">
+              <Btn onClick={textBlank ? onRequestFocus : clearActiveText}>{textBlank ? "추가" : "지우기"}</Btn>
+            </span>
+          </>
+        )}
+
+        {active === "photo" && (
+          <>
+            <span className="text-[14px] text-ink-2">사진 위를 끌어 초점을 옮겨요</span>
+            <Divider />
+            {card.layout === "full-bleed" && (
+              <Dial
+                label="글 배경"
+                value={Math.round(card.scrim * 100)}
+                min={30}
+                max={95}
+                onChange={(v) => onPatch({ scrim: v / 100 })}
+              />
+            )}
+            {card.layout === "split" && (
+              <Dial
+                label="사진 높이"
+                value={Math.round(card.band * 100)}
+                min={30}
+                max={70}
+                onChange={(v) => onPatch({ band: v / 100 })}
+              />
+            )}
+            <span className="ml-auto">
+              <Btn onClick={onSwapPhoto}>
+                <ImageIcon size={15} aria-hidden="true" />
+                사진 바꾸기
+              </Btn>
+            </span>
+          </>
+        )}
+
+        {active === "card" && (
+          <span className="flex items-center gap-2.5">
+            <span className="text-[14px] text-ink-2">구성</span>
+            <Group>
+              {CARD_LAYOUTS.map((l) => (
+                <Opt
+                  key={l}
+                  label={LAYOUT_LABELS[l]}
+                  on={l === card.layout}
+                  onClick={() => onPatch({ layout: l })}
+                />
+              ))}
+            </Group>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
