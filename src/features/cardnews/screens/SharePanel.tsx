@@ -64,11 +64,11 @@ export function SharePanel({
         <div className="flex flex-col gap-3">
           {/* 이 방법이 "확인용"으로만 읽히던 문제 — 링크 조건만 적혀 있고 **무엇에 쓰는지**가
               없었다. 폰에 저장한 뒤 인스타 앱으로 올리는 길이라는 걸 먼저 말한다. */}
-          <p className="max-w-[62ch] text-[14px] leading-relaxed">
+          <p className="text-[14px] leading-relaxed">
             <span className="font-bold">폰 사진첩에 저장해서 인스타 앱으로 직접 올릴 때 써요.</span>{" "}
             앱에서 올리면 예약·위치·태그처럼 인스타 앱 기능을 그대로 쓸 수 있어요.
           </p>
-          <p className="max-w-[62ch] text-[14px] leading-relaxed text-ink-2">
+          <p className="text-[14px] leading-relaxed text-ink-2">
             폰이 이 컴퓨터와 같은 와이파이에 연결돼 있어야 링크가 열려요. 인터넷으로는 나가지 않아요.
             링크를 연 다음 <span className="font-bold">이미지를 길게 눌러 저장</span>하면 돼요.
           </p>
@@ -91,7 +91,7 @@ export function SharePanel({
             </>
           )}
           {share && !share.link && (
-            <p className="max-w-[62ch] text-[14px] leading-relaxed text-ink-2">
+            <p className="text-[14px] leading-relaxed text-ink-2">
               이 컴퓨터의 집 네트워크 주소를 찾지 못해 링크를 만들지 못했어요. 이 컴퓨터가 와이파이(유선이
               아닌)에 연결돼 있는지 확인한 뒤 다시 눌러 주세요.
             </p>
