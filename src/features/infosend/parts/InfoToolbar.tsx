@@ -109,7 +109,7 @@ function Dial({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="flex items-center gap-2.5">
+    <label className="flex h-9 items-center gap-2.5">
       <span className="flex-none text-[14px] text-ink-2">{label}</span>
       <input
         type="range"
@@ -206,7 +206,7 @@ export function InfoToolbar({
             </Btn>
           )}
         </div>
-        <div className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex min-h-[36px] flex-wrap items-center gap-x-3 gap-y-2">
 
 
           {active === "photo" && (
