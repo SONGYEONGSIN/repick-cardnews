@@ -202,6 +202,28 @@ try {
     detail: emptyPair ? emptyPair.map((b) => `top ${b.top}·${b.height}px`).join(" / ") : "두 박스를 못 찾음",
   });
 
+  // 부차 동작이 주 동작보다 커 보이면 안 된다 — 세로 칸 안의 버튼은 그냥 두면 칸 폭만큼
+  // 늘어난다(docs/ui-standards.md §8). 실제로 423px vs 132px 로 뒤집혔다.
+  await page.getByRole("button", { name: /사진 올리고 만들기/ }).click();
+  await page.waitForTimeout(300);
+  const widths = await page.evaluate(() => {
+    const find = (text) => [...document.querySelectorAll("button")].find((b) => (b.textContent || "").trim().startsWith(text));
+    const 부차 = find("사진 없이 만들기");
+    const 주 = find("카피 만들기");
+    return 부차 && 주
+      ? { 부차: Math.round(부차.getBoundingClientRect().width), 주: Math.round(주.getBoundingClientRect().width) }
+      : null;
+  });
+  results.push({
+    gate: "정렬", route: "/info 만들기(버튼 위계)",
+    pass: widths !== null && widths.부차 <= widths.주 * 1.5,
+    detail: widths ? `사진 없이 만들기 ${widths.부차}px ≤ 카피 만들기 ${widths.주}px × 1.5` : "두 버튼을 못 찾음",
+  });
+  await page.goto(`${BASE}/info`, { waitUntil: "networkidle" });
+  await page.fill("#info-kw", "정렬 점검");
+  await page.getByRole("button", { name: /만들러 가기/ }).click();
+  await page.waitForTimeout(400);
+
   // 사진을 쓸지 먼저 고른다 — 고르기 전에는 '카피 만들기' 가 없다.
   await page.getByRole("button", { name: /사진 없이 만들기/ }).click();
   await page.waitForTimeout(300);

@@ -157,18 +157,22 @@ export function InfoWorkbenchScreen({
                   }}
                   onError={(error) => dispatch({ type: "SET_ERROR", error })}
                 />
-                {dropExit(state.photos.length) === "cancel" ? (
-                  <LineButton onClick={() => setAdding(false)}>취소</LineButton>
-                ) : (
-                  <LineButton
-                    onClick={() => {
-                      setChoice("without-photo");
-                      setAdding(false);
-                    }}
-                  >
-                    사진 없이 만들기
-                  </LineButton>
-                )}
+                {/* 한 줄로 감싼다 — 세로 칸 안에 그냥 두면 버튼이 칸 폭만큼 늘어나 부차 동작이
+                    주 동작('카피 만들기')보다 커진다(docs/ui-standards.md §9). */}
+                <div className="flex flex-wrap gap-2.5">
+                  {dropExit(state.photos.length) === "cancel" ? (
+                    <LineButton onClick={() => setAdding(false)}>취소</LineButton>
+                  ) : (
+                    <LineButton
+                      onClick={() => {
+                        setChoice("without-photo");
+                        setAdding(false);
+                      }}
+                    >
+                      사진 없이 만들기
+                    </LineButton>
+                  )}
+                </div>
               </>
             )}
 
@@ -181,7 +185,9 @@ export function InfoWorkbenchScreen({
                     selectedIds={state.selectedPhotoId ? [state.selectedPhotoId] : []}
                     onToggle={(photoId) => dispatch({ type: "SELECT_PHOTO", photoId })}
                   />
-                  <LineButton onClick={() => setAdding(true)}>사진 더 올리기</LineButton>
+                  <div className="flex flex-wrap gap-2.5">
+                    <LineButton onClick={() => setAdding(true)}>사진 더 올리기</LineButton>
+                  </div>
                 </>
               ) : (
                 <div
