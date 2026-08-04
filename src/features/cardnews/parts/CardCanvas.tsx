@@ -8,6 +8,7 @@ import {
   isBlankText,
   objectPosition,
   scrimGradient,
+  scrimTint,
   splitHighlight,
   textScaleStepOf,
   textYSpacers,
@@ -543,7 +544,7 @@ export function CardCanvas({
           aria-hidden="true"
           // 인라인 style 3/13 — 글 배경. 진하기(card.scrim)도 앵커(card.textY)도 0~1 연속값이라
           // 클래스로 표현할 수 없다. 색 리터럴은 layout-utils 의 scrimGradient 가 만든다
-          style={{ background: scrimGradient(scrim, card.textY) }}
+          style={{ background: scrimGradient(scrim, card.textY, scrimTint(theme.accent)) }}
           className="absolute inset-0"
         />
       )}

@@ -112,9 +112,11 @@ describe("SET_SPEC", () => {
     ],
   };
 
-  it("카드 수만큼 draft를 만들고 레이아웃을 배정한다", () => {
+  it("카드 수만큼 draft를 만들고 전부 사진 전면으로 시작한다", () => {
+    // 예전에는 표지 full-bleed · 중간 split · 마지막 text-only 로 섞었다. 넘겨 보다 구성이 계속
+    // 바뀌어 한 덩어리로 안 읽힌다는 요청으로 전부 full-bleed 로 바꿨다(`@/lib/layout-assign`).
     const s = cardnewsReducer(withPhotos(5), { type: "SET_SPEC", spec });
-    expect(s.cards.map((c) => c.layout)).toEqual(["full-bleed", "split", "split", "split", "text-only"]);
+    expect(s.cards.map((c) => c.layout)).toEqual(["full-bleed", "full-bleed", "full-bleed", "full-bleed", "full-bleed"]);
   });
   it("슬롯 순서대로 사진을 붙인다", () => {
     const s = cardnewsReducer(withPhotos(5), { type: "SET_SPEC", spec });
@@ -132,8 +134,9 @@ describe("SET_SPEC", () => {
   it("레이아웃별 기본 textY 를 정한다 — full-bleed 는 1(아래), 나머지는 0.5(가운데)", () => {
     // FullBleedCard 는 글을 아래 끝에, Split·TextOnly 는 가운데에 둔다(textYSpacers 가 만드는
     // 여백 비율). 이 기본값이 그 배치와 어긋나면 텍스트 위치가 바뀌어 보인다.
+    // 지금은 전부 full-bleed 로 시작하므로 전부 1 이다 — 구성을 바꾸면 그때 다시 계산된다.
     const s = cardnewsReducer(withPhotos(5), { type: "SET_SPEC", spec });
-    expect(s.cards.map((c) => c.textY)).toEqual([1, 0.5, 0.5, 0.5, 0.5]);
+    expect(s.cards.map((c) => c.textY)).toEqual([1, 1, 1, 1, 1]);
   });
   it("글자 크기·정렬 기본값을 준다 — 크기는 1(보통), 정렬은 cta만 가운데 나머지는 왼쪽", () => {
     const s = cardnewsReducer(withPhotos(5), { type: "SET_SPEC", spec });

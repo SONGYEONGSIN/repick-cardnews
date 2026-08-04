@@ -2,6 +2,7 @@
 
 import { useState, type Dispatch } from "react";
 import { ArrowLeft, ArrowRight, Check, CircleAlert, LoaderCircle, Sparkles } from "lucide-react";
+import { PLACEHOLDER_BOX } from "@/components/ui";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { Dropzone } from "@/features/photos/Dropzone";
 import { requestSpec } from "@/features/studio/useGenerate";
@@ -369,7 +370,9 @@ export function WorkbenchScreen({
         <div className="flex flex-col gap-8 xl:min-h-0 xl:min-w-0 xl:flex-1 xl:gap-3">
           {/* 예전엔 여기 테마·계정 핸들을 담은 세트 바가 한 줄을 차지했다. 계정 핸들은 없앴고
               테마는 툴바 안으로 들어가, 그 줄만큼 카드가 커졌다. */}
-          <section className="flex flex-col gap-4 xl:min-h-0 xl:flex-1 xl:gap-2">
+          {/* 제목→내용 간격은 왼쪽 칸과 **같아야 한다**. 예전엔 여기만 `xl:gap-2` 로 좁혀(카드를
+              8px 키우려고) 두 칸의 내용이 8px 어긋나 시작했다 — 빈 상태에서 눈에 띈다. */}
+          <section className="flex flex-col gap-4 xl:min-h-0 xl:flex-1">
             <SectionHead
               title={card ? `${active + 1}번 카드` : "카드"}
               aside={card ? "1080 × 1350" : undefined}
@@ -436,7 +439,7 @@ export function WorkbenchScreen({
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-hair bg-canvas px-6 py-16 text-center">
+              <div className={`${PLACEHOLDER_BOX} gap-2 bg-canvas`}>
                 <p className="text-[17px] font-bold">사진을 올리고 카피를 만들면 여기에 카드가 나와요</p>
                 <p className="text-[14px] text-ink-2">카드마다 헤드라인·본문·사진을 여기서 바로 고쳐요.</p>
               </div>

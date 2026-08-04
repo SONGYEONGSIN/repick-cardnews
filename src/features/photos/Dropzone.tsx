@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { FolderOpen, ImageUp } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, PLACEHOLDER_BOX } from "@/components/ui";
 import { entriesToFiles, filesToPhotos } from "@/lib/photos-client";
 import type { Photo } from "@/lib/photos";
 
@@ -51,7 +51,7 @@ export function Dropzone({
         // 폴더까지 펼친 목록을 쓰고, entry API 를 못 쓰는 브라우저면 드롭된 파일 목록으로 되돌아간다.
         void ingest(walked.then((files) => (files.length > 0 ? files : dropped)));
       }}
-      className={`flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed px-6 py-14 transition-colors duration-200 motion-reduce:transition-none ${
+      className={`${PLACEHOLDER_BOX} transition-colors duration-200 motion-reduce:transition-none ${
         over ? "border-plum bg-plum-soft" : "border-hair bg-surface"
       }`}
     >

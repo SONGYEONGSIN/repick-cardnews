@@ -202,7 +202,7 @@ export function LineButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-hair px-5 text-[15px] font-bold transition-colors duration-200 hover:border-ink disabled:text-ink-disabled disabled:hover:border-hair ${FOCUS_RING} motion-reduce:transition-none`}
+      className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-hair px-5 text-[15px] font-bold transition-colors duration-200 hover:border-ink hover:bg-hair-soft disabled:text-ink-disabled disabled:hover:border-hair disabled:hover:bg-transparent ${FOCUS_RING} motion-reduce:transition-none`}
     >
       {children}
     </button>

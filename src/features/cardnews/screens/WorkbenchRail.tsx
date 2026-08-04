@@ -209,7 +209,7 @@ function TrayRow({
         onClick={onSwapIn}
         disabled={locked || !canSwap}
         aria-label={`${photo.name} 을 ${slotLabel} 자리에 넣기`}
-        className={`flex items-center gap-3 rounded-lg text-left transition-opacity duration-200 hover:opacity-80 disabled:opacity-50 ${FOCUS_RING} motion-reduce:transition-none`}
+        className={`flex items-center gap-3 rounded-lg p-1 text-left transition-colors duration-200 hover:bg-hair-soft disabled:opacity-50 disabled:hover:bg-transparent ${FOCUS_RING} motion-reduce:transition-none`}
       >
         <Thumb photo={photo} />
         <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">{photo.name}</span>

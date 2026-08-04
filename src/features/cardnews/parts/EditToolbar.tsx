@@ -31,18 +31,16 @@ import type { CardDraft } from "../reducer";
  * `CardDraft.textScale`·`textAlign`으로 받으므로 헤드라인·본문을 고른 동안 아래에 컨트롤을 둔다
  * — 카드 전체에 한 번에 적용되는 값이라 두 탭에서 같은 컨트롤·같은 값을 보여 준다.
  *
- * **테마**(`CardnewsState.themeId`, 다섯 장 전체에 적용)는 예전에 화면 전체 폭을 차지하던
- * `WorkbenchSetBar` 띠에 있었다. 그 띠를 없애면서 여기 '카드' 탭 안으로 옮겼다 — 새 탭을 따로
- * 만들지 않은 이유는, 이 툴바의 다른 네 탭이 전부 "지금 고른 카드 하나"를 향한 요소 선택기라 그
- * 축에 다섯 장 전체에 걸리는 탭을 하나 더 얹으면 "이것도 카드 하나만의 설정"으로 잘못 읽히기
- * 쉽기 때문이다. '카드' 탭은 이미 카드 자체(구성=레이아웃)를 다루는 자리이자 어느 카드를 보고
- * 있어도 늘 뜨는 탭이라, 옆에 "5장 전체" 라벨을 붙여 구성과 테마의 적용 범위를 문구로만
- * 구분했다.
+ * **테마**(`CardnewsState.themeId`, 다섯 장 전체에 적용)는 **자기 탭**을 갖는다.
+ *
+ * 처음엔 '카드' 탭 안에 넣고 "5장 전체" 라벨로만 구분했다. 새 탭을 만들면 다른 탭들처럼
+ * "카드 하나짜리 설정"으로 읽힐까 봐서였는데, **카드 하나짜리 탭 안에 있는 편이 오히려 더
+ * 그렇게 읽혔다**(실사용 지적). 탭을 나누고 패널 안에 적용 범위를 적는 쪽이 분명하다.
  *
  * 액센트 색을 쓰지 않는다. 선택 상태는 검정 채움(`bg-ink text-surface`)과 굵기로만 만든다.
  */
 
-export type EditTarget = "heading" | "body" | "steps" | "photo" | "card";
+export type EditTarget = "heading" | "body" | "steps" | "photo" | "card" | "theme";
 
 /** 순서 목록 상한 — 스키마(`SolutionCard.steps`)의 `.max(5)` 와 같은 값이어야 한다. */
 export const MAX_STEPS = 5;
@@ -69,7 +67,7 @@ function Opt({
       aria-pressed={on}
       onClick={onClick}
       className={`flex h-9 items-center gap-2 rounded px-3 text-[14px] font-bold transition-colors duration-200 ${FOCUS_RING} motion-reduce:transition-none ${
-        on ? "bg-ink text-surface" : "text-ink-2 hover:text-ink"
+        on ? "bg-ink text-surface" : "text-ink-2 hover:bg-hair-soft hover:text-ink"
       }`}
     >
       {swatch}
@@ -108,7 +106,7 @@ function Btn({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex h-11 items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
+      className={`flex h-11 items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:bg-transparent disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
     >
       {children}
     </button>
@@ -207,6 +205,10 @@ export function EditToolbar({
     { id: "steps", label: "순서", show: steps !== undefined },
     { id: "photo", label: "사진", show: hasPhoto },
     { id: "card", label: "카드", show: true },
+    // 테마만 적용 범위가 다르다(카드 하나가 아니라 다섯 장 전체). 예전엔 '카드' 탭 안에
+    // 두었는데, **카드 하나짜리 탭 안에 있으니 오히려 카드 설정으로 읽혔다.** 탭을 나누고
+    // 라벨에 범위를 적어 구분한다.
+    { id: "theme", label: "테마", show: true },
   ];
   const tabs = picks.filter((p) => p.show);
 
@@ -229,6 +231,29 @@ export function EditToolbar({
    * "body" 인 시점엔 탭이 이미 `body !== undefined` 로만 떴으므로 실제로는 늘 참이지만,
    * 타입은 그 사실을 모르니 단언(`as`) 대신 이 안쪽 `in` 체크로 좁힌다.
    */
+  /**
+   * 탭마다 아래에 한 줄로 붙는 **안내**. 예전엔 조작 사이사이에 설명문이 끼어 있어(헤드라인
+   * 탭은 일곱 덩어리 중 셋이 문장이었다) "무엇을 할 수 있나"가 한눈에 안 잡혔다. 조작은 위
+   * 줄, 설명은 아래 줄로 나눠 어느 탭을 눌러도 같은 자리를 보게 한다.
+   */
+  function hintFor(target: EditTarget): string {
+    if (target === "heading" || target === "body") {
+      return "카드에서 글자를 직접 눌러 고쳐요 · 손잡이를 끌어 글 위치를 위아래로 옮겨요";
+    }
+    if (target === "steps") return "순서 글도 카드에서 직접 눌러 고쳐요";
+    if (target === "photo") return "사진 위를 끌어 초점을 옮겨요";
+    // 사진 전면 카드는 사진이 바탕·글자색을 덮는다 — 안 적으면 "테마가 안 먹는다"로 읽힌다
+    // (실제로 그런 문의를 받았다). 해당 레이아웃일 때만 덧붙인다.
+    if (target === "theme") {
+      // 사진 전면 카드는 사진이 바탕·글자색을 덮는다 — 안 적으면 "테마가 안 먹는다"로 읽힌다
+      // (실제로 그런 문의를 받았다).
+      return card.layout === "full-bleed"
+        ? "바탕·글자·강조색과 제목 글꼴을 한 번에 바꿔요 · 이 카드는 사진이 덮어서 글꼴과 형광만 달라져요"
+        : "바탕·글자·강조색과 제목 글꼴을 한 번에 바꿔요";
+    }
+    return "구성은 이 카드에만 적용돼요";
+  }
+
   function clearActiveText() {
     if (active === "heading") {
       onPatch({ copy: { ...copy, heading: "" } });
@@ -258,15 +283,13 @@ export function EditToolbar({
         ))}
       </div>
 
-      <div role="tabpanel" className="flex min-h-[64px] flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
+      {/* 위는 **조작**, 아래는 **안내**. 예전엔 둘이 한 줄에 섞여 있어(헤드라인 탭은 일곱 덩어리
+          중 셋이 문장이었다) 무엇을 할 수 있는지가 한눈에 안 잡혔다. 어느 탭을 눌러도 같은
+          자리를 보게 한다. */}
+      <div role="tabpanel" className="flex flex-col gap-1.5 px-3 py-2.5">
+        <div className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-2">
         {isText && (
           <>
-            <span className="text-[14px] text-ink-2">카드에서 글자를 직접 눌러 고쳐요</span>
-            <Divider />
-            {/* 손잡이는 글을 고르는 동안에만 뜬다(CardCanvas). 여기 말고는 알 길이 없어 한 줄 둔다 —
-                컨트롤을 새로 만들지 않는다. 위치는 손잡이로만 바꾼다. */}
-            <span className="text-[14px] text-ink-2">손잡이를 끌어 글 위치를 위아래로 옮겨요</span>
-            <Divider />
             {/* 크기·정렬은 헤드라인·본문이 아니라 카드 전체에 한 번 적용된다(CardDraft.textScale·
                 textAlign) — 헤드라인 탭에서 고르든 본문 탭에서 고르든 같은 값을 보고 같은 값을
                 바꾼다. */}
@@ -323,8 +346,6 @@ export function EditToolbar({
 
         {active === "photo" && (
           <>
-            <span className="text-[14px] text-ink-2">사진 위를 끌어 초점을 옮겨요</span>
-            <Divider />
             {card.layout === "full-bleed" && (
               <Dial
                 label="글 배경"
@@ -354,8 +375,6 @@ export function EditToolbar({
 
         {active === "steps" && steps !== undefined && "steps" in copy && (
           <>
-            <span className="text-[14px] text-ink-2">글은 카드에서 직접 눌러 고쳐요</span>
-            <Divider />
             <span className="text-[14px] text-ink-2">
               단계 <span className="font-bold tabular-nums text-ink">{steps.length}</span>/{MAX_STEPS}
             </span>
@@ -393,35 +412,29 @@ export function EditToolbar({
               </Group>
             </span>
 
-            {/* 테마만 적용 범위가 다르다(이 카드가 아니라 다섯 장 전체) — 같은 줄에 두되
-                라벨에 "5장 전체"를 붙여 문구로만 구분한다. 파일 상단 주석 참고. */}
-            <span className="flex flex-wrap items-center gap-2.5">
-              <span className="text-[14px] text-ink-2">
-                테마 <span className="font-bold text-ink">5장 전체</span>
-              </span>
-              <Group>
-                {THEME_IDS.map((id) => (
-                  <Opt
-                    key={id}
-                    label={THEMES[id].label}
-                    on={id === themeId}
-                    onClick={() => onThemeChange(id)}
-                    swatch={<ThemeSwatch themeId={id} />}
-                  />
-                ))}
-              </Group>
-              {/* 사진 전면 카드는 사진이 바탕과 글자색을 덮는다 — 테마를 바꿔도 글꼴·형광만
-                  달라진다. 이 사실을 안 적으면 "테마가 안 먹는다"로 읽힌다(실제로 그런 문의를
-                  받았다). 해당 레이아웃일 때만 띄운다 — 늘 띄우면 잡음이다. */}
-              {card.layout === "full-bleed" && (
-                <span className="text-[13px] leading-relaxed text-ink-2">
-                  이 카드는 사진이 덮어서 <span className="font-bold">글꼴과 형광만</span> 달라져요.
-                  바탕·글자색까지 보려면 구성을 &lsquo;사진 + 글&rsquo; 이나 &lsquo;글만&rsquo; 으로 바꿔요.
-                </span>
-              )}
-            </span>
           </>
         )}
+
+        {active === "theme" && (
+          <span className="flex flex-wrap items-center gap-2.5">
+            <span className="text-[14px] text-ink-2">
+              이 세트 <span className="font-bold text-ink">5장 전체</span>에 적용
+            </span>
+            <Group>
+              {THEME_IDS.map((id) => (
+                <Opt
+                  key={id}
+                  label={THEMES[id].label}
+                  on={id === themeId}
+                  onClick={() => onThemeChange(id)}
+                  swatch={<ThemeSwatch themeId={id} />}
+                />
+              ))}
+            </Group>
+          </span>
+        )}
+        </div>
+        <p className="text-[13px] leading-relaxed text-ink-2">{hintFor(active)}</p>
       </div>
     </div>
   );
