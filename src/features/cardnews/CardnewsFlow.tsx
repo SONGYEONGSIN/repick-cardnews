@@ -11,8 +11,15 @@ import { toRenderCards } from "./render";
 import { cardnewsReducer, initialCardnewsState } from "./reducer";
 import type { LedgerEntry } from "@/lib/ledger";
 
-export function CardnewsFlow({ recent }: { recent: readonly LedgerEntry[] }) {
-  const [state, dispatch] = useReducer(cardnewsReducer, initialCardnewsState);
+export function CardnewsFlow({
+  recent,
+  initialKeyword = "",
+}: {
+  recent: readonly LedgerEntry[];
+  /** 정보전달에서 형태를 바꿔 넘어올 때 들고 온 주제 — 없으면 빈 칸으로 시작한다. */
+  initialKeyword?: string;
+}) {
+  const [state, dispatch] = useReducer(cardnewsReducer, { ...initialCardnewsState, keyword: initialKeyword });
   // 소재 찾기는 **스텝이 아니다.** reducer 의 step 을 늘리면 진행 표시에 끼어들어 필수처럼
   // 보인다 — 건너뛸 수 있는 도구이므로 이 화면의 로컬 상태로만 여닫는다.
   const [finderOpen, setFinderOpen] = useState(false);

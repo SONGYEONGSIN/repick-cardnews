@@ -17,8 +17,8 @@ import { infoReducer, initialInfoState } from "./reducer";
  * 도구인데 흐름이 달라, 오가는 사람이 규칙을 두 번 배워야 했다. 사진 단계를 없애고(사진은
  * 이제 선택) '만들기' 안으로 넣었다 — `CardnewsFlow` 와 같은 모양이다.
  */
-export function InfoFlow() {
-  const [state, dispatch] = useReducer(infoReducer, initialInfoState);
+export function InfoFlow({ initialKeyword = "" }: { initialKeyword?: string }) {
+  const [state, dispatch] = useReducer(infoReducer, { ...initialInfoState, keyword: initialKeyword });
   // 소재 찾기는 **스텝이 아니다** — 건너뛸 수 있는 도구라 진행 표시에 끼우지 않는다.
   // 화면 자체는 형식과 무관하다(주제만 채워 준다). 카드뉴스 것을 그대로 쓴다.
   const [finderOpen, setFinderOpen] = useState(false);
