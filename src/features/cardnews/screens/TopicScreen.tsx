@@ -4,6 +4,7 @@ import type { Dispatch } from "react";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
+import { switchHref } from "@/features/studio/switch-format";
 import { RecentList } from "@/features/hub/RecentList";
 import type { LedgerEntry } from "@/lib/ledger";
 import { ITEMS_MAX, ITEMS_MIN } from "@/features/infosend/reducer";
@@ -94,7 +95,7 @@ export function TopicScreen({
             </div>
 
             <Link
-              href="/info"
+              href={switchHref("/info", state.keyword)}
               className={`flex flex-col gap-2.5 rounded-xl border-2 border-hair p-5 text-left transition-colors duration-200 hover:border-ink-3 sm:p-6 ${FOCUS_RING} motion-reduce:transition-none`}
             >
               <span className="text-[20px] font-black tracking-tight sm:text-[24px]">정보전달</span>
