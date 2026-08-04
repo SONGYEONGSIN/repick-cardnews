@@ -24,3 +24,25 @@ export function photoStage(choice: StartChoice, photoCount: number, hasSpec: boo
 export function canGenerate(stage: PhotoStage): boolean {
   return stage === "ready";
 }
+
+/**
+ * 드롭존을 여는 길은 **둘**이다: 처음에 '사진 올리고 만들기'를 고른 경우(`upload`)와, 이미
+ * 만들 준비가 된 상태에서 '사진 올리기'를 다시 누른 경우(`ready` + `adding`).
+ *
+ * 두 길을 각자 그리다가 나가는 문을 한쪽에만 달아 두 번째 경로에서 다시 막혔다 — 그래서
+ * 판단을 여기 한 곳에 둔다.
+ */
+export function dropzoneOpen(stage: PhotoStage, adding: boolean, busy: boolean): boolean {
+  // 카피를 쓰는 중에는 그 위에 파일을 떨구게 두지 않는다.
+  if (busy) return false;
+  return stage === "upload" || (stage === "ready" && adding);
+}
+
+/**
+ * 드롭존에서 빠져나가는 문. 사진이 없으면 '사진 없이 만들기'로 나가고, 이미 올린 사진이
+ * 있으면 '취소'다 — 사진이 있는데 '사진 없이'로 보내면 그 사진이 그대로 카드에 남아 말과
+ * 달라진다.
+ */
+export function dropExit(photoCount: number): "cancel" | "without-photo" {
+  return photoCount > 0 ? "cancel" : "without-photo";
+}

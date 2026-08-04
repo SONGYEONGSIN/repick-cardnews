@@ -13,7 +13,7 @@ import type { InfographicSpec } from "@/lib/schema";
 import { inKorean } from "@/features/cardnews/screens/errors";
 import { useFitScale } from "@/features/studio/useFitScale";
 import { infoChecks } from "../checks";
-import { canGenerate, photoStage, type StartChoice } from "../workbench-view";
+import { canGenerate, dropExit, dropzoneOpen, photoStage, type StartChoice } from "../workbench-view";
 import { InfoToolbar } from "../parts/InfoToolbar";
 import { toRenderCard } from "../render";
 import { canLeaveInfoWorkbench, selectedPhoto, type InfoAction, type InfoState } from "../reducer";
@@ -70,7 +70,7 @@ export function InfoWorkbenchScreen({
     }
   }
 
-  const dropOpen = !state.busy && adding;
+  const showDrop = dropzoneOpen(stage, adding, state.busy);
   const status = state.busy
     ? "주제를 보고 카피를 쓰는 중이에요."
     : !canGenerate(stage)
@@ -145,7 +145,9 @@ export function InfoWorkbenchScreen({
               </div>
             )}
 
-            {stage === "upload" && (
+            {/* 드롭존을 여는 길이 둘이라 **한 곳에서** 그린다 — 따로 그리다가 나가는 문을
+                한쪽에만 달아 다시 막혔다(`dropzoneOpen`·`dropExit`). */}
+            {showDrop && (
               <>
                 <Dropzone
                   hint="폴더째 올려도 돼요. 한 장만 골라 씁니다."
@@ -155,22 +157,24 @@ export function InfoWorkbenchScreen({
                   }}
                   onError={(error) => dispatch({ type: "SET_ERROR", error })}
                 />
-                {/* 되돌아갈 길을 둔다 — 사진을 고른 뒤 마음이 바뀌면 여기서 막혔다. */}
-                <LineButton onClick={() => setChoice("without-photo")}>사진 없이 만들기</LineButton>
+                {dropExit(state.photos.length) === "cancel" ? (
+                  <LineButton onClick={() => setAdding(false)}>취소</LineButton>
+                ) : (
+                  <LineButton
+                    onClick={() => {
+                      setChoice("without-photo");
+                      setAdding(false);
+                    }}
+                  >
+                    사진 없이 만들기
+                  </LineButton>
+                )}
               </>
             )}
 
             {stage === "ready" &&
-              (dropOpen ? (
-                <Dropzone
-                  hint="폴더째 올려도 돼요. 한 장만 골라 씁니다."
-                  onPhotos={(photos) => {
-                    dispatch({ type: "ADD_PHOTOS", photos });
-                    setAdding(false);
-                  }}
-                  onError={(error) => dispatch({ type: "SET_ERROR", error })}
-                />
-              ) : state.photos.length > 0 ? (
+              !showDrop &&
+              (state.photos.length > 0 ? (
                 <>
                   <PhotoGrid
                     photos={state.photos}
