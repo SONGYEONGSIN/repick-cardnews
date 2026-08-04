@@ -8,9 +8,11 @@ import {
   publishCarousel,
   publishKindFor,
   publishSingleImage,
+  type PublishStageProgress,
 } from "./instagram";
 import { defaultEnvLocalPath } from "./instagram-token-refresh-runtime";
 import { saveShare } from "./share-store";
+import { clearPublishProgress, recordPublishProgress } from "./publish-progress-store";
 import { createShareToken } from "./share-token";
 import { loadImages, scheduleRoot, type ScheduleItem } from "./schedule-queue";
 
@@ -112,15 +114,22 @@ export async function runScheduledItem(item: ScheduleItem, deps: RunDeps): Promi
     };
   }
 
+  // 도는 동안 어디까지 갔는지 **항목 id 로** 남긴다 — 목록(`/api/schedule`)이 그걸 읽어
+  // 보여 준다. 끝나면(성공이든 실패든) 반드시 지운다 — 남기면 끝난 예약이 아직 도는 것처럼
+  // 보인다.
+  const onProgress = (progress: PublishStageProgress) => recordPublishProgress(item.id, progress, deps.now);
+
   try {
     // 캡션은 **예약할 때** 해시태그까지 합쳐 둔 것이다 — 여기서 다시 조합하지 않는다.
     const config = { ...configCheck.config, publicBaseUrl };
     const mediaId =
       kind === "single"
-        ? await publishSingle({ config, imageUrl: imageUrls[0], caption: item.caption })
-        : await publish({ config, imageUrls, caption: item.caption });
+        ? await publishSingle({ config, imageUrl: imageUrls[0], caption: item.caption }, undefined, onProgress)
+        : await publish({ config, imageUrls, caption: item.caption }, undefined, onProgress);
     return { ok: true, mediaId };
   } catch (e) {
     return { ok: false, message: friendlyPublishError(e) };
+  } finally {
+    clearPublishProgress(item.id);
   }
 }

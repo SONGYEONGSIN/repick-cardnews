@@ -9,6 +9,7 @@ import {
   STATUS_LABELS,
   hasPendingFrom,
   isPending,
+  progressLine,
   toLocalInputValue,
   toScheduleView,
   type ScheduleView,
@@ -23,6 +24,9 @@ import {
  * **컴퓨터가 켜져 있어야 한다는 사실을 반드시 화면에 적는다.** 안 적으면 "예약했으니 됐다"고
  * 믿고 컴퓨터를 끈다 — 로컬 앱의 구조적 제약이라 우회할 수 없다.
  */
+
+/** 대기 중인 예약이 있을 때 목록을 다시 읽는 간격. 게시 단계는 초 단위로 바뀐다. */
+const LIST_POLL_MS = 3000;
 
 export function SchedulePanel({
   busy,
@@ -62,6 +66,15 @@ export function SchedulePanel({
 
   // 이 세션이 건 예약이 아직 대기 중인가. 두 번 걸면 두 번 올라간다.
   const pending = hasPendingFrom(items, mine);
+
+  // 대기 중인 예약이 하나라도 있으면 목록을 다시 읽는다 — 도는 동안 진행이 바뀐다.
+  // 다 끝났으면 멈춘다: 아무도 안 보는 화면에서 계속 두드리지 않는다.
+  const watching = items.some((item) => isPending(item));
+  useEffect(() => {
+    if (!watching) return;
+    const id = setInterval(() => void load(), LIST_POLL_MS);
+    return () => clearInterval(id);
+  }, [watching, load]);
 
   // 목록이 바뀔 때마다 부모에게 알린다 — 예약이 끝나면 다시 올릴 수 있어야 한다.
   useEffect(() => {
@@ -201,6 +214,12 @@ export function SchedulePanel({
                   <span className="text-[13px] text-ink-2">
                     {item.keyword} · 카드 {item.imageCount}장
                   </span>
+                  {/* 도는 동안 어디까지 갔는지 — 없으면 안 그린다. 손으로 올릴 때와 같은 단계다. */}
+                  {progressLine(item.progress) && (
+                    <span role="status" className="text-[13px] font-bold">
+                      {progressLine(item.progress)}
+                    </span>
+                  )}
                   {/* 왜 실패했는지 감추지 않는다 — 다시 예약하려면 이유를 알아야 한다. */}
                   {item.message && <span className="text-[13px] font-bold leading-relaxed">{item.message}</span>}
                 </li>

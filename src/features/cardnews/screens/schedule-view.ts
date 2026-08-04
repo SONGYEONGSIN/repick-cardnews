@@ -26,7 +26,40 @@ export type ScheduleView = {
   imageCount: number;
   describe: string;
   message?: string;
+  /** 지금 올리는 중이면 어디까지 갔는지. 서버가 함께 내려준다(`/api/schedule`). */
+  progress?: SchedulePublishProgress;
 };
+
+/**
+ * 예약이 도는 동안의 진행 단계. `@/lib/instagram` 의 `PublishStageProgress` 와 같은 모양이되,
+ * 이 파일은 서버 코드를 끌어오지 않으므로(클라이언트 번들) 여기서 다시 좁힌다.
+ */
+export type SchedulePublishProgress =
+  | { stage: "preparing"; index: number; total: number }
+  | { stage: "bundling" }
+  | { stage: "publishing" };
+
+function asProgress(value: unknown): SchedulePublishProgress | null {
+  const r = asRecord(value);
+  if (!r) return null;
+  if (r.stage === "bundling" || r.stage === "publishing") return { stage: r.stage };
+  if (r.stage === "preparing" && typeof r.index === "number" && typeof r.total === "number") {
+    return { stage: "preparing", index: r.index, total: r.total };
+  }
+  // 모르는 모양은 버린다 — 화면이 깨지느니 안 보여 준다.
+  return null;
+}
+
+/** 진행 단계를 사람이 읽는 한 줄로. 없으면 `null` — 부를 쪽이 안 그리면 된다. */
+export function progressLine(progress: SchedulePublishProgress | undefined): string | null {
+  if (!progress) return null;
+  if (progress.stage === "preparing") {
+    // 한 장짜리(정보전달)에 "1장 중 1장"은 군더더기다.
+    return progress.total <= 1 ? "사진 준비 중" : `${progress.total}장 중 ${progress.index}장 준비 중`;
+  }
+  if (progress.stage === "bundling") return "한 세트로 묶는 중";
+  return "인스타그램에 올리는 중";
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
@@ -57,6 +90,7 @@ export function toScheduleView(status: number, body: unknown): ScheduleView[] {
       imageCount: typeof r.imageCount === "number" ? r.imageCount : 0,
       describe: typeof r.describe === "string" ? r.describe : "",
       ...(typeof r.message === "string" ? { message: r.message } : {}),
+      ...(asProgress(r.progress) ? { progress: asProgress(r.progress) as SchedulePublishProgress } : {}),
     });
   }
   return out;

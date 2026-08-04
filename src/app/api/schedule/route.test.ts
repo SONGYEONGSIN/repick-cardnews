@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { DELETE, GET, POST } from "./route";
 import { appendItem, readQueue, type ScheduleItem } from "@/lib/schedule-queue";
+import { clearPublishProgress, recordPublishProgress } from "@/lib/publish-progress-store";
 
 let root: string;
 beforeEach(() => {
@@ -195,5 +196,36 @@ describe("DELETE /api/schedule", () => {
     );
 
     expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * 목록이 진행 상황을 함께 내려준다 — 화면이 그걸 읽어 '5장 중 2장 준비 중' 처럼 보여 준다.
+ * 진행은 실행기가 항목 id 로 남긴다(`@/lib/schedule-runner`).
+ */
+describe("GET 진행 상황", () => {
+  it("도는 중이면 그 항목에 진행이 담긴다", async () => {
+    await POST(post(validBody({ images: [png(), png()] })));
+    const created = readQueue(root)[0];
+    recordPublishProgress(created.id, { stage: "preparing", index: 2, total: 5 }, Date.now());
+
+    const res = await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }));
+    const body = (await res.json()) as { items: { id: string; progress?: unknown }[] };
+
+    expect(body.items.find((i) => i.id === created.id)?.progress).toEqual({
+      stage: "preparing",
+      index: 2,
+      total: 5,
+    });
+    clearPublishProgress(created.id);
+  });
+
+  it("안 도는 항목에는 진행이 없다", async () => {
+    await POST(post(validBody({ images: [png(), png()] })));
+
+    const res = await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }));
+    const body = (await res.json()) as { items: { progress?: unknown }[] };
+
+    expect(body.items.every((i) => i.progress === undefined)).toBe(true);
   });
 });

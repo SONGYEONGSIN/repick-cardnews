@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod/v4";
 import { isLocalHost } from "@/lib/local-guard";
+import { readPublishProgress } from "@/lib/publish-progress-store";
 import { CAROUSEL_MAX_ITEMS, PUBLISHABLE_MIN_ITEMS } from "@/lib/instagram";
 import { MAX_HASHTAGS, combineCaptionWithHashtags } from "@/lib/hashtags";
 import { describeSchedule } from "@/lib/schedule-due";
@@ -38,7 +39,16 @@ export async function GET(req: Request) {
   // 최신 예약이 먼저 — 방금 만든 것을 바로 확인한다.
   const items = [...readQueue()]
     .sort((a, b) => b.createdAt - a.createdAt)
-    .map((item) => ({ ...item, describe: describeSchedule(item.scheduledAt, now) }));
+    // 도는 중인 항목에는 실행기가 남긴 진행을 함께 담는다 — 화면이 '5장 중 2장 준비 중'
+    // 처럼 보여 준다(`@/lib/schedule-runner` 가 항목 id 로 기록한다).
+    .map((item) => {
+      const progress = readPublishProgress(item.id, now);
+      return {
+        ...item,
+        describe: describeSchedule(item.scheduledAt, now),
+        ...(progress ? { progress } : {}),
+      };
+    });
 
   return Response.json({ items });
 }

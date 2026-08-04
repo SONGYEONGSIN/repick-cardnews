@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { STATUS_LABELS, hasPendingFrom, isPending, toLocalInputValue, toScheduleView } from "./schedule-view";
+import {
+  STATUS_LABELS,
+  hasPendingFrom,
+  isPending,
+  progressLine,
+  toLocalInputValue,
+  toScheduleView,
+} from "./schedule-view";
 
 function row(over: Record<string, unknown> = {}) {
   return {
@@ -106,5 +113,59 @@ describe("hasPendingFrom — 이 세션이 건 예약이 아직 남았나", () =
       items: [row({ id: "a", status: "published" }), row({ id: "b", status: "pending" })],
     });
     expect(hasPendingFrom(mixed, ["a", "b"])).toBe(true);
+  });
+});
+
+/**
+ * 예약이 도는 동안 목록은 '대기 중 · N분 지났어요' 만 보여 줬다 — 실제로 어디까지 갔는지는
+ * 알 수 없었다(손으로 올릴 때는 보이는데). 서버가 함께 내려주는 진행 상황을 읽는다.
+ */
+describe("진행 상황 읽기", () => {
+  function body(progress: unknown) {
+    return {
+      items: [
+        { id: "a1", status: "pending", keyword: "수원 갈비", imageCount: 5, describe: "대기 중", progress },
+      ],
+    };
+  }
+
+  it("진행이 없으면 undefined 다 — 아직 시작 전이다", () => {
+    expect(toScheduleView(200, body(undefined))[0].progress).toBeUndefined();
+  });
+
+  it("준비 중이면 몇 장 중 몇 장인지 읽는다", () => {
+    expect(toScheduleView(200, body({ stage: "preparing", index: 2, total: 5 }))[0].progress).toEqual({
+      stage: "preparing",
+      index: 2,
+      total: 5,
+    });
+  });
+
+  it("올리는 중도 읽는다", () => {
+    expect(toScheduleView(200, body({ stage: "publishing" }))[0].progress).toEqual({ stage: "publishing" });
+  });
+
+  it("모르는 모양은 버린다 — 화면이 깨지느니 안 보여 준다", () => {
+    expect(toScheduleView(200, body({ stage: "이상한값" }))[0].progress).toBeUndefined();
+    expect(toScheduleView(200, body("문자열"))[0].progress).toBeUndefined();
+  });
+});
+
+describe("progressLine — 사람이 읽는 한 줄", () => {
+  it("준비 중은 장수를 말한다", () => {
+    expect(progressLine({ stage: "preparing", index: 2, total: 5 })).toBe("5장 중 2장 준비 중");
+  });
+
+  it("한 장짜리는 장수를 세지 않는다 — '1장 중 1장'은 군더더기다", () => {
+    expect(progressLine({ stage: "preparing", index: 1, total: 1 })).toBe("사진 준비 중");
+  });
+
+  it("묶는 중·올리는 중", () => {
+    expect(progressLine({ stage: "bundling" })).toBe("한 세트로 묶는 중");
+    expect(progressLine({ stage: "publishing" })).toBe("인스타그램에 올리는 중");
+  });
+
+  it("없으면 null 이다 — 부를 쪽이 안 그리면 된다", () => {
+    expect(progressLine(undefined)).toBeNull();
   });
 });
