@@ -29,11 +29,12 @@ import { ITEMS_MAX, ITEMS_MIN, type InfoAction, type InfoState } from "../reduce
 type Target = "text" | "items" | "photo" | "fit" | "theme";
 
 const TABS: readonly { id: Target; label: string }[] = [
+  // 테마가 맨 앞이다 — 카드 **전체**에 걸리는 값이라 먼저 정하고 나서 글을 고친다.
+  { id: "theme", label: "테마" },
   { id: "text", label: "글" },
   { id: "items", label: "항목" },
   { id: "photo", label: "사진" },
   { id: "fit", label: "맞춤" },
-  { id: "theme", label: "테마" },
 ];
 
 function Group({ children }: { children: React.ReactNode }) {
@@ -66,13 +67,24 @@ function Opt({
   );
 }
 
-function Btn({ children, onClick, disabled = false }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+function Btn({
+  children,
+  onClick,
+  disabled = false,
+  compact = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  /** 탭 줄에 얹을 때 — 탭(h-9)과 높이를 맞춘다. */
+  compact?: boolean;
+}) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex h-11 items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:bg-transparent disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
+      className={`flex ${compact ? "h-9" : "h-11"} items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:bg-transparent disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
     >
       {children}
     </button>
@@ -220,7 +232,9 @@ export function InfoToolbar({
 
   return (
     <div className="flex flex-col rounded-xl border border-hair">
-      <div className="flex gap-1 border-b border-hair p-2" role="tablist" aria-label="고칠 요소">
+      <div className="flex items-center gap-2 border-b border-hair p-2">
+        {/* 되돌리기는 탭이 아니다 — tablist 밖에 둔다(스크린리더가 탭으로 읽지 않게). */}
+        <div className="flex gap-1" role="tablist" aria-label="고칠 요소">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -235,6 +249,14 @@ export function InfoToolbar({
             {t.label}
           </button>
         ))}
+        </div>
+        {active === "fit" && (
+          <span className="ml-auto">
+            <Btn compact onClick={() => dispatch({ type: "SET_FIT", patch: { text: 1, gap: 1, pad: 1 } })}>
+              기본으로
+            </Btn>
+          </span>
+        )}
       </div>
 
       {/* 위는 조작, 아래는 안내 — 어느 탭을 눌러도 같은 자리를 본다. */}
@@ -265,11 +287,12 @@ export function InfoToolbar({
 
           {active === "items" && (
             <div className="flex w-full flex-col gap-3">
-              <span className="flex items-center gap-2.5">
+              {/* 세는 값은 왼쪽, 더하는 동작은 오른쪽 끝 — 목록 위 머리줄의 두 성격을 갈라 둔다. */}
+              <span className="flex w-full items-center justify-between gap-2.5">
                 <span className="text-[14px] text-ink-2">
                   항목 <span className="font-bold tabular-nums text-ink">{spec.items.length}</span>/{ITEMS_MAX}
                 </span>
-                <Btn disabled={spec.items.length >= ITEMS_MAX} onClick={() => dispatch({ type: "ADD_ITEM" })}>
+                <Btn compact disabled={spec.items.length >= ITEMS_MAX} onClick={() => dispatch({ type: "ADD_ITEM" })}>
                   항목 추가
                 </Btn>
               </span>
@@ -343,9 +366,6 @@ export function InfoToolbar({
                   range={FIT_RANGE.pad}
                   onChange={(pad) => dispatch({ type: "SET_FIT", patch: { pad } })}
                 />
-              </span>
-              <span className="ml-auto">
-                <Btn onClick={() => dispatch({ type: "SET_FIT", patch: { text: 1, gap: 1, pad: 1 } })}>기본으로</Btn>
               </span>
             </>
           )}
