@@ -44,6 +44,7 @@ export type InfoAction =
   | { type: "SET_FOCAL"; focal: Focal }
   | { type: "SET_FIT"; patch: Partial<Fit> }
   | { type: "SET_FORMAT"; format: InfoFormat }
+  | { type: "UPDATE_COLUMNS"; patch: Partial<{ left: string; right: string }> }
   | { type: "SET_SPEC"; spec: InfographicSpec }
   | { type: "UPDATE_SPEC"; patch: Partial<Pick<InfographicSpec, "title" | "subtitle" | "tip">> }
   | { type: "UPDATE_ITEM"; index: number; patch: Partial<Item> }
@@ -193,6 +194,10 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
       return state.spec ? withItems(state, move<InfoItem>(state.spec.items, action.from, action.to)) : state;
     case "SET_STEP":
       return { ...state, step: action.step };
+    case "UPDATE_COLUMNS":
+      // 비교형에만 있는 값이다. 다른 형식에서 들어오면 아무 일도 하지 않는다.
+      if (!state.spec || state.spec.format !== "compare") return state;
+      return { ...state, spec: { ...state.spec, columns: { ...state.spec.columns, ...action.patch } } };
     case "SET_FORMAT": {
       if (action.format === state.format) return state;
       // 카피가 있으면 항목을 그 형식의 빈 항목으로 갈아 끼운다 — 칸이 달라 그대로 못 옮긴다.
