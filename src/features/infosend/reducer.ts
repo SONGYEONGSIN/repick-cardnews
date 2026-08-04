@@ -11,7 +11,6 @@ type Item = InfographicSpec["items"][number];
 
 export type InfoState = {
   step: number;
-  maxReached: number;
   photos: Photo[];
   selectedPhotoId: string | null;
   keyword: string;
@@ -46,8 +45,7 @@ export type InfoAction =
   | { type: "RESET" };
 
 export const initialInfoState: InfoState = {
-  step: 1,
-  maxReached: 1,
+  step: 0,
   photos: [],
   selectedPhotoId: null,
   keyword: "",
@@ -66,14 +64,16 @@ export function selectedPhoto(state: InfoState): Photo | null {
 }
 
 /**
- * **사진은 선택이다.** 정보전달은 쓸 만한 사진이 없는 경우가 잦아, 없으면 제목을 테마 색 띠로
- * 그린다(`@/templates/infographic-band`).
- *
- * 렌더는 원래부터 사진이 없어도 되게 돼 있었다(`toRenderCard` 의 `photoUrl: … ?? null`) —
- * 흐름만 막고 있었다. `state` 를 안 보지만 다른 `canLeave*` 와 모양을 맞춰 인자를 유지한다.
+ * 3화면(주제 → 만들기 → 내보내기)의 문지기. 카드뉴스의 `canLeaveTopic`·`canLeaveWorkbench` 와
+ * 같은 자리다 — 두 형식이 같은 흐름을 쓰므로 판정도 같은 모양으로 둔다.
  */
-export function canLeavePhoto(_state: InfoState): boolean {
-  return true;
+export function canLeaveInfoTopic(state: InfoState): boolean {
+  return state.keyword.trim().length > 0;
+}
+
+/** 카피가 있어야 내보낼 게 생긴다. 사진은 선택이라 여기서 보지 않는다. */
+export function canLeaveInfoWorkbench(state: InfoState): boolean {
+  return state.spec !== null;
 }
 
 /**
@@ -155,7 +155,7 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
     case "REORDER_ITEM":
       return state.spec ? withItems(state, move(state.spec.items, action.from, action.to)) : state;
     case "SET_STEP":
-      return { ...state, step: action.step, maxReached: Math.max(state.maxReached, action.step) };
+      return { ...state, step: action.step };
     case "SET_BUSY":
       return { ...state, busy: action.busy };
     case "SET_ERROR":

@@ -5,7 +5,7 @@
  * 실행: npm run design:audit
  *
  * 한계 2가지 (해결은 후속 작업, 지금은 사실만 명시한다):
- * 1. `document.documentElement.scrollWidth` 만 잰다. `StudioShell` 의 `<main>` 은
+ * 1. `document.documentElement.scrollWidth` 만 잰다. `StudioFrame` 의 `<main>` 은
  *    `overflow-y-auto` 라 `overflow-x` 가 함께 `auto` 로 계산되고, 그 안에서 생기는
  *    가로 오버플로는 그 스크롤 컨테이너가 흡수해 document 레벨에서는 안 보인다.
  * 2. 폭 스위프는 각 라우트의 **초기 화면만** 로드한다. 사진과 카드가 있어야 열리는 화면

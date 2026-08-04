@@ -3,7 +3,8 @@ import {
   infoReducer,
   initialInfoState,
   selectedPhoto,
-  canLeavePhoto,
+  canLeaveInfoTopic,
+  canLeaveInfoWorkbench,
   bandForItems,
   ITEMS_MIN,
   ITEMS_MAX,
@@ -60,18 +61,6 @@ describe("SELECT_PHOTO", () => {
   it("대표를 바꾼다", () => {
     const s = infoReducer(withPhotos(3), { type: "SELECT_PHOTO", photoId: "p3" });
     expect(selectedPhoto(s)?.id).toBe("p3");
-  });
-});
-
-// 사진은 **선택**이 됐다(2026-08-04). 정보전달은 쓸 만한 사진이 없는 경우가 잦아, 사진이 없으면
-// 제목을 테마 색 띠로 그린다(`@/templates/infographic-band`). 렌더는 원래부터 `photoUrl` 이
-// 없어도 되게 돼 있었고(`toRenderCard` 의 `?? null`) 흐름만 막고 있었다.
-describe("canLeavePhoto", () => {
-  it("사진이 없어도 넘어간다 — 사진은 선택이다", () => {
-    expect(canLeavePhoto(initialInfoState)).toBe(true);
-  });
-  it("대표를 골랐어도 막지 않는다", () => {
-    expect(canLeavePhoto(withPhotos(1))).toBe(true);
   });
 });
 
@@ -175,5 +164,30 @@ describe("카피 생성 전(spec === null)", () => {
     expect(infoReducer(base, { type: "REORDER_ITEM", from: 0, to: 1 })).toBe(base);
     expect(infoReducer(base, { type: "UPDATE_ITEM", index: 0, patch: { desc: "x" } })).toBe(base);
     expect(infoReducer(base, { type: "UPDATE_SPEC", patch: { title: "x" } })).toBe(base);
+  });
+});
+
+// 3화면(주제 → 만들기 → 내보내기)으로 바뀌면서 스텝이 0부터 시작한다 — 카드뉴스와 같다.
+describe("3화면 IA", () => {
+  it("주제에서 시작한다", () => {
+    expect(initialInfoState.step).toBe(0);
+  });
+
+  it("주제가 비면 만들기로 못 간다", () => {
+    expect(canLeaveInfoTopic(initialInfoState)).toBe(false);
+    expect(canLeaveInfoTopic({ ...initialInfoState, keyword: "   " })).toBe(false);
+  });
+
+  it("주제가 있으면 넘어간다", () => {
+    expect(canLeaveInfoTopic({ ...initialInfoState, keyword: "여름 전기세" })).toBe(true);
+  });
+
+  it("카피가 없으면 내보내기로 못 간다", () => {
+    expect(canLeaveInfoWorkbench(initialInfoState)).toBe(false);
+  });
+
+  it("카피가 있으면 내보내기로 간다", () => {
+    const s = infoReducer({ ...initialInfoState, keyword: "여름 전기세" }, { type: "SET_SPEC", spec });
+    expect(canLeaveInfoWorkbench(s)).toBe(true);
   });
 });
