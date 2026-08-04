@@ -1,8 +1,9 @@
 "use client";
 
-import { useReducer } from "react";
+import { useReducer, useState } from "react";
 import { CaptureStage } from "@/features/studio/CaptureStage";
 import { useExport } from "@/features/studio/useExport";
+import { MaterialFinderScreen } from "@/features/cardnews/screens/MaterialFinderScreen";
 import { InfoTopicScreen } from "./screens/InfoTopicScreen";
 import { InfoWorkbenchScreen } from "./screens/InfoWorkbenchScreen";
 import { InfoExportScreen } from "./screens/InfoExportScreen";
@@ -18,6 +19,9 @@ import { infoReducer, initialInfoState } from "./reducer";
  */
 export function InfoFlow() {
   const [state, dispatch] = useReducer(infoReducer, initialInfoState);
+  // 소재 찾기는 **스텝이 아니다** — 건너뛸 수 있는 도구라 진행 표시에 끼우지 않는다.
+  // 화면 자체는 형식과 무관하다(주제만 채워 준다). 카드뉴스 것을 그대로 쓴다.
+  const [finderOpen, setFinderOpen] = useState(false);
   const { registerRef, download, saveToFolder, captureImages } = useExport();
 
   const go = (step: number) => dispatch({ type: "SET_STEP", step });
@@ -25,7 +29,24 @@ export function InfoFlow() {
 
   return (
     <>
-      {state.step === 0 && <InfoTopicScreen state={state} dispatch={dispatch} onNext={() => go(1)} />}
+      {state.step === 0 &&
+        (finderOpen ? (
+          <MaterialFinderScreen
+            keyword={state.keyword}
+            onPick={(keyword) => {
+              dispatch({ type: "SET_KEYWORD", keyword });
+              setFinderOpen(false);
+            }}
+            onClose={() => setFinderOpen(false)}
+          />
+        ) : (
+          <InfoTopicScreen
+            state={state}
+            dispatch={dispatch}
+            onNext={() => go(1)}
+            onOpenFinder={() => setFinderOpen(true)}
+          />
+        ))}
 
       {state.step === 1 && (
         <InfoWorkbenchScreen state={state} dispatch={dispatch} onPrev={() => go(0)} onNext={() => go(2)} />

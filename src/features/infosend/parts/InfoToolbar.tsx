@@ -14,6 +14,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { FOCUS_RING } from "@/components/ui";
 import { SortableItem } from "./SortableItem";
 import { THEMES, THEME_IDS, type ThemeId } from "@/templates/themes";
+import { TIP_MAX, TITLE_MAX, SUBTITLE_MAX } from "../checks";
 import { ITEMS_MAX, ITEMS_MIN, type InfoAction, type InfoState } from "../reducer";
 
 /**
@@ -218,19 +219,19 @@ export function InfoToolbar({
               <TextField
                 label="제목"
                 value={spec.title}
-                max={40}
+                max={TITLE_MAX}
                 onChange={(title) => dispatch({ type: "UPDATE_SPEC", patch: { title } })}
               />
               <TextField
                 label="부제"
                 value={spec.subtitle ?? ""}
-                max={60}
+                max={SUBTITLE_MAX}
                 onChange={(subtitle) => dispatch({ type: "UPDATE_SPEC", patch: { subtitle } })}
               />
               <TextField
                 label="팁"
                 value={spec.tip ?? ""}
-                max={120}
+                max={TIP_MAX}
                 onChange={(tip) => dispatch({ type: "UPDATE_SPEC", patch: { tip } })}
               />
             </div>

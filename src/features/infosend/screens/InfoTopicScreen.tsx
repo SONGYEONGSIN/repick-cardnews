@@ -2,9 +2,9 @@
 
 import type { Dispatch } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
-import { StudioFrame, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
+import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { canLeaveInfoTopic, type InfoAction, type InfoState } from "../reducer";
 
 /**
@@ -17,10 +17,12 @@ export function InfoTopicScreen({
   state,
   dispatch,
   onNext,
+  onOpenFinder,
 }: {
   state: InfoState;
   dispatch: Dispatch<InfoAction>;
   onNext: () => void;
+  onOpenFinder: () => void;
 }) {
   return (
     <StudioFrame step={0} title="새로 만들기">
@@ -46,6 +48,17 @@ export function InfoTopicScreen({
               구체적일수록 좋아요. &ldquo;전기세&rdquo;보다 &ldquo;여름 전기세 줄이는 법&rdquo;처럼요.
             </p>
           </div>
+        </div>
+
+        {/* 소재 찾기는 **선택적 도구**다 — 카드뉴스와 같은 화면, 같은 자리. 고른 결과는 그냥
+            keyword 가 되므로 돌아와서 위 칸에서 그대로 고칠 수 있다. 스텝으로 만들지 않는
+            이유도 같다(스텝에 넣으면 필수처럼 보인다). */}
+        <div className="flex flex-wrap items-center gap-4">
+          <LineButton onClick={onOpenFinder}>
+            <Sparkles size={16} aria-hidden="true" />
+            소재 찾기
+          </LineButton>
+          <p className="text-[14px] text-ink-2">뭘 만들지 안 정해졌으면 요즘 뜨는 것 중에서 골라 올 수 있어요.</p>
         </div>
 
         <div className="flex flex-col gap-4">

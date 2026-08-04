@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type Dispatch } from "react";
-import { ArrowLeft, ArrowRight, CircleAlert, LoaderCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleAlert, LoaderCircle, Sparkles } from "lucide-react";
 import { PLACEHOLDER_BOX } from "@/components/ui";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { Dropzone } from "@/features/photos/Dropzone";
@@ -11,6 +11,7 @@ import { THEMES } from "@/templates/themes";
 import { requestSpec } from "@/features/studio/useGenerate";
 import type { InfographicSpec } from "@/lib/schema";
 import { inKorean } from "@/features/cardnews/screens/errors";
+import { infoChecks } from "../checks";
 import { InfoToolbar } from "../parts/InfoToolbar";
 import { toRenderCard } from "../render";
 import { canLeaveInfoWorkbench, selectedPhoto, type InfoAction, type InfoState } from "../reducer";
@@ -37,6 +38,7 @@ export function InfoWorkbenchScreen({
   const [adding, setAdding] = useState(false);
   const card = toRenderCard(state);
   const photo = selectedPhoto(state);
+  const checks = infoChecks(state);
 
   async function generate() {
     dispatch({ type: "SET_BUSY", busy: true });
@@ -76,6 +78,25 @@ export function InfoWorkbenchScreen({
         { label: "테마", value: THEMES[state.themeId].label },
         { label: "저장 크기", value: "1080 × 1350 PNG" },
       ]}
+      sidebar={
+        checks.length > 0 ? (
+          <section className="flex flex-col gap-2.5">
+            <h2 className="text-[13px] text-ink-2">점검</h2>
+            <ul className="flex flex-col gap-1.5">
+              {checks.map((c) => (
+                <li key={c.text} className="flex items-start gap-2 text-[14px] font-bold leading-snug">
+                  {c.tone === "ok" ? (
+                    <Check size={14} aria-hidden="true" className="mt-0.5 flex-none" />
+                  ) : (
+                    <CircleAlert size={14} aria-hidden="true" className="mt-0.5 flex-none" />
+                  )}
+                  {c.text}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : undefined
+      }
       action={
         <>
           <LineButton disabled={state.busy} onClick={onPrev}>
