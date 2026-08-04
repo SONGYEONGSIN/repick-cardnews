@@ -1,5 +1,5 @@
 import { itemTexts, type InfoFormat, type InfoItem, type InfographicSpec } from "@/lib/schema";
-import { seedItemsFor } from "./formats";
+import { reshapeSpec } from "./formats";
 import type { Photo } from "@/lib/photos";
 import { move } from "@/lib/reorder";
 import { DEFAULT_BAND_INFO, DEFAULT_FOCAL, type Focal } from "@/templates/layout-utils";
@@ -203,9 +203,7 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
       // 카피가 있으면 항목을 그 형식의 빈 항목으로 갈아 끼운다 — 칸이 달라 그대로 못 옮긴다.
       // 제목·부제·팁은 남긴다: 형식이 달라도 그 글은 그대로 쓸 수 있다.
       if (!state.spec) return { ...state, format: action.format };
-      const { items: _drop, ...rest } = state.spec;
-      const next = { ...rest, format: action.format, items: seedItemsFor(action.format) } as InfographicSpec;
-      return { ...state, format: action.format, spec: next };
+      return { ...state, format: action.format, spec: reshapeSpec(state.spec, action.format) };
     }
     case "SET_FIT":
       // 범위 밖 값은 잘라서 넣는다 — 손잡이가 아닌 곳에서 들어와도 카드가 안 깨진다.

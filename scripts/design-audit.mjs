@@ -88,6 +88,23 @@ const FAKE_SPEC = {
   ],
 };
 
+/** 비교 형식 — 목록형과 그리는 법이 아주 달라(머리줄 두 칸 + 기준 열) 따로 밟는다. */
+const FAKE_COMPARE_SPEC = {
+  type: "informationsend",
+  format: "compare",
+  title: "정렬 점검용 비교",
+  subtitle: "정렬 점검용 부제",
+  columns: { left: "왼쪽", right: "오른쪽" },
+  items: [
+    { label: "기준 하나", left: "왼쪽 값입니다", right: "오른쪽 값입니다" },
+    { label: "기준 둘", left: "왼쪽 값입니다", right: "오른쪽 값입니다" },
+    { label: "기준 셋", left: "왼쪽 값입니다", right: "오른쪽 값입니다" },
+    { label: "기준 넷", left: "왼쪽 값입니다", right: "오른쪽 값입니다" },
+    { label: "기준 다섯", left: "왼쪽 값입니다", right: "오른쪽 값입니다" },
+  ],
+  tip: "정렬 점검용 팁 한 줄.",
+};
+
 const FAKE_INFO_SPEC = {
   type: "informationsend",
   // 형식 판별자 — 없으면 화면이 "아직 못 그리는 형식" 으로 떨어진다(`@/lib/schema`).
@@ -267,6 +284,31 @@ try {
     detail: spill ? `아래 ${spill.아래}px · 오른쪽 ${spill.오른쪽}px · 비율 ${spill.비율}` : "카드를 못 찾음",
   });
 
+  // ── 형식을 바꿔도 카드가 자리 안에 들어가는가. 비교형은 머리줄 두 칸에 기준 열까지 있어
+  // 목록형보다 가로가 빡빡하다 — 형식이 늘 때 여기서 먼저 걸린다.
+  await page.route("**/api/generate", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ spec: FAKE_COMPARE_SPEC }) }));
+  await page.getByRole("button", { name: "비교", exact: true }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole("button", { name: /^카피 (다시 )?만들기/ }).click();
+  await page.waitForTimeout(1500);
+
+  const compareSpill = await page.evaluate(() => {
+    const stage = [...document.querySelectorAll("div")].find((d) => d.offsetWidth === 1080 && d.offsetHeight === 1350);
+    if (!stage) return null;
+    const base = stage.getBoundingClientRect();
+    const out = [...stage.querySelectorAll("*")].filter((e) => {
+      const r = e.getBoundingClientRect();
+      return r.bottom > base.bottom + 1 || r.right > base.right + 1;
+    });
+    return { 넘친요소: out.length, 글자수: (stage.textContent || "").replace(/\s+/g, " ").trim().length };
+  });
+  results.push({
+    gate: "정렬", route: "/info 비교 형식(항목 상한)",
+    pass: compareSpill !== null && compareSpill.넘친요소 === 0 && compareSpill.글자수 > 0,
+    detail: compareSpill ? `넘친 요소 ${compareSpill.넘친요소}개 · 글자 ${compareSpill.글자수}자` : "카드를 못 찾음",
+  });
+
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.waitForTimeout(300);
 
@@ -297,7 +339,7 @@ try {
       ` · 늘어남 ${stretches}`,
   });
 } catch (e) {
-  results.push({ gate: "정렬", route: "-", pass: false, detail: `측정 실패: ${e instanceof Error ? e.message.slice(0, 80) : "알 수 없음"}` });
+  results.push({ gate: "정렬", route: "-", pass: false, detail: `측정 실패: ${e instanceof Error ? e.message.slice(0, 300).replace(/\n/g, " | ") : "알 수 없음"}` });
 } finally {
   await alignBrowser.close();
 }

@@ -133,3 +133,55 @@ describe("infoChecks", () => {
     expect(infoChecks(withPhoto)).toEqual([{ tone: "ok", text: "다 됐어요. 내보낼 수 있어요." }]);
   });
 });
+
+/**
+ * 점검도 형식마다 다르다 — 비교형은 **세 칸이 다 차야** 하고, 형식마다 항목 수 하한이 다르다.
+ * 목록형 기준 하나로 재면 비교형에서 절반만 채워도 "다 됐어요" 가 나온다.
+ */
+describe("형식별 점검", () => {
+  const base = { type: "informationsend" as const, title: "제목", subtitle: "부제", tip: "팁" };
+  const seed = (spec: object) => infoReducer(initialInfoState, { type: "SET_SPEC", spec: spec as never });
+
+  it("비교형은 한 칸만 비어도 짚는다", () => {
+    const s = seed({
+      ...base,
+      format: "compare",
+      columns: { left: "A", right: "B" },
+      items: [
+        { label: "기준", left: "왼", right: "" },
+        { label: "기준2", left: "왼", right: "오" },
+        { label: "기준3", left: "왼", right: "오" },
+      ],
+    });
+    expect(infoChecks(s).some((c) => c.text.includes("빈 항목"))).toBe(true);
+  });
+
+  it("숫자형은 두 개면 충분하다 — 목록형 하한(3)으로 재지 않는다", () => {
+    const s = seed({
+      ...base,
+      format: "stat",
+      items: [
+        { value: "7%", label: "설명" },
+        { value: "2주", label: "설명" },
+      ],
+    });
+    expect(infoChecks(s)).toEqual([{ tone: "ok", text: "다 됐어요. 내보낼 수 있어요." }]);
+  });
+
+  it("체크리스트는 넷부터다 — 셋이면 짚는다", () => {
+    const s = seed({ ...base, format: "check", items: [{ text: "하나" }, { text: "둘" }, { text: "셋" }] });
+    expect(infoChecks(s).some((c) => c.text.includes("4개부터"))).toBe(true);
+  });
+
+  it("형식마다 글자 수 상한이 다르다 — 숫자 값은 8자다", () => {
+    const s = seed({
+      ...base,
+      format: "stat",
+      items: [
+        { value: "가".repeat(9), label: "설명" },
+        { value: "2주", label: "설명" },
+      ],
+    });
+    expect(infoChecks(s).some((c) => c.text.includes("글자 수"))).toBe(true);
+  });
+});

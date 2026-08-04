@@ -1,4 +1,4 @@
-import { itemRangeOf, itemTexts, type InfoFormat, type InfoItem } from "@/lib/schema";
+import { itemRangeOf, itemTexts, type InfoFormat, type InfoItem, type InfographicSpec } from "@/lib/schema";
 
 /**
  * 형식을 고르고 바꾸는 판단.
@@ -38,4 +38,20 @@ export function seedItemsFor(format: InfoFormat): InfoItem[] {
     }
   };
   return Array.from({ length: min }, one);
+}
+
+/**
+ * 형식을 바꿀 때 갈아 끼울 **스펙 전체**. 항목만 바꾸면 형식마다 따로 있는 칸이 빠진다 —
+ * 비교형의 `columns` 가 없으면 카드를 그리다 죽는다(2026-08-05 실제로 그랬다).
+ *
+ * 공통 글(제목·부제·팁)은 남긴다: 형식이 달라도 그 글은 그대로 쓸 수 있다.
+ */
+export function reshapeSpec(spec: InfographicSpec, format: InfoFormat): InfographicSpec {
+  const common = { type: spec.type, title: spec.title, subtitle: spec.subtitle, tip: spec.tip };
+  const items = seedItemsFor(format);
+  if (format === "compare") {
+    return { ...common, format, columns: { left: "", right: "" }, items } as InfographicSpec;
+  }
+  // 다른 형식에는 `columns` 가 없다 — 남겨 두면 스키마가 거절한다.
+  return { ...common, format, items } as InfographicSpec;
 }

@@ -12,7 +12,7 @@ import {
   type InfoState,
 } from "@/features/infosend/reducer";
 import type { Photo } from "@/lib/photos";
-import { InfographicSpec, itemTexts } from "@/lib/schema";
+import { INFO_FORMATS, InfographicSpec, itemTexts } from "@/lib/schema";
 import { infoChecks } from "./checks";
 import { DEFAULT_BAND_INFO } from "@/templates/layout-utils";
 
@@ -310,5 +310,44 @@ describe("SET_FORMAT", () => {
     const seeded = infoReducer(initialInfoState, { type: "SET_SPEC", spec });
     const same = infoReducer(seeded, { type: "SET_FORMAT", format: "list" });
     expect(same.spec?.items).toEqual(seeded.spec?.items);
+  });
+});
+
+/**
+ * 형식마다 **항목 말고도** 자기 칸이 있다 — 비교형의 `columns` 가 그렇다. 항목만 갈아 끼우면
+ * 그 칸이 없는 채로 남아 카드를 그릴 때 죽는다(2026-08-05: 형식을 비교로 바꾸자 화면이 꺼졌다).
+ */
+describe("SET_FORMAT 은 그 형식의 칸을 모두 갖춘다", () => {
+  it("비교로 바꾸면 양쪽 이름 칸이 생긴다", () => {
+    const seeded = infoReducer(initialInfoState, { type: "SET_SPEC", spec });
+    const changed = infoReducer(seeded, { type: "SET_FORMAT", format: "compare" });
+    expect(changed.spec).toMatchObject({ format: "compare", columns: { left: "", right: "" } });
+  });
+
+  it("비교에서 다른 형식으로 가면 그 칸을 버린다 — 남으면 스키마가 거절한다", () => {
+    const toCompare = infoReducer(
+      infoReducer(initialInfoState, { type: "SET_SPEC", spec }),
+      { type: "SET_FORMAT", format: "compare" },
+    );
+    const back = infoReducer(toCompare, { type: "SET_FORMAT", format: "list" });
+    expect(back.spec && "columns" in back.spec).toBe(false);
+  });
+
+  it("어느 형식으로 바꿔도 카드가 읽는 칸이 다 있다 — 채워 넣으면 스키마를 통과한다", () => {
+    for (const f of INFO_FORMATS) {
+      const changed = infoReducer(
+        infoReducer(initialInfoState, { type: "SET_SPEC", spec }),
+        { type: "SET_FORMAT", format: f.id },
+      );
+      // 빈 칸만 채우면 통과해야 한다 — 빠진 칸이 있으면 채워도 통과 못 한다.
+      const filled = {
+        ...changed.spec,
+        items: changed.spec!.items.map((item) =>
+          Object.fromEntries(Object.keys(item).map((k) => [k, "값"])),
+        ),
+        ...(changed.spec!.format === "compare" ? { columns: { left: "왼", right: "오" } } : {}),
+      };
+      expect(InfographicSpec.safeParse(filled).success).toBe(true);
+    }
   });
 });
