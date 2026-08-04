@@ -35,15 +35,16 @@ export function FileSavePanel({
         네트워크 밖으로 나가지 않아요. <span className="font-mono text-[13px]">{dir}/</span> 에 장수만큼
         PNG 로 남거나, 브라우저 다운로드 폴더에 한 장씩 내려받아요.
       </p>
+      {/* 주 동작이 먼저다 — 부차 동작 뒤로 밀리면 시선이 그것부터 잡는다(docs/ui-standards.md §9). */}
       <div className="flex flex-wrap gap-2.5">
-        <LineButton disabled={busy} onClick={onDownload}>
-          <Download size={15} aria-hidden="true" />
-          내려받기
-        </LineButton>
         <SolidButton disabled={busy} onClick={onSave}>
           <FolderDown size={16} aria-hidden="true" />
           폴더에 저장
         </SolidButton>
+        <LineButton disabled={busy} onClick={onDownload}>
+          <Download size={15} aria-hidden="true" />
+          내려받기
+        </LineButton>
       </div>
       {saved && (
         <p role="status" className="flex items-center gap-2.5 rounded-lg bg-canvas px-4 py-3 text-[14px]">
