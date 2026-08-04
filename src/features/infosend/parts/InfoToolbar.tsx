@@ -1,25 +1,17 @@
 "use client";
 
 import { useState, type Dispatch } from "react";
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { FOCUS_RING } from "@/components/ui";
-import { SortableItem } from "./SortableItem";
 import { THEMES, THEME_IDS, type ThemeId } from "@/templates/themes";
 import { FIT_RANGE, type Fit } from "@/templates/fit";
 import { TIP_MAX, TITLE_MAX, SUBTITLE_MAX } from "../checks";
-import { ITEMS_MAX, ITEMS_MIN, type InfoAction, type InfoState } from "../reducer";
+import { type InfoAction, type InfoState } from "../reducer";
 
 /**
  * 정보전달 툴바 — 위는 **머리줄**(안내 + 그 탭의 동작), 아래는 조작이다.
+ *
+ * **항목 편집은 여기 없다** — 세로로 긴 목록이라 카드 옆의 얕은 툴바에 넣으면 그 안에서만
+ * 스크롤이 생긴다. 왼쪽 칸의 `InfoItemsEditor` 로 뗐다. 여기 남은 것은 짧은 조작뿐이다.
  *
  * 카드뉴스 `EditToolbar` 도 **같은 골격**이다 — 실사용에서 "안내가 아래 있으면 다 만지고
  * 나서야 읽는다"는 지적을 받아 둘 다 뒤집었다. 어느 형식을 만들든 같은 자리를 본다.
@@ -28,13 +20,12 @@ import { ITEMS_MAX, ITEMS_MIN, type InfoAction, type InfoState } from "../reduce
  * '카드' 탭 안에 넣었다가 "카드 하나 설정"으로 읽혀 되돌린 것과 같은 이유다.
  */
 
-type Target = "text" | "items" | "photo" | "fit" | "theme";
+type Target = "text" | "photo" | "fit" | "theme";
 
 const TABS: readonly { id: Target; label: string }[] = [
   // 테마가 맨 앞이다 — 카드 **전체**에 걸리는 값이라 먼저 정하고 나서 글을 고친다.
   { id: "theme", label: "테마" },
   { id: "text", label: "글" },
-  { id: "items", label: "항목" },
   { id: "photo", label: "사진" },
   { id: "fit", label: "맞춤" },
 ];
@@ -205,31 +196,16 @@ export function InfoToolbar({
   hasPhoto: boolean;
 }) {
   const [target, setTarget] = useState<Target>("text");
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
   const spec = state.spec;
   if (!spec) return null;
 
-  const itemIds = spec.items.map((_, i) => `item-${i}`);
 
-  function onDragEnd(event: DragEndEvent) {
-    const { active: from, over } = event;
-    if (!over || from.id === over.id) return;
-    dispatch({
-      type: "REORDER_ITEM",
-      from: itemIds.indexOf(String(from.id)),
-      to: itemIds.indexOf(String(over.id)),
-    });
-  }
 
   // 사진이 없으면 사진 탭이 할 일이 없다 — 없는 탭을 띄우지 않는다(카드뉴스와 같은 규칙).
   const tabs = TABS.filter((t) => t.id !== "photo" || hasPhoto);
   const active: Target = tabs.some((t) => t.id === target) ? target : "text";
 
   function hintFor(t: Target): string {
-    if (t === "items") return `항목은 ${ITEMS_MIN}~${ITEMS_MAX}개예요. 순서는 아래 목록에서 끌어 바꿔요`;
     if (t === "photo") return "사진 높이와 초점을 정해요 · 사진을 빼면 제목이 테마 색 띠로 그려져요";
     if (t === "fit") return "좁은 카드에 많이 담으려면 줄이고, 시원하게 보이려면 키워요";
     if (t === "theme") return "바탕·글자·강조색과 제목 글꼴을 한 번에 바꿔요";
@@ -295,37 +271,6 @@ export function InfoToolbar({
             </div>
           )}
 
-          {active === "items" && (
-            <div className="flex w-full flex-col gap-3">
-              {/* 세는 값은 왼쪽, 더하는 동작은 오른쪽 끝 — 목록 위 머리줄의 두 성격을 갈라 둔다. */}
-              <span className="flex w-full items-center justify-between gap-2.5">
-                <span className="text-[14px] text-ink-2">
-                  항목 <span className="font-bold tabular-nums text-ink">{spec.items.length}</span>/{ITEMS_MAX}
-                </span>
-                <Btn compact disabled={spec.items.length >= ITEMS_MAX} onClick={() => dispatch({ type: "ADD_ITEM" })}>
-                  항목 추가
-                </Btn>
-              </span>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-                <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-                  <ul className="flex flex-col gap-2">
-                    {spec.items.map((item, i) => (
-                      <SortableItem
-                        key={itemIds[i]}
-                        id={itemIds[i]}
-                        index={i}
-                        keyword={item.keyword}
-                        desc={item.desc}
-                        canRemove={spec.items.length > ITEMS_MIN}
-                        onPatch={(patch) => dispatch({ type: "UPDATE_ITEM", index: i, patch })}
-                        onRemove={() => dispatch({ type: "REMOVE_ITEM", index: i })}
-                      />
-                    ))}
-                  </ul>
-                </SortableContext>
-              </DndContext>
-            </div>
-          )}
 
           {active === "photo" && (
             <>

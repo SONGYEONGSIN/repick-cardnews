@@ -14,6 +14,7 @@ import { inKorean } from "@/features/cardnews/screens/errors";
 import { useFitScale } from "@/features/studio/useFitScale";
 import { infoChecks } from "../checks";
 import { canGenerate, dropExit, dropzoneOpen, generateStatus, photoStage, type StartChoice } from "../workbench-view";
+import { InfoItemsEditor } from "../parts/InfoItemsEditor";
 import { InfoToolbar } from "../parts/InfoToolbar";
 import { toRenderCard } from "../render";
 import { canLeaveInfoWorkbench, selectedPhoto, type InfoAction, type InfoState } from "../reducer";
@@ -231,8 +232,8 @@ export function InfoWorkbenchScreen({
 
           {card && state.spec && (
             <section className="flex flex-col gap-4">
-              <SectionHead title="고치기" aside="바로 반영돼요" />
-              <InfoToolbar state={state} dispatch={dispatch} hasPhoto={photo !== null} />
+              <SectionHead title="항목" aside="바로 반영돼요" />
+              <InfoItemsEditor state={state} dispatch={dispatch} />
             </section>
           )}
         </div>
@@ -250,7 +251,11 @@ export function InfoWorkbenchScreen({
             )}
 
             {card && state.spec ? (
-              <div className="flex min-h-0 flex-1 items-center justify-center rounded-2xl bg-canvas p-4">
+              <div className="flex min-h-0 flex-1 flex-col gap-3">
+                {/* 짧은 조작(테마·글·맞춤)은 카드 옆에 둔다 — 카드뉴스와 같은 자리다.
+                    긴 항목 목록만 왼쪽 칸으로 뗐다(`InfoItemsEditor`). */}
+                <InfoToolbar state={state} dispatch={dispatch} hasPhoto={photo !== null} />
+                <div className="flex min-h-0 flex-1 items-center justify-center rounded-2xl bg-canvas p-4">
                 {/* 자리를 재서 그 안에 맞게 줄인다 — 배율을 박아 두면 자리가 좁아져도 안 줄어
                     밖으로 튀어나온다(`useFitScale` 주석 참고). */}
                 <div ref={fit.ref} className="h-full max-h-[760px] w-full">
@@ -265,6 +270,7 @@ export function InfoWorkbenchScreen({
                       <CardRenderer card={card} themeId={state.themeId} handle={state.handle} />
                     </div>
                   </div>
+                </div>
                 </div>
               </div>
             ) : (
