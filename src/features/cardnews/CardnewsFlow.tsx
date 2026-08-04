@@ -9,8 +9,9 @@ import { WorkbenchScreen } from "./screens/WorkbenchScreen";
 import { ExportScreen } from "./screens/ExportScreen";
 import { toRenderCards } from "./render";
 import { cardnewsReducer, initialCardnewsState } from "./reducer";
+import type { LedgerEntry } from "@/lib/ledger";
 
-export function CardnewsFlow() {
+export function CardnewsFlow({ recent }: { recent: readonly LedgerEntry[] }) {
   const [state, dispatch] = useReducer(cardnewsReducer, initialCardnewsState);
   // 소재 찾기는 **스텝이 아니다.** reducer 의 step 을 늘리면 진행 표시에 끼어들어 필수처럼
   // 보인다 — 건너뛸 수 있는 도구이므로 이 화면의 로컬 상태로만 여닫는다.
@@ -37,6 +38,7 @@ export function CardnewsFlow() {
             dispatch={dispatch}
             onNext={() => go(1)}
             onOpenFinder={() => setFinderOpen(true)}
+            recent={recent}
           />
         ))}
 

@@ -1,6 +1,7 @@
 import type { CardnewsCard, InfographicSpec } from "@/lib/schema";
 import type { CardLayout } from "@/lib/layout-assign";
 import { THEMES, type ThemeId } from "@/templates/themes";
+import { titleInBand } from "@/templates/infographic-band";
 import { CardFrame } from "@/templates/CardFrame";
 import { InfographicBody } from "@/templates/bodies/InfographicBody";
 import { CardnewsBody } from "@/templates/bodies/CardnewsBody";
@@ -46,8 +47,17 @@ export function CardRenderer({
 }) {
   const theme = THEMES[themeId];
   const onPhoto = card.layout === "full-bleed" && card.photoUrl !== null;
+  // 제목을 위쪽 띠로 올릴지 **한 곳에서** 정한다 — 띠를 그리는 쪽(SplitPhotoCard)과 제목을
+  // 건너뛰는 쪽(InfographicBody)이 각자 판단하면 어긋난다(`@/templates/infographic-band`).
+  const bandTitle = isInfographicCopy(card.copy) && titleInBand(card.photoUrl, card.layout);
   const body = isInfographicCopy(card.copy) ? (
-    <InfographicBody spec={card.copy} theme={theme} onPhoto={onPhoto} compact={card.copy.items.length >= 5} />
+    <InfographicBody
+      spec={card.copy}
+      theme={theme}
+      onPhoto={onPhoto}
+      compact={card.copy.items.length >= 5}
+      hideTitle={bandTitle}
+    />
   ) : (
     <CardnewsBody
       card={card.copy}
@@ -88,6 +98,11 @@ export function CardRenderer({
           spacers={spacers}
           badge={card.badge}
           accent={theme.accent}
+          titleBand={
+            bandTitle && isInfographicCopy(card.copy)
+              ? { text: card.copy.title, bg: theme.accent, fg: theme.onPhoto, font: theme.displayFont }
+              : undefined
+          }
         >
           {body}
         </SplitPhotoCard>

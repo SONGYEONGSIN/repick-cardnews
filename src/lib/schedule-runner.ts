@@ -2,10 +2,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { checkInstagramConfig } from "./instagram-config";
 import {
   CAROUSEL_MAX_ITEMS,
-  CAROUSEL_MIN_ITEMS,
+  PUBLISHABLE_MIN_ITEMS,
   buildCarouselImageUrls,
   friendlyPublishError,
   publishCarousel,
+  publishKindFor,
+  publishSingleImage,
 } from "./instagram";
 import { defaultEnvLocalPath } from "./instagram-token-refresh-runtime";
 import { saveShare } from "./share-store";
@@ -37,6 +39,7 @@ export type RunDeps = {
   envPath?: string;
   fetchImpl?: typeof fetch;
   publish?: typeof publishCarousel;
+  publishSingle?: typeof publishSingleImage;
 };
 
 /**
@@ -76,12 +79,16 @@ export async function runScheduledItem(item: ScheduleItem, deps: RunDeps): Promi
   const root = deps.root ?? scheduleRoot();
   const fetchImpl = deps.fetchImpl ?? fetch;
   const publish = deps.publish ?? publishCarousel;
+  const publishSingle = deps.publishSingle ?? publishSingleImage;
 
   const images = loadImages(item.id, root);
-  if (images.length < CAROUSEL_MIN_ITEMS || images.length > CAROUSEL_MAX_ITEMS) {
+  // 손으로 올릴 때와 **같은 갈림**을 탄다(`publishKindFor`) — 한쪽만 1장을 받으면
+  // 손으로는 되는데 예약하면 실패한다.
+  const kind = publishKindFor(images.length);
+  if (!kind) {
     return {
       ok: false,
-      message: `예약해 둔 사진이 ${CAROUSEL_MIN_ITEMS}~${CAROUSEL_MAX_ITEMS}장이 아니어서 올리지 못했어요.`,
+      message: `예약해 둔 사진이 ${PUBLISHABLE_MIN_ITEMS}~${CAROUSEL_MAX_ITEMS}장이 아니어서 올리지 못했어요.`,
     };
   }
 
@@ -107,7 +114,11 @@ export async function runScheduledItem(item: ScheduleItem, deps: RunDeps): Promi
 
   try {
     // 캡션은 **예약할 때** 해시태그까지 합쳐 둔 것이다 — 여기서 다시 조합하지 않는다.
-    const mediaId = await publish({ config: { ...configCheck.config, publicBaseUrl }, imageUrls, caption: item.caption });
+    const config = { ...configCheck.config, publicBaseUrl };
+    const mediaId =
+      kind === "single"
+        ? await publishSingle({ config, imageUrl: imageUrls[0], caption: item.caption })
+        : await publish({ config, imageUrls, caption: item.caption });
     return { ok: true, mediaId };
   } catch (e) {
     return { ok: false, message: friendlyPublishError(e) };

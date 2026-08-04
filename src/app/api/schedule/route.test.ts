@@ -98,8 +98,17 @@ describe("POST /api/schedule", () => {
     expect(readQueue(root)).toEqual([]);
   });
 
-  it("사진이 모자라면 400 이다", async () => {
+  // 정보전달은 한 장이다 — 손으로는 올라가는데 예약만 막히면 안 된다(`publishKindFor`).
+  it("한 장도 예약된다 — 정보전달은 한 장으로 나간다", async () => {
     const res = await POST(post(validBody({ images: [png()] })));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { id?: string };
+    expect(typeof body.id).toBe("string");
+  });
+
+  it("사진이 하나도 없으면 400 이다", async () => {
+    const res = await POST(post(validBody({ images: [] })));
 
     expect(res.status).toBe(400);
     expect(readQueue(root)).toEqual([]);

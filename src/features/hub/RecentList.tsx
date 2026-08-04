@@ -8,7 +8,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 export function RecentList({ rows }: { rows: readonly LedgerEntry[] }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-ink-3">아직 만든 게 없어요. 위에서 하나 골라 시작해 보세요.</p>;
+    return <p className="text-sm text-ink-3">아직 만든 게 없어요. 위에서 주제를 정하고 시작해 보세요.</p>;
   }
   return (
     <ul className="flex flex-col divide-y divide-hair-soft">

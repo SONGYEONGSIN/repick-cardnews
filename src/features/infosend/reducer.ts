@@ -11,7 +11,6 @@ type Item = InfographicSpec["items"][number];
 
 export type InfoState = {
   step: number;
-  maxReached: number;
   photos: Photo[];
   selectedPhotoId: string | null;
   keyword: string;
@@ -46,8 +45,7 @@ export type InfoAction =
   | { type: "RESET" };
 
 export const initialInfoState: InfoState = {
-  step: 1,
-  maxReached: 1,
+  step: 0,
   photos: [],
   selectedPhotoId: null,
   keyword: "",
@@ -65,8 +63,30 @@ export function selectedPhoto(state: InfoState): Photo | null {
   return state.photos.find((p) => p.id === state.selectedPhotoId) ?? null;
 }
 
-export function canLeavePhoto(state: InfoState): boolean {
-  return selectedPhoto(state) !== null;
+/**
+ * 3화면(주제 → 만들기 → 내보내기)의 문지기. 카드뉴스의 `canLeaveTopic`·`canLeaveWorkbench` 와
+ * 같은 자리다 — 두 형식이 같은 흐름을 쓰므로 판정도 같은 모양으로 둔다.
+ */
+export function canLeaveInfoTopic(state: InfoState): boolean {
+  return state.keyword.trim().length > 0;
+}
+
+/**
+ * 캡션 초안의 재료 — 제목과 항목 키워드를 순서대로 준다. 카드뉴스는 헤드라인 목록을 그대로
+ * 쓰지만(`defaultCaption(keyword, headings)`) 정보전달엔 헤드라인이 없어 이 자리를 만든다.
+ *
+ * **카드에 있는 글만 쓴다** — 빈 값은 빼고, 없는 말은 지어내지 않는다.
+ */
+export function captionSourceLines(state: InfoState): string[] {
+  if (!state.spec) return [];
+  return [state.spec.title, ...state.spec.items.map((item) => item.keyword)]
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+/** 카피가 있어야 내보낼 게 생긴다. 사진은 선택이라 여기서 보지 않는다. */
+export function canLeaveInfoWorkbench(state: InfoState): boolean {
+  return state.spec !== null;
 }
 
 /**
@@ -148,7 +168,7 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
     case "REORDER_ITEM":
       return state.spec ? withItems(state, move(state.spec.items, action.from, action.to)) : state;
     case "SET_STEP":
-      return { ...state, step: action.step, maxReached: Math.max(state.maxReached, action.step) };
+      return { ...state, step: action.step };
     case "SET_BUSY":
       return { ...state, busy: action.busy };
     case "SET_ERROR":

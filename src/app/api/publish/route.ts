@@ -4,20 +4,24 @@ import { checkInstagramConfig } from "@/lib/instagram-config";
 import { isLocalHost } from "@/lib/local-guard";
 import {
   publishCarousel,
+  publishSingleImage,
+  publishKindFor,
   buildCarouselImageUrls,
   friendlyPublishError,
-  CAROUSEL_MIN_ITEMS,
+  PUBLISHABLE_MIN_ITEMS,
   CAROUSEL_MAX_ITEMS,
+  type PublishStageProgress,
 } from "@/lib/instagram";
 import { recordPublishProgress, clearPublishProgress } from "@/lib/publish-progress-store";
 import { MAX_HASHTAGS, combineCaptionWithHashtags } from "@/lib/hashtags";
 
 /**
- * POST /api/publish — 공유 토큰이 가리키는 카드 이미지들을 인스타그램 캐러셀로 게시한다.
+ * POST /api/publish — 공유 토큰이 가리키는 카드 이미지들을 인스타그램에 게시한다. 한 장이면
+ * 단일 게시, 2~10장이면 캐러셀이다(`publishKindFor`) — 정보전달이 한 장으로 나간다.
  *
  * **사진이 이 서버를 벗어나는 지점**: 인스타그램 콘텐츠 게시 API 는 파일을 직접 받지 않고
  * `image_url` 을 주면 인스타그램 서버가 그 주소로 사진을 가져간다(`@/lib/instagram` 상단 주석
- * 참고). 그래서 아래 `publishCarousel()` 호출이 시작되는 순간 — `PUBLIC_BASE_URL` + 공유 토큰
+ * 참고). 그래서 아래 게시 호출이 시작되는 순간 — `PUBLIC_BASE_URL` + 공유 토큰
  * 경로(`/s/<token>/<n>.png`)로 만든 주소를 통해 — 카드 이미지가 인터넷으로 나간다. 로컬 PC
  * 안에서만 도는 다른 기능(저장·폰으로 보내기)과 다른 지점이다.
  *
@@ -75,10 +79,13 @@ export async function POST(req: Request) {
     return Response.json({ error: "공유 링크가 없거나 만료됐어요" }, { status: 404 });
   }
 
-  if (entry.images.length < CAROUSEL_MIN_ITEMS || entry.images.length > CAROUSEL_MAX_ITEMS) {
+  // 예약 실행기(`@/lib/schedule-runner`)와 **같은 갈림**을 쓴다 — 한쪽만 1장을 받으면
+  // 손으로는 올라가는데 예약하면 실패한다.
+  const kind = publishKindFor(entry.images.length);
+  if (!kind) {
     return Response.json(
       {
-        error: `캐러셀은 ${CAROUSEL_MIN_ITEMS}~${CAROUSEL_MAX_ITEMS}장만 게시할 수 있어요 (현재 ${entry.images.length}장)`,
+        error: `한 번에 ${PUBLISHABLE_MIN_ITEMS}~${CAROUSEL_MAX_ITEMS}장까지 게시할 수 있어요 (현재 ${entry.images.length}장)`,
       },
       { status: 400 },
     );
@@ -92,11 +99,16 @@ export async function POST(req: Request) {
   const caption = combineCaptionWithHashtags(parsed.data.caption, parsed.data.hashtags);
 
   try {
-    const mediaId = await publishCarousel(
-      { config: configCheck.config, imageUrls, caption },
-      undefined,
-      (progress) => recordPublishProgress(parsed.data.token, progress, Date.now()),
-    );
+    const onProgress = (progress: PublishStageProgress) =>
+      recordPublishProgress(parsed.data.token, progress, Date.now());
+    const mediaId =
+      kind === "single"
+        ? await publishSingleImage(
+            { config: configCheck.config, imageUrl: imageUrls[0], caption },
+            undefined,
+            onProgress,
+          )
+        : await publishCarousel({ config: configCheck.config, imageUrls, caption }, undefined, onProgress);
     return Response.json({ mediaId });
   } catch (e) {
     return Response.json({ error: friendlyPublishError(e) }, { status: 502 });

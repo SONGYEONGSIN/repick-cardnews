@@ -6,16 +6,23 @@ export function InfographicBody({
   theme: t,
   onPhoto = false,
   compact = false,
+  hideTitle = false,
 }: {
   spec: InfographicSpec;
   theme: Theme;
   onPhoto?: boolean;
   /** 항목 5개 이상일 때 CardRenderer가 켠다 — 타이포를 줄여 CardFrame의 하드 클리핑을 막는다 */
   compact?: boolean;
+  /**
+   * 제목이 위쪽 **띠**로 갔으면 여기서는 그리지 않는다(`titleInBand`). 각자 판단하면 제목이
+   * 두 번 나오거나 하나도 안 나온다 — 그래서 `CardRenderer` 가 한 함수로 정해 내려 준다.
+   */
+  hideTitle?: boolean;
 }) {
   const fg = onPhoto ? t.onPhoto : t.fg;
   return (
     <>
+      {!hideTitle && (
       <h1
         style={{
           fontFamily: t.displayFont,
@@ -27,6 +34,7 @@ export function InfographicBody({
       >
         {spec.title}
       </h1>
+      )}
       {spec.subtitle && (
         <p
           style={{ fontSize: compact ? 27 : 32, marginTop: 16, marginBottom: 8, opacity: 0.85, color: fg }}

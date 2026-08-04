@@ -42,5 +42,5 @@ npm run design:audit   # 정적 게이트 + 폭 스위프(dev 서버가 떠 있�
 
 ## 자동으로 안 잡히는 것
 
-`npm run design:audit` 의 폭 스위프는 `/`·`/cardnews`·`/info` 만 훑는다. **사진과 카드가
+`npm run design:audit` 의 폭 스위프는 `/`·`/info` 만 훑는다. **사진과 카드가
 있어야 열리는 화면(작업대·내보내기)은 사람이 봐야 한다.**

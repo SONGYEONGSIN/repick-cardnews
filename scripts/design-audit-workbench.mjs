@@ -103,9 +103,9 @@ const browser = await chromium.launch();
 for (const width of WIDTHS) {
   const page = await browser.newPage({ viewport: { width, height: 900 } });
 
-  const response = await page.goto(BASE + "/cardnews", { waitUntil: "networkidle" });
+  const response = await page.goto(BASE + "/", { waitUntil: "networkidle" });
   if (!response || !response.ok()) {
-    results.push({ width, state: "empty", pass: false, detail: `/cardnews 가 200 을 응답하지 않음` });
+    results.push({ width, state: "empty", pass: false, detail: `/ 가 200 을 응답하지 않음` });
     await page.close();
     continue;
   }
