@@ -136,7 +136,7 @@ export function InfoWorkbenchScreen({
       <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:h-full xl:flex-row xl:gap-x-8 xl:py-3">
         {/* 왼쪽 = 고치는 곳(사진 + 글·항목·테마). 오른쪽은 결과만 본다 — 편집칸이 카드 위에
             얹혀 있으면 고치면서 카드를 볼 수 없다는 지적을 받아 옮겼다(2026-08-04). */}
-        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:max-w-[680px] xl:min-w-[420px] xl:flex-none xl:basis-[34%] xl:overflow-y-auto">
+        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:max-w-[720px] xl:min-w-[460px] xl:flex-none xl:basis-[40%] xl:overflow-y-auto xl:pr-4">
           <section className="flex flex-col gap-4">
             <SectionHead title="사진" aside="없어도 돼요" />
 
