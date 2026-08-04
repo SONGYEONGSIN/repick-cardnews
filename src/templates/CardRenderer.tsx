@@ -4,6 +4,7 @@ import { THEMES, type ThemeId } from "@/templates/themes";
 import { titleInBand } from "@/templates/infographic-band";
 import { CardFrame } from "@/templates/CardFrame";
 import { InfographicBody } from "@/templates/bodies/InfographicBody";
+import { CompareBody } from "@/templates/bodies/CompareBody";
 import { UnsupportedFormatBody } from "@/templates/bodies/UnsupportedFormatBody";
 import { CardnewsBody } from "@/templates/bodies/CardnewsBody";
 import { FullBleedCard } from "@/templates/layouts/FullBleedCard";
@@ -70,6 +71,15 @@ export function CardRenderer({
       hideTitle={bandTitle}
       fit={card.fit}
     />
+    ) : card.copy.format === "compare" ? (
+      <CompareBody
+        spec={card.copy}
+        theme={theme}
+        onPhoto={onPhoto}
+        compact={card.copy.items.length >= 4}
+        hideTitle={bandTitle}
+        fit={card.fit}
+      />
     ) : (
       <UnsupportedFormatBody format={card.copy.format} theme={theme} />
     )
