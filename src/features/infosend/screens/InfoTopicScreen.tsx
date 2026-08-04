@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
-import { canLeaveInfoTopic, type InfoAction, type InfoState } from "../reducer";
+import { ITEMS_MAX, ITEMS_MIN, canLeaveInfoTopic, type InfoAction, type InfoState } from "../reducer";
 
 /**
  * 화면 1 — 주제. 카드뉴스 `TopicScreen` 과 **같은 골격**이다. 두 형식이 같은 흐름을 쓰므로
@@ -83,7 +83,7 @@ export function InfoTopicScreen({
               <span className="text-[15px] font-bold text-ink-2">한 장 · 정보를 얹은 인포그래픽</span>
               {/* 사진이 선택이라는 사실을 여기서부터 말해 준다 — 다음 화면에서 처음 알면 늦다. */}
               <span className="text-[14px] leading-relaxed text-ink-2">
-                제목과 항목 3~6개, 마지막에 팁 한 줄이 들어가요. 사진은 없어도 돼요.
+                제목과 항목 {ITEMS_MIN}~{ITEMS_MAX}개, 마지막에 팁 한 줄이 들어가요. 사진은 없어도 돼요.
               </span>
             </div>
           </div>

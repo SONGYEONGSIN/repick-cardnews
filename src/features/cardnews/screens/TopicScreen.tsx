@@ -4,6 +4,7 @@ import type { Dispatch } from "react";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
+import { ITEMS_MAX, ITEMS_MIN } from "@/features/infosend/reducer";
 import { StudioFrame, SectionHead, SolidButton, LineButton } from "@/features/shell/StudioFrame";
 import { canLeaveTopic, type CardnewsAction, type CardnewsState } from "../reducer";
 
@@ -92,9 +93,9 @@ export function TopicScreen({
               className={`flex flex-col gap-2.5 rounded-xl border-2 border-hair p-5 text-left transition-colors duration-200 hover:border-ink-3 sm:p-6 ${FOCUS_RING} motion-reduce:transition-none`}
             >
               <span className="text-[20px] font-black tracking-tight sm:text-[24px]">정보전달</span>
-              <span className="text-[15px] font-bold text-ink-2">사진 1장 · 정보를 얹은 인포그래픽 한 장</span>
+              <span className="text-[15px] font-bold text-ink-2">한 장 · 정보를 얹은 인포그래픽</span>
               <span className="text-[14px] leading-relaxed text-ink-2">
-                제목과 항목 3~4개, 마지막에 팁 한 줄이 들어가요.
+                제목과 항목 {ITEMS_MIN}~{ITEMS_MAX}개, 마지막에 팁 한 줄이 들어가요. 사진은 없어도 돼요.
               </span>
             </Link>
           </div>

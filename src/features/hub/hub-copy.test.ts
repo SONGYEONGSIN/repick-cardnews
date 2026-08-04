@@ -51,3 +51,45 @@ describe("허브가 흐름을 정확히 말한다", () => {
     expect(description).not.toContain("사진 1장에");
   });
 });
+
+/**
+ * 형태 소개 문구는 **두 주제 화면에 다 있다** — 한쪽만 고치면 화면마다 다른 말을 한다.
+ * 실제로 그랬다(2026-08-04): `/cardnews` 쪽은 항목이 "3~4개"라고 적혀 있었는데 실제
+ * 상한은 3~6개였고, 사진도 필수처럼 적혀 있었다.
+ *
+ * 숫자는 `ITEMS_MIN`·`ITEMS_MAX` 에서만 온다 — 여기서 베끼는 것 자체를 막는다.
+ */
+describe("형태 소개 문구가 정확하다", () => {
+  const TOPIC_SCREENS = [
+    "src/features/cardnews/screens/TopicScreen.tsx",
+    "src/features/infosend/screens/InfoTopicScreen.tsx",
+  ];
+
+  it("항목 수를 손으로 적지 않는다", () => {
+    const hardcoded = TOPIC_SCREENS.flatMap((file) =>
+      readFileSync(file, "utf8")
+        .split("\n")
+        .map((line, i) => ({ line: line.trim(), no: i + 1 }))
+        .filter(({ line }) => /항목 \d/.test(line))
+        .map(({ line, no }) => `${file}:${no} ${line}`),
+    );
+    expect(hardcoded).toEqual([]);
+  });
+
+  it("두 화면이 같은 항목 수를 말한다", () => {
+    for (const file of TOPIC_SCREENS) {
+      expect(readFileSync(file, "utf8")).toContain("{ITEMS_MIN}~{ITEMS_MAX}개");
+    }
+  });
+
+  it("정보전달을 사진이 있어야 하는 것처럼 말하지 않는다", () => {
+    const claims = TOPIC_SCREENS.flatMap((file) =>
+      readFileSync(file, "utf8")
+        .split("\n")
+        .map((line, i) => ({ line: line.trim(), no: i + 1 }))
+        .filter(({ line }) => /사진 1장/.test(line))
+        .map(({ line, no }) => `${file}:${no} ${line}`),
+    );
+    expect(claims).toEqual([]);
+  });
+});
