@@ -201,7 +201,7 @@ export function SchedulePanel({
                       <button
                         type="button"
                         onClick={() => void cancel(item.id)}
-                        className={`ml-auto flex items-center gap-1 rounded px-2 py-1 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+                        className={`ml-auto flex h-8 flex-none items-center gap-1.5 rounded-lg border border-hair px-3 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
                       >
                         <X size={13} aria-hidden="true" />
                         취소
@@ -212,10 +212,10 @@ export function SchedulePanel({
                       <button
                         type="button"
                         onClick={() => void remove(item.id)}
-                        className={`ml-auto flex items-center gap-1 rounded px-2 py-1 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+                        className={`ml-auto flex h-8 flex-none items-center gap-1.5 rounded-lg border border-hair px-3 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
                       >
                         <Trash2 size={13} aria-hidden="true" />
-                        지우기
+                        삭제
                       </button>
                     )}
                   </span>
@@ -381,7 +381,7 @@ export function SchedulePanel({
                       <button
                         type="button"
                         onClick={() => void cancel(item.id)}
-                        className={`ml-auto flex items-center gap-1 rounded px-2 py-1 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+                        className={`ml-auto flex h-8 flex-none items-center gap-1.5 rounded-lg border border-hair px-3 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
                       >
                         <X size={13} aria-hidden="true" />
                         취소
@@ -392,10 +392,10 @@ export function SchedulePanel({
                       <button
                         type="button"
                         onClick={() => void remove(item.id)}
-                        className={`ml-auto flex items-center gap-1 rounded px-2 py-1 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+                        className={`ml-auto flex h-8 flex-none items-center gap-1.5 rounded-lg border border-hair px-3 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
                       >
                         <Trash2 size={13} aria-hidden="true" />
-                        지우기
+                        삭제
                       </button>
                     )}
                   </span>
