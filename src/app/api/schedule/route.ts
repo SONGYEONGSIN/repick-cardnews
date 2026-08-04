@@ -3,10 +3,11 @@ import { z } from "zod/v4";
 import { isLocalHost } from "@/lib/local-guard";
 import { readPublishProgress } from "@/lib/publish-progress-store";
 import { readHeartbeat, schedulerHealth } from "@/lib/scheduler-health";
+import { canRemoveRecord } from "@/features/cardnews/screens/schedule-view";
 import { CAROUSEL_MAX_ITEMS, PUBLISHABLE_MIN_ITEMS } from "@/lib/instagram";
 import { MAX_HASHTAGS, combineCaptionWithHashtags } from "@/lib/hashtags";
 import { describeSchedule } from "@/lib/schedule-due";
-import { appendItem, readQueue, saveImages, updateStatus, scheduleRoot, type ScheduleItem } from "@/lib/schedule-queue";
+import { appendItem, readQueue, removeItem, saveImages, scheduleRoot, updateStatus, type ScheduleItem } from "@/lib/schedule-queue";
 
 /**
  * `/api/schedule` — 예약 목록·생성·취소.
@@ -98,6 +99,7 @@ export async function POST(req: Request) {
     imageCount: images.length,
     keyword: parsed.data.keyword,
     status: "pending",
+    updatedAt: Date.now(),
     createdAt: now,
   };
   appendItem(item);
@@ -112,7 +114,18 @@ export async function DELETE(req: Request) {
   if (!id) return Response.json({ error: "어떤 예약을 취소할지 알 수 없어요." }, { status: 400 });
 
   const found = readQueue().find((i) => i.id === id);
-  if (!found) return Response.json({ error: "그 예약을 찾지 못했어요." }, { status: 404 });
+  if (!found) return Response.json({ error: "그 기록을 찾지 못했어요." }, { status: 404 });
+
+  // `remove` 는 기록을 아예 지운다 — 취소(상태만 바꿈)와 다르다. 올라간 것은 못 지운다:
+  // 인스타에는 남아 있는데 여기서만 사라지면 무엇을 올렸는지 알 길이 없어진다.
+  if (new URL(req.url).searchParams.get("action") === "remove") {
+    if (!canRemoveRecord(found.status)) {
+      return Response.json({ error: "올라갔거나 아직 기다리는 기록은 지울 수 없어요." }, { status: 400 });
+    }
+    removeItem(id);
+    return Response.json({ ok: true });
+  }
+
   if (found.status !== "pending") {
     return Response.json({ error: "이미 끝난 예약은 취소할 수 없어요." }, { status: 400 });
   }

@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Check, CircleAlert, LoaderCircle, X } from "lucide-react";
+import { CalendarClock, CircleAlert, LoaderCircle, Trash2, X } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { inKorean } from "./errors";
 import {
   STATUS_LABELS,
+  canRemoveRecord,
+  recordWhen,
   hasPendingFrom,
   isPending,
   progressLine,
@@ -82,6 +84,15 @@ export function SchedulePanel({
       setItems([]);
     }
   }, []);
+
+  async function remove(id: string) {
+    try {
+      await fetch(`/api/schedule?id=${encodeURIComponent(id)}&action=remove`, { method: "DELETE" });
+    } catch {
+      // 못 지워도 화면을 막지 않는다 — 다시 읽으면 그대로 남아 있을 뿐이다.
+    }
+    await load();
+  }
 
   // 이 세션이 건 예약이 아직 대기 중인가. 두 번 걸면 두 번 올라간다.
   const pending = hasPendingFrom(items, mine);
@@ -160,7 +171,6 @@ export function SchedulePanel({
         <SectionHead title="4 · 올린 기록" aside="예약과 지금 올린 것이 함께 쌓여요" />
         <div className="rounded-xl border border-hair p-6">
         <div className="flex flex-col gap-3">
-          <h3 className="text-[13px] text-ink-2">예약 목록</h3>
           {/* 시계가 멈췄으면 목록 위에서 먼저 말한다 — '대기 중' 만 보이면 기다리면 되는 줄 안다. */}
           {stopped && (
             <p role="alert" className="flex items-start gap-2 rounded-lg bg-ink px-4 py-2.5 text-[13px] font-bold text-surface">
@@ -175,7 +185,17 @@ export function SchedulePanel({
               {items.map((item) => (
                 <li key={item.id} className="flex flex-col gap-1 rounded-lg border border-hair px-4 py-3">
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className="text-[14px] font-bold">{STATUS_LABELS[item.status]}</span>
+                    {/* 결과를 글자로 못 박는다 — 체크 표시 하나로는 성공인지 그냥 끝난 것인지 흐렸다. */}
+                    <span
+                      className={`rounded px-2 py-0.5 text-[12px] font-bold ${
+                        item.status === "published" ? "bg-ink text-surface" : "border border-hair text-ink-2"
+                      }`}
+                    >
+                      {STATUS_LABELS[item.status]}
+                    </span>
+                    {recordWhen(item.updatedAt) && (
+                      <span className="text-[13px] font-bold tabular-nums">{recordWhen(item.updatedAt)}</span>
+                    )}
                     <span className="text-[13px] text-ink-2">{item.describe}</span>
                     {isPending(item) && (
                       <button
@@ -187,8 +207,16 @@ export function SchedulePanel({
                         취소
                       </button>
                     )}
-                    {item.status === "published" && (
-                      <Check size={14} aria-hidden="true" className="ml-auto flex-none" />
+                    {/* 올라가지 않은 기록만 지운다 — 쌓이기만 하면 목록이 쓰레기통이 된다. */}
+                    {canRemoveRecord(item.status) && (
+                      <button
+                        type="button"
+                        onClick={() => void remove(item.id)}
+                        className={`ml-auto flex items-center gap-1 rounded px-2 py-1 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+                      >
+                        <Trash2 size={13} aria-hidden="true" />
+                        지우기
+                      </button>
                     )}
                   </span>
                   <span className="text-[13px] text-ink-2">
@@ -323,7 +351,6 @@ export function SchedulePanel({
         </div>
 
         <div className="flex flex-col gap-3">
-          <h3 className="text-[13px] text-ink-2">예약 목록</h3>
           {/* 시계가 멈췄으면 목록 위에서 먼저 말한다 — '대기 중' 만 보이면 기다리면 되는 줄 안다. */}
           {stopped && (
             <p role="alert" className="flex items-start gap-2 rounded-lg bg-ink px-4 py-2.5 text-[13px] font-bold text-surface">
@@ -338,7 +365,17 @@ export function SchedulePanel({
               {items.map((item) => (
                 <li key={item.id} className="flex flex-col gap-1 rounded-lg border border-hair px-4 py-3">
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className="text-[14px] font-bold">{STATUS_LABELS[item.status]}</span>
+                    {/* 결과를 글자로 못 박는다 — 체크 표시 하나로는 성공인지 그냥 끝난 것인지 흐렸다. */}
+                    <span
+                      className={`rounded px-2 py-0.5 text-[12px] font-bold ${
+                        item.status === "published" ? "bg-ink text-surface" : "border border-hair text-ink-2"
+                      }`}
+                    >
+                      {STATUS_LABELS[item.status]}
+                    </span>
+                    {recordWhen(item.updatedAt) && (
+                      <span className="text-[13px] font-bold tabular-nums">{recordWhen(item.updatedAt)}</span>
+                    )}
                     <span className="text-[13px] text-ink-2">{item.describe}</span>
                     {isPending(item) && (
                       <button
@@ -350,8 +387,16 @@ export function SchedulePanel({
                         취소
                       </button>
                     )}
-                    {item.status === "published" && (
-                      <Check size={14} aria-hidden="true" className="ml-auto flex-none" />
+                    {/* 올라가지 않은 기록만 지운다 — 쌓이기만 하면 목록이 쓰레기통이 된다. */}
+                    {canRemoveRecord(item.status) && (
+                      <button
+                        type="button"
+                        onClick={() => void remove(item.id)}
+                        className={`ml-auto flex items-center gap-1 rounded px-2 py-1 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+                      >
+                        <Trash2 size={13} aria-hidden="true" />
+                        지우기
+                      </button>
                     )}
                   </span>
                   <span className="text-[13px] text-ink-2">

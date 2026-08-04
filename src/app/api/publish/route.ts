@@ -121,6 +121,7 @@ export async function POST(req: Request) {
       imageCount: entry.images.length,
       keyword: entry.keyword,
       status: "published",
+      updatedAt: Date.now(),
       createdAt: Date.now(),
     });
     return Response.json({ mediaId });
