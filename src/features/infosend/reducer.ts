@@ -65,8 +65,15 @@ export function selectedPhoto(state: InfoState): Photo | null {
   return state.photos.find((p) => p.id === state.selectedPhotoId) ?? null;
 }
 
-export function canLeavePhoto(state: InfoState): boolean {
-  return selectedPhoto(state) !== null;
+/**
+ * **사진은 선택이다.** 정보전달은 쓸 만한 사진이 없는 경우가 잦아, 없으면 제목을 테마 색 띠로
+ * 그린다(`@/templates/infographic-band`).
+ *
+ * 렌더는 원래부터 사진이 없어도 되게 돼 있었다(`toRenderCard` 의 `photoUrl: … ?? null`) —
+ * 흐름만 막고 있었다. `state` 를 안 보지만 다른 `canLeave*` 와 모양을 맞춰 인자를 유지한다.
+ */
+export function canLeavePhoto(_state: InfoState): boolean {
+  return true;
 }
 
 /**

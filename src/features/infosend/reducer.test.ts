@@ -63,11 +63,14 @@ describe("SELECT_PHOTO", () => {
   });
 });
 
+// 사진은 **선택**이 됐다(2026-08-04). 정보전달은 쓸 만한 사진이 없는 경우가 잦아, 사진이 없으면
+// 제목을 테마 색 띠로 그린다(`@/templates/infographic-band`). 렌더는 원래부터 `photoUrl` 이
+// 없어도 되게 돼 있었고(`toRenderCard` 의 `?? null`) 흐름만 막고 있었다.
 describe("canLeavePhoto", () => {
-  it("사진이 없으면 못 넘어간다", () => {
-    expect(canLeavePhoto(initialInfoState)).toBe(false);
+  it("사진이 없어도 넘어간다 — 사진은 선택이다", () => {
+    expect(canLeavePhoto(initialInfoState)).toBe(true);
   });
-  it("대표를 골랐으면 넘어간다", () => {
+  it("대표를 골랐어도 막지 않는다", () => {
     expect(canLeavePhoto(withPhotos(1))).toBe(true);
   });
 });
