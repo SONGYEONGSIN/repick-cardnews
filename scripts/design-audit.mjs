@@ -90,6 +90,8 @@ const FAKE_SPEC = {
 
 const FAKE_INFO_SPEC = {
   type: "informationsend",
+  // 형식 판별자 — 없으면 화면이 "아직 못 그리는 형식" 으로 떨어진다(`@/lib/schema`).
+  format: "list",
   title: "정렬 점검용 제목",
   subtitle: "정렬 점검용 부제",
   items: [

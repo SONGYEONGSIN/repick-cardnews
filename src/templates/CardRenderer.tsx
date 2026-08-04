@@ -4,11 +4,13 @@ import { THEMES, type ThemeId } from "@/templates/themes";
 import { titleInBand } from "@/templates/infographic-band";
 import { CardFrame } from "@/templates/CardFrame";
 import { InfographicBody } from "@/templates/bodies/InfographicBody";
+import { UnsupportedFormatBody } from "@/templates/bodies/UnsupportedFormatBody";
 import { CardnewsBody } from "@/templates/bodies/CardnewsBody";
 import { FullBleedCard } from "@/templates/layouts/FullBleedCard";
 import { SplitPhotoCard } from "@/templates/layouts/SplitPhotoCard";
 import { TextOnlyCard } from "@/templates/layouts/TextOnlyCard";
 import { textYSpacers, type Focal, type TextAlign, type TextYSpacers } from "@/templates/layout-utils";
+import { isListLike } from "@/lib/schema";
 import type { Fit } from "@/templates/fit";
 
 function isInfographicCopy(copy: CardnewsCard | InfographicSpec): copy is InfographicSpec {
@@ -56,7 +58,10 @@ export function CardRenderer({
   // 제목을 위쪽 띠로 올릴지 **한 곳에서** 정한다 — 띠를 그리는 쪽(SplitPhotoCard)과 제목을
   // 건너뛰는 쪽(InfographicBody)이 각자 판단하면 어긋난다(`@/templates/infographic-band`).
   const bandTitle = isInfographicCopy(card.copy) && titleInBand(card.photoUrl, card.layout);
+  // 형식마다 본문이 다르다(`@/lib/schema` 의 INFO_FORMATS). 아직 목록·순서형만 그릴 수 있고
+  // 나머지 셋은 뒤 태스크에서 붙인다 — 그때까지 그 형식은 자리 표시만 나온다.
   const body = isInfographicCopy(card.copy) ? (
+    isListLike(card.copy) ? (
     <InfographicBody
       spec={card.copy}
       theme={theme}
@@ -65,6 +70,9 @@ export function CardRenderer({
       hideTitle={bandTitle}
       fit={card.fit}
     />
+    ) : (
+      <UnsupportedFormatBody format={card.copy.format} theme={theme} />
+    )
   ) : (
     <CardnewsBody
       card={card.copy}

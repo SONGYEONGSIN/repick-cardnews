@@ -1,4 +1,4 @@
-import type { InfographicSpec } from "@/lib/schema";
+import type { ListLikeSpec } from "@/lib/schema";
 import type { Theme } from "@/templates/themes";
 import { DEFAULT_FIT, sizeWith, type Fit } from "@/templates/fit";
 
@@ -10,7 +10,8 @@ export function InfographicBody({
   hideTitle = false,
   fit = DEFAULT_FIT,
 }: {
-  spec: InfographicSpec;
+  /** 목록·순서형 전용 — 항목이 `{keyword, desc}` 인 두 형식이다. */
+  spec: ListLikeSpec;
   theme: Theme;
   onPhoto?: boolean;
   /** 항목 5개 이상일 때 CardRenderer가 켠다 — 타이포를 줄여 CardFrame의 하드 클리핑을 막는다 */

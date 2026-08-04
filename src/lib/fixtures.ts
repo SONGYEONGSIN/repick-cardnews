@@ -2,6 +2,7 @@ import type { InfographicSpec, CardnewsSpec } from "@/lib/schema";
 
 export const infographicFixture: InfographicSpec = {
   type: "informationsend",
+  format: "list" as const,
   title: "에어컨 전기세 절약하는 6가지 방법",
   subtitle: "이렇게 사용하면 전기요금 아낄 수 있어요!",
   items: [

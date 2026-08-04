@@ -1,4 +1,4 @@
-import type { InfographicSpec } from "@/lib/schema";
+import { itemTexts, type InfoItem, type InfographicSpec } from "@/lib/schema";
 import type { Photo } from "@/lib/photos";
 import { move } from "@/lib/reorder";
 import { DEFAULT_BAND_INFO, DEFAULT_FOCAL, type Focal } from "@/templates/layout-utils";
@@ -84,7 +84,7 @@ export function canLeaveInfoTopic(state: InfoState): boolean {
  */
 export function captionSourceLines(state: InfoState): string[] {
   if (!state.spec) return [];
-  return [state.spec.title, ...state.spec.items.map((item) => item.keyword)]
+  return [state.spec.title, ...state.spec.items.map((item) => itemTexts(item)[0])]
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 }
@@ -113,9 +113,19 @@ export function bandForItems(count: number): number {
   return 0.15;
 }
 
-function withItems(state: InfoState, next: Item[]): InfoState {
+/**
+ * 항목 배열을 갈아 끼운다. 형식마다 항목 모양이 다르지만 **배열 이름이 `items` 로 같아서**
+ * 이 한 함수로 다섯 형식을 다 다룬다(`@/lib/schema` 설계 주석 참고).
+ *
+ * 스펙 자체의 items 타입을 그대로 쓰므로 형식이 섞이지 않는다 — 목록형 스펙에 비교형 항목을
+ * 넣는 일은 타입이 막는다.
+ */
+function withItems(state: InfoState, next: InfoItem[]): InfoState {
   if (!state.spec) return state;
-  return { ...state, spec: { ...state.spec, items: next } };
+  // 항목을 **더하거나 빼거나 옮길 뿐** 모양은 바꾸지 않는다 — 그래서 배열 원소는 언제나 이
+  // 스펙 형식의 항목이다. 타입 시스템은 그 불변식을 못 보므로 여기 한 곳에서만 좁힌다.
+  // 불변식 자체는 `reducer.test.ts` 의 "형식이 섞이지 않는다" 가 다섯 형식으로 잠근다.
+  return { ...state, spec: { ...state.spec, items: next } as InfographicSpec };
 }
 
 /** bandTouched가 아니면 항목 수에 맞춰 밴드를 다시 계산하고, 아니면 기존 값을 유지한다. */
@@ -171,7 +181,8 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
       return { ...withItems(state, items), ...nextBand(state, items.length) };
     }
     case "REORDER_ITEM":
-      return state.spec ? withItems(state, move(state.spec.items, action.from, action.to)) : state;
+      // `move` 는 제네릭이라 형식별 배열을 그대로 받는다 — union 으로 넓힌 뒤 넘긴다.
+      return state.spec ? withItems(state, move<InfoItem>(state.spec.items, action.from, action.to)) : state;
     case "SET_STEP":
       return { ...state, step: action.step };
     case "SET_FIT":

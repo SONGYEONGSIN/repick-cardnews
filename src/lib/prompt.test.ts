@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { INFO_FORMATS, itemRangeOf } from "@/lib/schema";
 import { buildSystemPrompt, buildUserContent } from "@/lib/prompt";
 
 const vault = { brandVoice: "해요체 기본", copyFormulas: "hook→problem→evidence→solution→cta" };
@@ -71,5 +72,55 @@ describe("buildSystemPrompt 사진 규칙", () => {
   it("사진이 있으면 없는 것을 지어내지 말라고 공통으로 못박는다", () => {
     expect(buildSystemPrompt("cardnews", vault, true)).toContain("보이지 않는 것");
     expect(buildSystemPrompt("informationsend", vault, true)).toContain("보이지 않는 것");
+  });
+});
+
+/**
+ * 형식마다 담는 정보가 다르므로 **생성 규칙도 달라야 한다**. 목록형 규칙 하나로 비교표를
+ * 시키면 "왼쪽·오른쪽" 이 뭔지 모른 채 items 를 뱉는다(2026-08-05 설계).
+ */
+describe("형식별 생성 규칙", () => {
+  const vault = { brandVoice: "보이스", copyFormulas: "공식" };
+
+  it("형식마다 다른 규칙이 들어간다", () => {
+    const rules = INFO_FORMATS.map((f) => buildSystemPrompt("informationsend", vault, false, f.id));
+    expect(new Set(rules).size).toBe(INFO_FORMATS.length);
+  });
+
+  it("비교형은 양쪽 이름과 같은 기준을 요구한다", () => {
+    const p = buildSystemPrompt("informationsend", vault, false, "compare");
+    expect(p).toContain("columns");
+    expect(p).toContain("같은 기준");
+  });
+
+  it("순서형은 순서가 뜻을 가진다고 말한다", () => {
+    expect(buildSystemPrompt("informationsend", vault, false, "steps")).toContain("순서");
+  });
+
+  it("숫자형은 value 에 숫자와 단위만 넣게 한다", () => {
+    const p = buildSystemPrompt("informationsend", vault, false, "stat");
+    expect(p).toContain("단위");
+    expect(p).toContain("문장");
+  });
+
+  it("체크리스트는 설명을 붙이지 말라고 한다", () => {
+    expect(buildSystemPrompt("informationsend", vault, false, "check")).toContain("설명");
+  });
+
+  it("형식마다 항목 수를 스키마 범위 안으로 요구한다", () => {
+    for (const f of INFO_FORMATS) {
+      const { min, max } = itemRangeOf(f.id);
+      const p = buildSystemPrompt("informationsend", vault, false, f.id);
+      const asked = [...p.matchAll(/items\s+(\d+)~(\d+)개/g)].map((m) => [Number(m[1]), Number(m[2])]);
+      expect(asked.length).toBeGreaterThan(0);
+      for (const [lo, hi] of asked) {
+        expect(lo).toBeGreaterThanOrEqual(min);
+        expect(hi).toBeLessThanOrEqual(max);
+      }
+    }
+  });
+
+  it("카드뉴스는 형식 인자를 무시한다", () => {
+    expect(buildSystemPrompt("cardnews", vault, false, "compare")).toContain("cardnews");
   });
 });

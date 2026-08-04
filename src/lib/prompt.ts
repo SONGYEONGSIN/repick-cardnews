@@ -18,6 +18,8 @@ function isImageMediaType(value: string): value is ImageMediaType {
   return value === "image/jpeg" || value === "image/png" || value === "image/gif" || value === "image/webp";
 }
 
+import type { InfoFormat } from "@/lib/schema";
+
 export type ContentBlock =
   | { type: "image"; source: { type: "base64"; media_type: ImageMediaType; data: string } }
   | { type: "text"; text: string };
@@ -31,16 +33,39 @@ const PHOTO_RULES: Record<"informationsend" | "cardnews", string> = {
 
 const PHOTO_RULE_COMMON = "사진에 보이지 않는 것을 사실처럼 쓰지 마세요.";
 
+/**
+ * 형식별 생성 규칙. 담는 정보가 다르면 시키는 말도 달라야 한다 — 목록형 규칙 하나로 비교표를
+ * 시키면 "왼쪽·오른쪽" 이 뭔지 모른 채 items 를 뱉는다.
+ *
+ * **요청 개수는 스키마 범위 안쪽으로 좁혀 잡는다.** 상한까지 채우면 카드에서 글자가 줄어들어
+ * 읽기 어렵다 — 사용자가 직접 늘렸을 때만 그 상태가 되게 한다(`prompt.test.ts` 가 범위를 잠근다).
+ */
+const FORMAT_RULES: Record<InfoFormat, string> = {
+  list: "items 3~4개(각 keyword+desc)를 생성하라.",
+  compare:
+    "columns.left/right 에 비교 대상 이름을 짧게 넣고, items 3~4개(각 label+left+right)를 생성하라. " +
+    "label 은 비교 기준이며 **같은 기준으로 양쪽을 재라** — 한쪽만 좋게 쓰지 마라.",
+  steps:
+    "items 3~4개(각 keyword+desc)를 생성하라. **순서가 뜻을 가진다** — 앞 단계를 해야 다음 단계가 된다. " +
+    "keyword 는 그 단계에서 할 일이다.",
+  stat:
+    "items 2~3개(각 value+label)를 생성하라. value 에는 숫자와 단위만 넣어라(예: 7%, 26℃, 2주) — " +
+    "문장을 넣지 마라. label 은 그 숫자가 무엇인지 한 줄로.",
+  check:
+    "items 5~6개(각 text)를 생성하라. 각 항목은 한 줄 동작이다 — 설명을 붙이지 마라.",
+};
+
 export function buildSystemPrompt(
   type: "informationsend" | "cardnews",
   vault: { brandVoice: string; copyFormulas: string },
   hasPhotos: boolean,
+  format: InfoFormat = "list",
 ): string {
   // 스키마는 items 3~6 을 허용하지만 5개 이상은 사진 밴드를 최소로 줄여도 카드에 안 들어간다.
   // 생성 단계에서 3~4개를 요청해 평소엔 큰 글자가 나오게 하고, 사용자가 직접 늘렸을 때만 축소된다.
   const rule =
     type === "informationsend"
-      ? "산출물 유형은 informationsend(1장 인포그래픽). title, 선택 subtitle, items 3~4개(각 keyword+desc), 선택 tip을 생성하라."
+      ? `산출물 유형은 informationsend(1장 인포그래픽), 형식은 ${format}. title, 선택 subtitle, 선택 tip 과 함께 ${FORMAT_RULES[format]}`
       : "산출물 유형은 cardnews(5~6장 설득 시퀀스). cards 배열을 생성하라. 첫 카드는 반드시 role=hook, 마지막은 반드시 role=cta. 중간은 problem/evidence/solution 흐름.";
 
   const lines = [

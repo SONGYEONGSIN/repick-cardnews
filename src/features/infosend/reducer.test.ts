@@ -12,6 +12,7 @@ import {
   type InfoState,
 } from "@/features/infosend/reducer";
 import type { Photo } from "@/lib/photos";
+import { InfographicSpec, itemTexts } from "@/lib/schema";
 import { DEFAULT_BAND_INFO } from "@/templates/layout-utils";
 
 function photo(id: string): Photo {
@@ -25,6 +26,7 @@ function withPhotos(count: number): InfoState {
 
 const spec = {
   type: "informationsend" as const,
+  format: "list" as const,
   title: "에어컨 전기세",
   items: [
     { keyword: "온도", desc: "24~26도" },
@@ -38,6 +40,7 @@ const spec = {
 // 항목 5개(bandForItems(5)=0.25, 초기값 0.35와 다름)로 실제 갱신 여부를 구분한다.
 const spec5 = {
   type: "informationsend" as const,
+  format: "list" as const,
   title: "에어컨 전기세",
   items: [
     { keyword: "온도", desc: "24~26도" },
@@ -70,7 +73,7 @@ describe("items 편집", () => {
 
   it("항목 순서를 바꾼다", () => {
     const s = infoReducer(base, { type: "REORDER_ITEM", from: 0, to: 2 });
-    expect(s.spec?.items.map((i) => i.keyword)).toEqual(["필터", "선풍기", "온도"]);
+    expect(s.spec?.items.map((i) => itemTexts(i)[0])).toEqual(["필터", "선풍기", "온도"]);
   });
 
   it("항목을 추가한다", () => {
@@ -96,8 +99,7 @@ describe("items 편집", () => {
 
   it("항목 내용을 고친다", () => {
     const s = infoReducer(base, { type: "UPDATE_ITEM", index: 0, patch: { desc: "25도" } });
-    expect(s.spec?.items[0].desc).toBe("25도");
-    expect(s.spec?.items[0].keyword).toBe("온도");
+    expect(itemTexts(s.spec!.items[0])).toEqual(["온도", "25도"]);
   });
 });
 
@@ -236,4 +238,31 @@ describe("SET_ERROR 와 busy", () => {
   it("오류 문구는 그대로 담는다", () => {
     expect(infoReducer(busy, { type: "SET_ERROR", error: "실패했어요" }).error).toBe("실패했어요");
   });
+});
+
+/**
+ * `withItems` 는 항목 배열을 갈아 끼울 때 타입을 한 번 좁힌다 — "더하거나 빼거나 옮길 뿐
+ * 모양은 안 바꾼다" 는 불변식을 타입 시스템이 못 보기 때문이다. **그 불변식을 여기서 잠근다.**
+ * 깨지면 스키마 검증에서 걸리므로, 다섯 형식 모두 다시 검증해 확인한다.
+ */
+describe("항목을 고쳐도 형식이 섞이지 않는다", () => {
+  const specs = {
+    list: { type: "informationsend" as const, format: "list" as const, title: "제목",
+      items: [{ keyword: "가", desc: "나" }, { keyword: "다", desc: "라" }, { keyword: "마", desc: "바" }] },
+    compare: { type: "informationsend" as const, format: "compare" as const, title: "제목",
+      columns: { left: "A", right: "B" },
+      items: [{ label: "기준", left: "왼", right: "오" }, { label: "기준2", left: "왼", right: "오" }, { label: "기준3", left: "왼", right: "오" }] },
+    stat: { type: "informationsend" as const, format: "stat" as const, title: "제목",
+      items: [{ value: "7%", label: "설명" }, { value: "2주", label: "설명" }] },
+    check: { type: "informationsend" as const, format: "check" as const, title: "제목",
+      items: [{ text: "하나" }, { text: "둘" }, { text: "셋" }, { text: "넷" }] },
+  };
+
+  for (const [name, spec] of Object.entries(specs)) {
+    it(`${name}: 순서를 바꿔도 스키마를 통과한다`, () => {
+      const seeded = infoReducer(initialInfoState, { type: "SET_SPEC", spec });
+      const moved = infoReducer(seeded, { type: "REORDER_ITEM", from: 0, to: 1 });
+      expect(InfographicSpec.safeParse(moved.spec).success).toBe(true);
+    });
+  }
 });

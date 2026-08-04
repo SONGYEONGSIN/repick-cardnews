@@ -6,6 +6,7 @@ import type { Photo } from "@/lib/photos";
 
 const spec = {
   type: "informationsend" as const,
+  format: "list" as const,
   title: "에어컨 전기세",
   subtitle: "오늘 바로 되는 것만",
   items: [

@@ -13,7 +13,8 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { FOCUS_RING } from "@/components/ui";
 import { SortableItem } from "./SortableItem";
-import { ITEMS_MAX, ITEMS_MIN, type InfoAction, type InfoState } from "../reducer";
+import { isListLike, itemRangeOf } from "@/lib/schema";
+import type { InfoAction, InfoState } from "../reducer";
 
 /**
  * 항목 편집 — **왼쪽 칸에 홀로 선다.**
@@ -28,7 +29,8 @@ export function InfoItemsEditor({ state, dispatch }: { state: InfoState; dispatc
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const spec = state.spec;
-  if (!spec) return null;
+  // 목록·순서형 전용이다 — 항목이 `{keyword, desc}` 인 두 형식. 다른 형식은 각자의 편집기를 쓴다.
+  if (!spec || !isListLike(spec)) return null;
 
   const itemIds = spec.items.map((_, i) => `item-${i}`);
 
@@ -43,12 +45,12 @@ export function InfoItemsEditor({ state, dispatch }: { state: InfoState; dispatc
       {/* 세는 값은 왼쪽, 더하는 동작은 오른쪽 끝 — 머리줄의 두 성격을 갈라 둔다. */}
       <span className="flex w-full items-center justify-between gap-2.5">
         <span className="text-[14px] text-ink-2">
-          항목 <span className="font-bold tabular-nums text-ink">{spec.items.length}</span>/{ITEMS_MAX} · 끌어서 순서를
+          항목 <span className="font-bold tabular-nums text-ink">{spec.items.length}</span>/{itemRangeOf(spec.format).max} · 끌어서 순서를
           바꿔요
         </span>
         <button
           type="button"
-          disabled={spec.items.length >= ITEMS_MAX}
+          disabled={spec.items.length >= itemRangeOf(spec.format).max}
           onClick={() => dispatch({ type: "ADD_ITEM" })}
           className={`flex h-9 items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:bg-transparent disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
         >
@@ -65,7 +67,7 @@ export function InfoItemsEditor({ state, dispatch }: { state: InfoState; dispatc
                 index={i}
                 keyword={item.keyword}
                 desc={item.desc}
-                canRemove={spec.items.length > ITEMS_MIN}
+                canRemove={spec.items.length > itemRangeOf(spec.format).min}
                 onPatch={(patch) => dispatch({ type: "UPDATE_ITEM", index: i, patch })}
                 onRemove={() => dispatch({ type: "REMOVE_ITEM", index: i })}
               />

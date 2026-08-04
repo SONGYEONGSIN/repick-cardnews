@@ -1,6 +1,7 @@
 import { isBlankText } from "@/templates/layout-utils";
 import type { WorkbenchCheck } from "@/features/cardnews/checks";
-import { ITEMS_MIN, type InfoState } from "./reducer";
+import { itemFieldMaxes, itemRangeOf, itemTexts } from "@/lib/schema";
+import type { InfoState } from "./reducer";
 
 /**
  * 만들기 화면 사이드바의 **점검 목록** — 카드뉴스 `workbenchChecks` 와 같은 자리, 같은 모양
@@ -30,7 +31,8 @@ export function infoChecks(state: InfoState): WorkbenchCheck[] {
 
   if (isBlankText(spec.title)) checks.push({ tone: "todo", text: "제목이 비어 있어요" });
 
-  const blankItems = spec.items.filter((item) => isBlankText(item.keyword) || isBlankText(item.desc)).length;
+  // 형식마다 칸 이름이 다르다 — 이름 말고 **글**만 본다(`itemTexts`).
+  const blankItems = spec.items.filter((item) => itemTexts(item).some(isBlankText)).length;
   if (blankItems > 0) checks.push({ tone: "todo", text: `내용이 빈 항목 ${blankItems}개` });
 
   // 넘긴 **곳**을 센다 — 항목 하나에 키워드·설명이 둘 다 넘칠 수 있어 항목 수로는 못 센다.
@@ -38,12 +40,17 @@ export function infoChecks(state: InfoState): WorkbenchCheck[] {
     spec.title.length > TITLE_MAX,
     (spec.subtitle ?? "").length > SUBTITLE_MAX,
     (spec.tip ?? "").length > TIP_MAX,
-    ...spec.items.flatMap((item) => [item.keyword.length > ITEM_KEYWORD_MAX, item.desc.length > ITEM_DESC_MAX]),
+    ...spec.items.flatMap((item) => {
+      const maxes = itemFieldMaxes(spec.format);
+      return itemTexts(item).map((text, i) => text.length > (maxes[i] ?? Number.POSITIVE_INFINITY));
+    }),
   ].filter(Boolean).length;
   if (overLimits > 0) checks.push({ tone: "todo", text: `글자 수를 넘긴 곳 ${overLimits}군데` });
 
-  if (spec.items.length < ITEMS_MIN) {
-    checks.push({ tone: "todo", text: `항목이 ${spec.items.length}개예요 — ${ITEMS_MIN}개부터 채워 주세요` });
+  // 형식마다 담을 수 있는 개수가 다르다(`itemRangeOf`).
+  const { min } = itemRangeOf(spec.format);
+  if (spec.items.length < min) {
+    checks.push({ tone: "todo", text: `항목이 ${spec.items.length}개예요 — ${min}개부터 채워 주세요` });
   }
 
   if (checks.length === 0) checks.push({ tone: "ok", text: "다 됐어요. 내보낼 수 있어요." });
