@@ -4,6 +4,8 @@ import type { Dispatch } from "react";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
+import { RecentList } from "@/features/hub/RecentList";
+import type { LedgerEntry } from "@/lib/ledger";
 import { ITEMS_MAX, ITEMS_MIN } from "@/features/infosend/reducer";
 import { StudioFrame, SectionHead, SolidButton, LineButton } from "@/features/shell/StudioFrame";
 import { canLeaveTopic, type CardnewsAction, type CardnewsState } from "../reducer";
@@ -25,11 +27,14 @@ export function TopicScreen({
   dispatch,
   onNext,
   onOpenFinder,
+  recent,
 }: {
   state: CardnewsState;
   dispatch: Dispatch<CardnewsAction>;
   onNext: () => void;
   onOpenFinder: () => void;
+  /** 최근 만든 것 — 첫 화면이 여기라 원장 목록도 여기에 있다. */
+  recent: readonly LedgerEntry[];
 }) {
   return (
     <StudioFrame step={0} title="새로 만들기">
@@ -108,6 +113,13 @@ export function TopicScreen({
           </SolidButton>
           <p className="text-[14px] text-ink-2">다음 화면에서 사진을 올리고 카피를 붙여요.</p>
         </div>
+
+        {/* 첫 화면이 여기로 옮겨 오면서(허브 제거) 최근 목록도 함께 왔다 — 만들기 시작 전에
+            지난 회차를 확인하는 자리다. 그래서 시작 버튼 **아래**에 둔다. */}
+        <section className="flex flex-col gap-4">
+          <SectionHead title="최근 만든 것" />
+          <RecentList rows={recent} />
+        </section>
       </div>
     </StudioFrame>
   );

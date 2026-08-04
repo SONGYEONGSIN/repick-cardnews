@@ -54,7 +54,7 @@ describe("디자인 게이트 — 스튜디오 UI", () => {
   it("허용 목록 밖 폰트를 지정하지 않는다", () => {
     // 인라인 fontFamily 지정(객체 프로퍼티 `fontFamily:`)을 막아 Tailwind 유틸 밖에서
     // 폰트를 지정하는 경로를 차단한다. Tailwind 유틸인 font-sans(기본 본문)와
-    // font-mono(ExportStep·FlowCard 의 파일 경로 같은 고정폭 표기)는 둘 다 허용 목록 안이다.
+    // font-mono(내보내기 화면·최근 목록의 파일 경로 같은 고정폭 표기)는 둘 다 허용 목록 안이다.
     expect(violations(/fontFamily\s*:/)).toEqual([]);
   });
 

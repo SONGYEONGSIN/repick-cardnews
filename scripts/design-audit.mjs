@@ -19,7 +19,8 @@ import path from "node:path";
 import { chromium } from "playwright";
 
 const BASE = "http://localhost:3500";
-const ROUTES = ["/", "/cardnews", "/info"];
+// 첫 화면이 카드뉴스 주제 화면이다(허브 제거, 2026-08-04) — 라우트는 둘뿐이다.
+const ROUTES = ["/", "/info"];
 const WIDTHS = [1280, 1366, 1440, 1600, 1920, 390, 768, 1024];
 const A11Y_MIN = 95;
 
@@ -145,7 +146,7 @@ try {
   await page.route("**/api/generate", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ spec: FAKE_SPEC }) }));
 
-  await page.goto(`${BASE}/cardnews`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await page.fill("#kw", "정렬 점검");
   await page.getByRole("button", { name: /사진 올리러 가기/ }).click();
 
@@ -153,7 +154,7 @@ try {
   const empties = await page.$$eval("[class*='border-dashed']", (els) =>
     els.map((el) => { const r = el.getBoundingClientRect(); return { top: Math.round(r.top), height: Math.round(r.height) }; }));
   results.push({
-    gate: "정렬", route: "/cardnews 만들기(빈 상태)",
+    gate: "정렬", route: "/ 만들기(빈 상태)",
     pass: empties.length === 2 && samePlace(empties[0], empties[1]),
     detail: empties.map((e) => `top ${e.top}·${e.height}px`).join(" / ") || "자리 표시를 못 찾음",
   });
@@ -172,7 +173,7 @@ try {
       .map((el) => { const r = el.getBoundingClientRect(); return { top: Math.round(r.top), height: Math.round(r.height), text: (el.textContent || "").slice(0, 12) }; }));
   const fileBoxes = boxes.filter((b) => b.text.includes("네트워크") || b.text.includes("cardnews/"));
   results.push({
-    gate: "정렬", route: "/cardnews 내보내기(파일로 저장)",
+    gate: "정렬", route: "/ 내보내기(파일로 저장)",
     pass: fileBoxes.length === 2 && samePlace(fileBoxes[0], fileBoxes[1]),
     detail: fileBoxes.map((b) => `top ${b.top}·${b.height}px`).join(" / ") || "두 박스를 못 찾음",
   });
