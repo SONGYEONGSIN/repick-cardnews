@@ -9,6 +9,7 @@ import { FullBleedCard } from "@/templates/layouts/FullBleedCard";
 import { SplitPhotoCard } from "@/templates/layouts/SplitPhotoCard";
 import { TextOnlyCard } from "@/templates/layouts/TextOnlyCard";
 import { textYSpacers, type Focal, type TextAlign, type TextYSpacers } from "@/templates/layout-utils";
+import type { Fit } from "@/templates/fit";
 
 function isInfographicCopy(copy: CardnewsCard | InfographicSpec): copy is InfographicSpec {
   return "type" in copy;
@@ -33,6 +34,11 @@ export type RenderCard = {
   highlight: string;
   /** "1 / 5" 형태. 빈 문자열이면 렌더하지 않는다 */
   badge: string;
+  /**
+   * 카드 안 글자 크기·간격·여백 **배수**(정보전달 전용, 카드뉴스 경로에서는 쓰이지 않는다).
+   * 없으면 기본값 — 지금까지와 똑같다(`@/templates/fit`).
+   */
+  fit?: Fit;
   copy: CardnewsCard | InfographicSpec;
 };
 
@@ -57,6 +63,7 @@ export function CardRenderer({
       onPhoto={onPhoto}
       compact={card.copy.items.length >= 5}
       hideTitle={bandTitle}
+      fit={card.fit}
     />
   ) : (
     <CardnewsBody
@@ -103,6 +110,7 @@ export function CardRenderer({
               ? { text: card.copy.title, bg: theme.accent, fg: theme.onPhoto, font: theme.displayFont }
               : undefined
           }
+          fit={card.fit}
         >
           {body}
         </SplitPhotoCard>

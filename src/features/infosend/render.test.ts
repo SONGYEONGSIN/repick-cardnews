@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { toRenderCard } from "@/features/infosend/render";
 import type { InfoState } from "@/features/infosend/reducer";
 import type { Photo } from "@/lib/photos";
+import { DEFAULT_FIT } from "@/templates/fit";
 
 function photo(id: string, dataUrl = `data:image/jpeg;base64,${id}`): Photo {
   return { id, name: `${id}.jpg`, dataUrl, thumbUrl: dataUrl, width: 1080, height: 1350, bytes: 1000 };
@@ -30,6 +31,7 @@ function state(overrides: Partial<InfoState> = {}): InfoState {
     band: 0.35,
     bandTouched: false,
     focal: { x: 0.5, y: 0.5 },
+    fit: DEFAULT_FIT,
     spec,
     error: null,
     busy: false,

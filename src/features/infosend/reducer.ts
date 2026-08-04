@@ -3,6 +3,7 @@ import type { Photo } from "@/lib/photos";
 import { move } from "@/lib/reorder";
 import { DEFAULT_BAND_INFO, DEFAULT_FOCAL, type Focal } from "@/templates/layout-utils";
 import type { ThemeId } from "@/templates/themes";
+import { DEFAULT_FIT, clampFit, type Fit } from "@/templates/fit";
 
 export const ITEMS_MIN = 3;
 export const ITEMS_MAX = 6;
@@ -20,6 +21,8 @@ export type InfoState = {
   /** 사용자가 SET_BAND로 직접 조정했는지. true면 항목 수가 바뀌어도 자동 재계산하지 않는다. */
   bandTouched: boolean;
   focal: Focal;
+  /** 카드 안 글자 크기·간격·여백 배수(`@/templates/fit`). */
+  fit: Fit;
   spec: InfographicSpec | null;
   error: string | null;
   busy: boolean;
@@ -33,6 +36,7 @@ export type InfoAction =
   | { type: "SET_HANDLE"; handle: string }
   | { type: "SET_BAND"; band: number }
   | { type: "SET_FOCAL"; focal: Focal }
+  | { type: "SET_FIT"; patch: Partial<Fit> }
   | { type: "SET_SPEC"; spec: InfographicSpec }
   | { type: "UPDATE_SPEC"; patch: Partial<Pick<InfographicSpec, "title" | "subtitle" | "tip">> }
   | { type: "UPDATE_ITEM"; index: number; patch: Partial<Item> }
@@ -54,6 +58,7 @@ export const initialInfoState: InfoState = {
   band: DEFAULT_BAND_INFO,
   bandTouched: false,
   focal: DEFAULT_FOCAL,
+  fit: DEFAULT_FIT,
   spec: null,
   error: null,
   busy: false,
@@ -169,6 +174,9 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
       return state.spec ? withItems(state, move(state.spec.items, action.from, action.to)) : state;
     case "SET_STEP":
       return { ...state, step: action.step };
+    case "SET_FIT":
+      // 범위 밖 값은 잘라서 넣는다 — 손잡이가 아닌 곳에서 들어와도 카드가 안 깨진다.
+      return { ...state, fit: clampFit({ ...state.fit, ...action.patch }) };
     case "SET_BUSY":
       return { ...state, busy: action.busy };
     case "SET_ERROR":

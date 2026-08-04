@@ -14,6 +14,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { FOCUS_RING } from "@/components/ui";
 import { SortableItem } from "./SortableItem";
 import { THEMES, THEME_IDS, type ThemeId } from "@/templates/themes";
+import { FIT_RANGE, type Fit } from "@/templates/fit";
 import { TIP_MAX, TITLE_MAX, SUBTITLE_MAX } from "../checks";
 import { ITEMS_MAX, ITEMS_MIN, type InfoAction, type InfoState } from "../reducer";
 
@@ -25,12 +26,13 @@ import { ITEMS_MAX, ITEMS_MIN, type InfoAction, type InfoState } from "../reduce
  * '카드' 탭 안에 넣었다가 "카드 하나 설정"으로 읽혀 되돌린 것과 같은 이유다.
  */
 
-type Target = "text" | "items" | "photo" | "theme";
+type Target = "text" | "items" | "photo" | "fit" | "theme";
 
 const TABS: readonly { id: Target; label: string }[] = [
   { id: "text", label: "글" },
   { id: "items", label: "항목" },
   { id: "photo", label: "사진" },
+  { id: "fit", label: "맞춤" },
   { id: "theme", label: "테마" },
 ];
 
@@ -152,6 +154,29 @@ function Dial({
   );
 }
 
+/** 배수(0.8~1.2 같은 값)를 백분율 눈금으로 다룬다 — 사람이 읽는 단위는 %다. */
+function FitDial({
+  label,
+  value,
+  range,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  range: { min: number; max: number };
+  onChange: (v: number) => void;
+}) {
+  return (
+    <Dial
+      label={label}
+      value={Math.round(value * 100)}
+      min={Math.round(range.min * 100)}
+      max={Math.round(range.max * 100)}
+      onChange={(v) => onChange(v / 100)}
+    />
+  );
+}
+
 export function InfoToolbar({
   state,
   dispatch,
@@ -188,6 +213,7 @@ export function InfoToolbar({
   function hintFor(t: Target): string {
     if (t === "items") return `항목은 ${ITEMS_MIN}~${ITEMS_MAX}개예요. 순서는 아래 목록에서 끌어 바꿔요`;
     if (t === "photo") return "사진 높이와 초점을 정해요 · 사진을 빼면 제목이 테마 색 띠로 그려져요";
+    if (t === "fit") return "좁은 카드에 많이 담으려면 줄이고, 시원하게 보이려면 키워요";
     if (t === "theme") return "바탕·글자·강조색과 제목 글꼴을 한 번에 바꿔요";
     return "제목·부제·팁을 고쳐요";
   }
@@ -291,6 +317,30 @@ export function InfoToolbar({
                 max={100}
                 onChange={(v) => dispatch({ type: "SET_FOCAL", focal: { ...state.focal, y: v / 100 } })}
               />
+            </>
+          )}
+
+          {active === "fit" && (
+            <>
+              <FitDial
+                label="글자 크기"
+                value={state.fit.text}
+                range={FIT_RANGE.text}
+                onChange={(text) => dispatch({ type: "SET_FIT", patch: { text } })}
+              />
+              <FitDial
+                label="항목 간격"
+                value={state.fit.gap}
+                range={FIT_RANGE.gap}
+                onChange={(gap) => dispatch({ type: "SET_FIT", patch: { gap } })}
+              />
+              <FitDial
+                label="위아래 여백"
+                value={state.fit.pad}
+                range={FIT_RANGE.pad}
+                onChange={(pad) => dispatch({ type: "SET_FIT", patch: { pad } })}
+              />
+              <Btn onClick={() => dispatch({ type: "SET_FIT", patch: { text: 1, gap: 1, pad: 1 } })}>기본으로</Btn>
             </>
           )}
 
