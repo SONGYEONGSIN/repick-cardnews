@@ -1,4 +1,5 @@
 import { ContiMark } from "@/components/ui";
+import { STEPS } from "@/features/shell/StudioFrame";
 import { readRecent } from "@/lib/ledger";
 import { FlowCard } from "@/features/hub/FlowCard";
 import { RecentList } from "@/features/hub/RecentList";
@@ -42,7 +43,7 @@ export default async function HubPage() {
         </div>
         <h1 className="text-[32px] font-extrabold leading-tight tracking-tight">무엇을 만들까요?</h1>
         <p className="text-[15px] leading-relaxed text-ink-2">
-          직접 작업한 사진 폴더를 올리면 순서를 정하고 카피를 붙여 인스타 카드로 뽑아 드려요.
+          주제를 정하면 카피를 붙여 인스타 카드로 뽑아 드려요. 사진은 폴더째 올리면 돼요.
         </p>
       </header>
 
@@ -51,15 +52,15 @@ export default async function HubPage() {
           href="/cardnews"
           title="카드뉴스"
           description="사진 5~6장으로 넘겨 보는 설득 시퀀스를 만들어요."
-          steps={5}
+          steps={STEPS.length}
           outputPath="cardnews/"
           preview={CARDNEWS_PREVIEW}
         />
         <FlowCard
           href="/info"
           title="정보전달"
-          description="사진 1장에 정보를 얹은 인포그래픽 한 장을 만들어요."
-          steps={4}
+          description="정보를 항목으로 정리한 한 장을 만들어요. 사진은 없어도 돼요."
+          steps={STEPS.length}
           outputPath="informationsend/"
           preview={INFO_PREVIEW}
         />
