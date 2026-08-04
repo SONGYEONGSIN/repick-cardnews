@@ -40,6 +40,9 @@ export function SchedulePanel({
   hashtags,
   onCaptureImages,
   onPendingChange,
+  disabled = false,
+  formOnly = false,
+  listOnly = false,
 }: {
   busy: boolean;
   imageCount: number;
@@ -49,6 +52,15 @@ export function SchedulePanel({
   onCaptureImages: (count: number) => Promise<string[]>;
   /** 이 세션이 건 예약이 아직 대기 중인지 부모에게 알린다 — 부모가 "지금 올리기"를 막는다. */
   onPendingChange: (hasPending: boolean) => void;
+  /** 문지기(`publish-gate`)가 막고 있으면 예약도 못 건다. */
+  disabled?: boolean;
+  /**
+   * 예약을 **거는 칸만** 그린다. 올리는 방법을 고르는 자리 안에 들어가므로, 목록은 그 바깥에
+   * 따로 둔다(`listOnly`) — 한 화면에 목록이 두 번 나오지 않게 한다.
+   */
+  formOnly?: boolean;
+  /** **올린 기록**만 그린다. 예약과 즉시 업로드가 같은 장부에 쌓인다. */
+  listOnly?: boolean;
 }) {
   const [when, setWhen] = useState("");
   const [items, setItems] = useState<ScheduleView[]>([]);
@@ -141,10 +153,68 @@ export function SchedulePanel({
     }
   }
 
-  return (
-    <section className="flex flex-col gap-4">
-      <SectionHead title="예약 발행" aside="정해 둔 시각에 자동으로 올려요" />
-      <div className="grid gap-6 rounded-xl border border-hair p-6 xl:grid-cols-2 xl:items-start">
+  // 예약을 거는 칸만 / 목록만 / 둘 다 — 부르는 쪽이 고른다.
+  if (listOnly) {
+    return (
+      <section className="flex flex-col gap-4">
+        <SectionHead title="4 · 올린 기록" aside="예약과 지금 올린 것이 함께 쌓여요" />
+        <div className="rounded-xl border border-hair p-6">
+        <div className="flex flex-col gap-3">
+          <h3 className="text-[13px] text-ink-2">예약 목록</h3>
+          {/* 시계가 멈췄으면 목록 위에서 먼저 말한다 — '대기 중' 만 보이면 기다리면 되는 줄 안다. */}
+          {stopped && (
+            <p role="alert" className="flex items-start gap-2 rounded-lg bg-ink px-4 py-2.5 text-[13px] font-bold text-surface">
+              <CircleAlert size={14} aria-hidden="true" className="mt-0.5 flex-none" />
+              {stopped}
+            </p>
+          )}
+          {items.length === 0 ? (
+            <p className="text-[14px] text-ink-2">아직 예약이 없어요.</p>
+          ) : (
+            <ul className="flex flex-col gap-2.5">
+              {items.map((item) => (
+                <li key={item.id} className="flex flex-col gap-1 rounded-lg border border-hair px-4 py-3">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-[14px] font-bold">{STATUS_LABELS[item.status]}</span>
+                    <span className="text-[13px] text-ink-2">{item.describe}</span>
+                    {isPending(item) && (
+                      <button
+                        type="button"
+                        onClick={() => void cancel(item.id)}
+                        className={`ml-auto flex items-center gap-1 rounded px-2 py-1 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+                      >
+                        <X size={13} aria-hidden="true" />
+                        취소
+                      </button>
+                    )}
+                    {item.status === "published" && (
+                      <Check size={14} aria-hidden="true" className="ml-auto flex-none" />
+                    )}
+                  </span>
+                  <span className="text-[13px] text-ink-2">
+                    {item.keyword} · 카드 {item.imageCount}장
+                  </span>
+                  {/* 도는 동안 어디까지 갔는지 — 없으면 안 그린다. 손으로 올릴 때와 같은 단계다. */}
+                  {progressLine(item.progress) && (
+                    <span role="status" className="text-[13px] font-bold">
+                      {progressLine(item.progress)}
+                    </span>
+                  )}
+                  {/* 왜 실패했는지 감추지 않는다 — 다시 예약하려면 이유를 알아야 한다. */}
+                  {item.message && <span className="text-[13px] font-bold leading-relaxed">{item.message}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (formOnly) {
+    return (
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4">
           {/* 이 문단을 지우지 마라 — 안 적으면 예약해 두고 컴퓨터를 끈다. */}
           <p className="text-[14px] font-bold leading-relaxed">
@@ -166,7 +236,7 @@ export function SchedulePanel({
               // 눌러야만 열려서, 글자 부분을 누른 사람은 아무 일도 안 난다고 느낀다.
               // `showPicker` 를 지원하지 않는 브라우저에서는 그냥 기본 동작으로 떨어진다.
               onClick={(e) => e.currentTarget.showPicker?.()}
-              disabled={busy || working}
+              disabled={disabled || busy || working}
               className={`h-11 rounded-lg border border-hair px-3 text-[14px] transition-colors duration-200 focus:border-ink focus:outline-none disabled:text-ink-disabled ${FOCUS_RING} motion-reduce:transition-none`}
             />
           </label>
@@ -177,7 +247,7 @@ export function SchedulePanel({
               이미 예약이 걸려 있어요. 또 걸면 두 번 올라가요 — 바꾸려면 오른쪽에서 먼저 취소해 주세요.
             </p>
           )}
-          <SolidButton disabled={busy || working || !when || pending} onClick={() => void schedule()}>
+          <SolidButton disabled={disabled || busy || working || !when || pending} onClick={() => void schedule()}>
             {working ? (
               <LoaderCircle size={15} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
             ) : (
@@ -192,6 +262,64 @@ export function SchedulePanel({
               {error}
             </p>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-4">
+      <SectionHead title="예약 발행" aside="정해 둔 시각에 자동으로 올려요" />
+      <div className="grid gap-6 rounded-xl border border-hair p-6 xl:grid-cols-2 xl:items-start">
+        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
+          {/* 이 문단을 지우지 마라 — 안 적으면 예약해 두고 컴퓨터를 끈다. */}
+          <p className="text-[14px] font-bold leading-relaxed">
+            예약한 시각에 이 컴퓨터가 켜져 있고 dev 서버와 터널이 돌고 있어야 올라가요.
+          </p>
+          <p className="text-[14px] leading-relaxed text-ink-2">
+            시각을 한 시간 넘게 지나면 올리지 않고 &lsquo;놓침&rsquo;으로 남겨요. 지금 화면의 캡션과
+            해시태그가 그대로 함께 올라가요 — 예약한 뒤 카드를 고쳐도 예약된 것은 그대로예요.
+          </p>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-bold text-ink-2">언제 올릴까요</span>
+            <input
+              type="datetime-local"
+              value={when}
+              min={toLocalInputValue(Date.now() + 60_000)}
+              onChange={(e) => setWhen(e.target.value)}
+              // 칸 아무 곳이나 눌러도 달력이 뜨게 한다 — 기본 동작은 오른쪽 달력 아이콘을 정확히
+              // 눌러야만 열려서, 글자 부분을 누른 사람은 아무 일도 안 난다고 느낀다.
+              // `showPicker` 를 지원하지 않는 브라우저에서는 그냥 기본 동작으로 떨어진다.
+              onClick={(e) => e.currentTarget.showPicker?.()}
+              disabled={disabled || busy || working}
+              className={`h-11 rounded-lg border border-hair px-3 text-[14px] transition-colors duration-200 focus:border-ink focus:outline-none disabled:text-ink-disabled ${FOCUS_RING} motion-reduce:transition-none`}
+            />
+          </label>
+
+          {pending && (
+            <p role="status" className="flex items-start gap-2 text-[14px] font-bold leading-relaxed">
+              <CircleAlert size={15} aria-hidden="true" className="mt-0.5 flex-none" />
+              이미 예약이 걸려 있어요. 또 걸면 두 번 올라가요 — 바꾸려면 오른쪽에서 먼저 취소해 주세요.
+            </p>
+          )}
+          <SolidButton disabled={disabled || busy || working || !when || pending} onClick={() => void schedule()}>
+            {working ? (
+              <LoaderCircle size={15} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+            ) : (
+              <CalendarClock size={15} aria-hidden="true" />
+            )}
+            {working ? "예약하는 중" : "이 시각에 예약"}
+          </SolidButton>
+
+          {error && (
+            <p role="alert" className="flex items-start gap-2 text-[14px] font-bold">
+              <CircleAlert size={15} aria-hidden="true" className="mt-0.5 flex-none" />
+              {error}
+            </p>
+          )}
+        </div>
         </div>
 
         <div className="flex flex-col gap-3">

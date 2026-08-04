@@ -1,5 +1,7 @@
 import { z } from "zod/v4";
+import { randomUUID } from "node:crypto";
 import { loadShare } from "@/lib/share-store";
+import { appendItem } from "@/lib/schedule-queue";
 import { checkInstagramConfig } from "@/lib/instagram-config";
 import { isLocalHost } from "@/lib/local-guard";
 import {
@@ -110,6 +112,17 @@ export async function POST(req: Request) {
             onProgress,
           )
         : await publishCarousel({ config: configCheck.config, imageUrls, caption }, undefined, onProgress);
+    // 손으로 올린 것도 **예약과 같은 장부**에 남긴다 — 안 남기면 "올라갔나?" 를 인스타에
+    // 가서 봐야 한다. 실패하면 남기지 않는다: 안 올라간 것을 올렸다고 적지 않는다.
+    appendItem({
+      id: randomUUID(),
+      scheduledAt: Date.now(),
+      caption,
+      imageCount: entry.images.length,
+      keyword: entry.keyword,
+      status: "published",
+      createdAt: Date.now(),
+    });
     return Response.json({ mediaId });
   } catch (e) {
     // 사용자에게는 한국어 안내만 보낸다. 원인은 서버 콘솔에만 남긴다 — 토큰은 가린다.

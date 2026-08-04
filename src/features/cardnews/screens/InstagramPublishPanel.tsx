@@ -7,10 +7,11 @@ import { LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFra
 import { maxPublishWaitMs } from "@/lib/instagram";
 import { daysRemaining } from "@/lib/instagram-token-refresh";
 import type { PublishProgress } from "@/lib/publish-progress-store";
-import { TokenStatusBlock, type RefreshActionResult, type TokenStatusView } from "./TokenStatusBlock";
 import { HashtagInput } from "./HashtagInput";
 import { defaultCaption, defaultHashtags } from "./caption-draft";
+import Link from "next/link";
 import { SchedulePanel } from "./SchedulePanel";
+import { UPLOAD_MODES, canUpload, uploadBlockReason, type UploadMode } from "./publish-gate";
 
 /**
  * "인스타그램에 올리기" 패널. 연결 여부는 이 컴포넌트가 마운트 시 `GET /api/instagram-status`
@@ -134,12 +135,11 @@ export function InstagramPublishPanel({
   // 이 세션이 건 예약이 아직 대기 중인가. 예약해 놓고 "지금 올리기"를 또 누르면 같은 카드가
   // 두 번 올라간다(지금 한 번, 예약 시각에 한 번).
   const [schedulePending, setSchedulePending] = useState(false);
+  // 올릴 때를 고른다. 저장할 값이 아니라 이 화면을 보는 동안의 선택이다.
+  const [mode, setMode] = useState<UploadMode>("now");
   const [publishing, setPublishing] = useState(false);
   const [verify, setVerify] = useState<VerifyResult>({ state: "idle" });
   const [progress, setProgress] = useState<PublishProgress | null>(null);
-  const [tokenStatus, setTokenStatus] = useState<TokenStatusView>({ state: "loading" });
-  const [refreshingToken, setRefreshingToken] = useState(false);
-  const [refreshResult, setRefreshResult] = useState<RefreshActionResult>({ state: "idle" });
 
   useEffect(() => {
     let cancelled = false;
@@ -164,29 +164,6 @@ export function InstagramPublishPanel({
     };
   }, []);
 
-  // 저장된 토큰 만료일을 읽기 전용으로 물어본다 — 토큰이 아예 없는 상태(`not-ready`)에서도
-  // 해롭지 않게 "unknown"으로 떨어질 뿐이라, 연결 상태와 무관하게 마운트 시 한 번만 부른다.
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/instagram-refresh-token")
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data.expired) {
-          setTokenStatus({ state: "expired" });
-        } else if (typeof data.expiresAt === "string" && typeof data.daysRemaining === "number") {
-          setTokenStatus({ state: "valid", expiresAt: new Date(data.expiresAt), daysRemaining: data.daysRemaining });
-        } else {
-          setTokenStatus({ state: "unknown" });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setTokenStatus({ state: "check-failed" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // 게시가 실제로 도는 동안(`token`이 있는 동안)만 몇 초 간격으로 진행 상황을 물어본다.
   // 요청이 끝나 `token`이 null이 되면 다음 effect 정리에서 폴링을 멈추고 표시도 지운다.
@@ -213,12 +190,22 @@ export function InstagramPublishPanel({
     };
   }, [token]);
 
-  const canPublish = status.state === "ready" && !busy && !publishing && !schedulePending;
+  // 연결 확인을 통과해야 다음으로 넘어간다(`publish-gate`).
+  const verified = verify.state === "success";
+  const gate = {
+    verified,
+    busy,
+    publishing,
+    hasCard: imageCount > 0,
+    alreadyScheduled: schedulePending,
+  };
+  const uploadable = status.state === "ready" && canUpload(gate);
+  const blockReason = status.state === "ready" ? uploadBlockReason(gate) : null;
   const maxWaitMinutes = Math.round(maxPublishWaitMs(imageCount) / 60_000);
   const label = progressLabel(progress);
 
   async function handleClick() {
-    if (!canPublish) return;
+    if (!uploadable) return;
     setPublishing(true);
     try {
       await onPublish(caption, hashtags);
@@ -249,27 +236,6 @@ export function InstagramPublishPanel({
   /** "토큰 갱신" 버튼 — 남은 기간과 무관하게 항상 시도한다(서버 쪽 게이트는 자동 갱신에만
    * 적용된다, `src/instrumentation.ts` 참고). 성공하면 화면에 보이는 만료일도 즉시 새로
    * 고친다. */
-  async function handleRefreshToken() {
-    setRefreshingToken(true);
-    try {
-      const res = await fetch("/api/instagram-refresh-token", { method: "POST" });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        setRefreshResult({ state: "success", expiresAt: data.expiresAt });
-        const expiresAt = new Date(data.expiresAt);
-        setTokenStatus({ state: "valid", expiresAt, daysRemaining: daysRemaining(new Date(), expiresAt) });
-      } else {
-        setRefreshResult({
-          state: "failed",
-          message: typeof data.error === "string" ? data.error : "토큰 갱신에 실패했어요.",
-        });
-      }
-    } catch {
-      setRefreshResult({ state: "failed", message: "토큰 갱신에 실패했어요. 잠시 후 다시 시도해 주세요." });
-    } finally {
-      setRefreshingToken(false);
-    }
-  }
 
   return (
     // 표준: 제목/구분선 밖, 내용은 박스 안 + 상태(왼쪽)/게시 준비(오른쪽) 2단 — docs/ui-standards.md §1,§3
@@ -323,12 +289,6 @@ export function InstagramPublishPanel({
               ))}
             </ul>
             <VerifyBlock verify={verify} onVerify={() => void handleVerify()} />
-            <TokenStatusBlock
-              status={tokenStatus}
-              refreshing={refreshingToken}
-              refreshResult={refreshResult}
-              onRefresh={() => void handleRefreshToken()}
-            />
             <SolidButton disabled>
               <Send size={15} aria-hidden="true" />
               인스타에 올리기
@@ -337,83 +297,126 @@ export function InstagramPublishPanel({
         )}
 
         {status.state === "ready" && (
-          <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-            {/* 왼쪽 = 적고 누르는 것(캡션 · 해시태그 · 게시) — 손이 가는 쪽이 먼저다 */}
-            <div className="flex flex-col gap-4">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[13px] font-bold text-ink-2">캡션 (선택)</span>
-              <textarea
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                disabled={busy || publishing}
-                rows={8}
-                maxLength={2200}
-                placeholder="게시물에 함께 올릴 글을 적어 주세요"
-                className={`rounded-lg border border-hair px-3 py-2.5 text-[14px] leading-relaxed transition-colors duration-200 placeholder:text-ink-3 focus:border-ink focus:outline-none disabled:text-ink-disabled ${FOCUS_RING} motion-reduce:transition-none`}
-              />
-            </label>
-
-            <HashtagInput value={hashtags} onChange={setHashtags} disabled={busy || publishing} />
-
-            {publishing && (
-              <p role="status" className="text-[13px] text-ink-2">
-                게시하는 중이에요{label ? ` — ${label}` : ""}. 사진 처리 속도에 따라 최대 {maxWaitMinutes}분까지
-                걸릴 수 있어요 — 창을 닫지 말고 기다려 주세요.
-              </p>
-            )}
-
-            {published && !publishing && (
-              <p className="flex items-center gap-2 text-[14px] font-bold">
-                <Check size={16} aria-hidden="true" className="flex-none" />
-                인스타그램에 올렸어요.
-              </p>
-            )}
-
-            {/* 막힌 이유를 적는다 — 회색 버튼만 두면 왜 안 눌리는지 알 수 없다. */}
-            {schedulePending && (
-              <p role="status" className="flex items-start gap-2 text-[14px] font-bold leading-relaxed">
-                <CircleAlert size={15} aria-hidden="true" className="mt-0.5 flex-none" />
-                예약이 걸려 있어요. 지금 올리면 예약 시각에 한 번 더 올라가요 — 지금 올리려면 아래에서
-                예약을 먼저 취소해 주세요.
-              </p>
-            )}
-            <SolidButton disabled={!canPublish} onClick={() => void handleClick()}>
-              <Send size={15} aria-hidden="true" />
-              인스타에 올리기
-            </SolidButton>
-            </div>
-
-            {/* 오른쪽 = 읽고 확인하는 것(무엇이 일어나나 · 연결 · 토큰) */}
-            <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
+            {/* ① 연결 확인 — **문지기다.** 통과 전에는 아래가 잠긴다. 예전엔 확인 없이도
+                올리기가 눌려, 오래 기다린 끝에 인증 실패로 튕겼다. */}
+            <div className="flex flex-col gap-3 rounded-xl border border-hair p-5">
+              <SectionHead title="1 · 연결 확인" aside={verified ? "확인됨" : "먼저 눌러 주세요"} />
               <p className="text-[14px] leading-relaxed text-ink-2">
-                올리기를 누르면 이 카드 사진이 우리 공개 주소를 거쳐 인스타그램 서버로 전달돼요. "폰으로
-                보내기"와 달리 이 컴퓨터의 집 네트워크를 벗어나 인터넷으로 나가는 방식이에요.
+                올리기를 누르면 이 카드 사진이 우리 공개 주소를 거쳐 인스타그램 서버로 전달돼요.
+                &ldquo;폰으로 보내기&rdquo;와 달리 이 컴퓨터의 집 네트워크를 벗어나 인터넷으로 나가요.
               </p>
-
               <VerifyBlock verify={verify} onVerify={() => void handleVerify()} />
-              <TokenStatusBlock
-                status={tokenStatus}
-                refreshing={refreshingToken}
-                refreshResult={refreshResult}
-                onRefresh={() => void handleRefreshToken()}
-              />
+              <p className="text-[13px] text-ink-2">
+                토큰 만료일과 갱신은{" "}
+                <Link href="/settings" className={`font-bold underline ${FOCUS_RING}`}>
+                  설정
+                </Link>
+                에서 봐요.
+              </p>
             </div>
+
+            {/* ② 캡션·해시태그 — 늘 있어야 한다. 연결 확인 전에도 미리 적어 둘 수 있다. */}
+            <div className="flex flex-col gap-4 rounded-xl border border-hair p-5">
+              <SectionHead title="2 · 캡션과 해시태그" aside="함께 올라가요" />
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[13px] font-bold text-ink-2">캡션 (선택)</span>
+                <textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  disabled={busy || publishing}
+                  rows={8}
+                  maxLength={2200}
+                  placeholder="게시물에 함께 올릴 글을 적어 주세요"
+                  className={`rounded-lg border border-hair px-3 py-2.5 text-[14px] leading-relaxed transition-colors duration-200 placeholder:text-ink-3 focus:border-ink focus:outline-none disabled:text-ink-disabled ${FOCUS_RING} motion-reduce:transition-none`}
+                />
+              </label>
+              <HashtagInput value={hashtags} onChange={setHashtags} disabled={busy || publishing} />
+            </div>
+
+            {/* ③ 언제 올릴지 — **고르는 것**이다. 둘을 함께 쌓아 두면 어느 쪽을 누른 건지 흐려진다. */}
+            <div className="flex flex-col gap-4 rounded-xl border border-hair p-5">
+              <SectionHead title="3 · 언제 올릴까" aside={blockReason ?? undefined} />
+              <div role="group" aria-label="올릴 때" className="flex flex-wrap gap-3">
+                {UPLOAD_MODES.map((m) => {
+                  const on = m.id === mode;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      aria-pressed={on}
+                      disabled={!verified}
+                      onClick={() => setMode(m.id)}
+                      className={`flex min-w-[180px] flex-1 flex-col items-start gap-1 rounded-xl border-2 px-5 py-4 text-left transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
+                        on ? "border-ink" : "border-hair hover:border-ink-3"
+                      } ${FOCUS_RING} motion-reduce:transition-none`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-[17px] font-black tracking-tight">{m.label}</span>
+                        {on && <span className="rounded bg-ink px-2 py-0.5 text-[12px] font-bold text-surface">선택</span>}
+                      </span>
+                      <span className="text-[13px] text-ink-2">{m.note}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {publishing && (
+                <p role="status" className="text-[13px] text-ink-2">
+                  게시하는 중이에요{label ? ` — ${label}` : ""}. 사진 처리 속도에 따라 최대 {maxWaitMinutes}분까지
+                  걸릴 수 있어요 — 창을 닫지 말고 기다려 주세요.
+                </p>
+              )}
+
+              {published && !publishing && (
+                <p className="flex items-center gap-2 text-[14px] font-bold">
+                  <Check size={16} aria-hidden="true" className="flex-none" />
+                  인스타그램에 올렸어요.
+                </p>
+              )}
+
+              {/* 막힌 이유를 적는다 — 회색 버튼만 두면 왜 안 눌리는지 알 수 없다. */}
+              {blockReason && !publishing && (
+                <p role="status" className="flex items-start gap-2 text-[14px] font-bold leading-relaxed">
+                  <CircleAlert size={15} aria-hidden="true" className="mt-0.5 flex-none" />
+                  {blockReason}
+                </p>
+              )}
+
+              {mode === "now" ? (
+                <SolidButton disabled={!uploadable} onClick={() => void handleClick()}>
+                  <Send size={15} aria-hidden="true" />
+                  지금 인스타에 올리기
+                </SolidButton>
+              ) : (
+                <SchedulePanel
+                  busy={busy || publishing}
+                  disabled={!uploadable}
+                  imageCount={imageCount}
+                  keyword={keyword}
+                  caption={caption}
+                  hashtags={hashtags}
+                  onCaptureImages={onCaptureImages}
+                  onPendingChange={setSchedulePending}
+                  formOnly
+                />
+              )}
+            </div>
+
+            {/* ④ 올린 기록 — 예약과 즉시 업로드가 **같은 장부**에 쌓인다. */}
+            <SchedulePanel
+              busy={busy || publishing}
+              imageCount={imageCount}
+              keyword={keyword}
+              caption={caption}
+              hashtags={hashtags}
+              onCaptureImages={onCaptureImages}
+              onPendingChange={setSchedulePending}
+              listOnly
+            />
           </div>
         )}
 
-        {/* 예약도 게시의 한 갈래라 같은 방법 안에 둔다. 지금 화면의 캡션·해시태그를 그대로
-            넘긴다 — 예약한 그대로가 올라가야 한다. */}
-        {status.state === "ready" && (
-          <SchedulePanel
-            busy={busy || publishing}
-            imageCount={imageCount}
-            keyword={keyword}
-            caption={caption}
-            hashtags={hashtags}
-            onCaptureImages={onCaptureImages}
-            onPendingChange={setSchedulePending}
-          />
-        )}
       </div>
     </section>
   );
