@@ -19,8 +19,11 @@ import { TIP_MAX, TITLE_MAX, SUBTITLE_MAX } from "../checks";
 import { ITEMS_MAX, ITEMS_MIN, type InfoAction, type InfoState } from "../reducer";
 
 /**
- * 정보전달 툴바 — 카드뉴스 `EditToolbar` 와 **같은 골격**이다: 위는 조작, 아래는 안내.
- * 어느 형식을 만들든 같은 자리를 보게 한다(`docs/ui-standards.md` §1).
+ * 정보전달 툴바 — 위는 **머리줄**(안내 + 그 탭의 동작), 아래는 조작이다.
+ *
+ * 카드뉴스 `EditToolbar` 는 아직 반대(위 조작 / 아래 안내)다 — 실사용에서 "안내가 아래 있으면
+ * 다 만지고 나서야 읽는다"는 지적을 받아 이쪽을 먼저 뒤집었다. 두 툴바가 갈라져 있으므로
+ * 카드뉴스도 같은 골격으로 맞추는 것이 남은 일이다.
  *
  * 테마는 카드 하나가 아니라 **결과물 전체**에 걸리므로 자기 탭을 갖는다 — 카드뉴스에서
  * '카드' 탭 안에 넣었다가 "카드 하나 설정"으로 읽혀 되돌린 것과 같은 이유다.
@@ -250,17 +253,19 @@ export function InfoToolbar({
           </button>
         ))}
         </div>
-        {active === "fit" && (
-          <span className="ml-auto">
+      </div>
+
+      {/* 머리줄(안내 + 그 탭의 동작)이 위, 조작이 아래 — 어느 탭을 눌러도 같은 자리를 본다.
+          안내가 아래 있으면 다 만지고 나서야 읽게 된다. */}
+      <div role="tabpanel" className="flex flex-col gap-2.5 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[13px] leading-relaxed text-ink-2">{hintFor(active)}</p>
+          {active === "fit" && (
             <Btn compact onClick={() => dispatch({ type: "SET_FIT", patch: { text: 1, gap: 1, pad: 1 } })}>
               기본으로
             </Btn>
-          </span>
-        )}
-      </div>
-
-      {/* 위는 조작, 아래는 안내 — 어느 탭을 눌러도 같은 자리를 본다. */}
-      <div role="tabpanel" className="flex flex-col gap-1.5 px-3 py-2.5">
+          )}
+        </div>
         <div className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-2">
           {active === "text" && (
             <div className="flex w-full flex-col gap-3">
@@ -389,7 +394,6 @@ export function InfoToolbar({
             </span>
           )}
         </div>
-        <p className="text-[13px] leading-relaxed text-ink-2">{hintFor(active)}</p>
       </div>
     </div>
   );
