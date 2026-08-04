@@ -185,6 +185,23 @@ try {
   await page.fill("#info-kw", "정렬 점검");
   await page.getByRole("button", { name: /만들러 가기/ }).click();
   await page.waitForTimeout(600);
+  // 고르기 화면에서도 왼쪽(고르기)과 오른쪽(카드 자리)의 박스가 같은 자리·같은 높이여야 한다.
+  const emptyPair = await page.evaluate(() => {
+    const boxes = [...document.querySelectorAll("div")].filter((e) => {
+      const c = e.className;
+      return typeof c === "string" && /border-hair/.test(c) && /rounded-xl/.test(c) && e.getBoundingClientRect().height > 100;
+    });
+    const r = (e) => { const x = e.getBoundingClientRect(); return { top: Math.round(x.top), height: Math.round(x.height) }; };
+    const left = boxes.find((e) => e.getBoundingClientRect().left < 700);
+    const right = boxes.find((e) => e.getBoundingClientRect().left > 700);
+    return left && right ? [r(left), r(right)] : null;
+  });
+  results.push({
+    gate: "정렬", route: "/info 만들기(고르기 · 카드 자리)",
+    pass: emptyPair !== null && samePlace(emptyPair[0], emptyPair[1]),
+    detail: emptyPair ? emptyPair.map((b) => `top ${b.top}·${b.height}px`).join(" / ") : "두 박스를 못 찾음",
+  });
+
   // 사진을 쓸지 먼저 고른다 — 고르기 전에는 '카피 만들기' 가 없다.
   await page.getByRole("button", { name: /사진 없이 만들기/ }).click();
   await page.waitForTimeout(300);

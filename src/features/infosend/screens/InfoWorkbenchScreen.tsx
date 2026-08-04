@@ -2,7 +2,7 @@
 
 import { useState, type Dispatch } from "react";
 import { ArrowLeft, ArrowRight, Check, CircleAlert, ImagePlus, LoaderCircle, Sparkles } from "lucide-react";
-import { PLACEHOLDER_BOX } from "@/components/ui";
+import { PLACEHOLDER_BOX, PLACEHOLDER_MIN_H } from "@/components/ui";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { Dropzone } from "@/features/photos/Dropzone";
 import { PhotoGrid } from "@/features/photos/PhotoGrid";
@@ -131,7 +131,7 @@ export function InfoWorkbenchScreen({
             {/* 사진을 쓸지 말지 **먼저 고른다.** 드롭존과 만들기 버튼을 나란히 두면 사진이
                 필수처럼 읽힌다 — 선택인데도. */}
             {stage === "choose" && (
-              <div className="flex flex-col gap-3 rounded-xl border border-hair p-5">
+              <div className={`flex ${PLACEHOLDER_MIN_H} flex-col items-center justify-center gap-4 rounded-xl border border-hair p-6 text-center`}>
                 <p className="text-[14px] leading-relaxed text-ink-2">
                   사진을 쓸지 먼저 정해요. 안 쓰면 제목을 테마 색 띠로 그려요.
                 </p>
@@ -146,14 +146,18 @@ export function InfoWorkbenchScreen({
             )}
 
             {stage === "upload" && (
-              <Dropzone
-                hint="폴더째 올려도 돼요. 한 장만 골라 씁니다."
-                onPhotos={(photos) => {
-                  dispatch({ type: "ADD_PHOTOS", photos });
-                  setAdding(false);
-                }}
-                onError={(error) => dispatch({ type: "SET_ERROR", error })}
-              />
+              <>
+                <Dropzone
+                  hint="폴더째 올려도 돼요. 한 장만 골라 씁니다."
+                  onPhotos={(photos) => {
+                    dispatch({ type: "ADD_PHOTOS", photos });
+                    setAdding(false);
+                  }}
+                  onError={(error) => dispatch({ type: "SET_ERROR", error })}
+                />
+                {/* 되돌아갈 길을 둔다 — 사진을 고른 뒤 마음이 바뀌면 여기서 막혔다. */}
+                <LineButton onClick={() => setChoice("without-photo")}>사진 없이 만들기</LineButton>
+              </>
             )}
 
             {stage === "ready" &&
@@ -176,7 +180,9 @@ export function InfoWorkbenchScreen({
                   <LineButton onClick={() => setAdding(true)}>사진 더 올리기</LineButton>
                 </>
               ) : (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 rounded-xl border border-hair p-5">
+                <div
+                  className={`flex ${PLACEHOLDER_MIN_H} flex-col items-center justify-center gap-4 rounded-xl border border-hair p-6 text-center`}
+                >
                   <p className="text-[14px] text-ink-2">사진 없이 만드는 중이에요.</p>
                   <LineButton onClick={() => setAdding(true)}>사진 올리기</LineButton>
                 </div>
