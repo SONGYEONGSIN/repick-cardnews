@@ -4,6 +4,9 @@ import {
   friendlyPublishError,
   friendlyVerifyError,
   publishCarousel,
+  publishSingleImage,
+  publishKindFor,
+  PUBLISHABLE_MIN_ITEMS,
   verifyInstagramConnection,
   maxPublishWaitMs,
   InstagramApiError,
@@ -376,5 +379,152 @@ describe("friendlyVerifyError", () => {
       new InstagramApiError("HTTP 400", { error: { message: config.accessToken, code: 1 } }),
     );
     expect(msg).not.toContain(config.accessToken);
+  });
+});
+
+/**
+ * 정보전달은 **한 장**이다. Graph API 는 2장 미만 캐러셀을 거부하므로(`CAROUSEL_MIN_ITEMS`)
+ * 캐러셀 경로로는 못 올린다. 단일 이미지는 더 단순하다 — 컨테이너 하나 → 게시.
+ * 여기서 잡는 것: 캐러셀 표식(`is_carousel_item`·`media_type=CAROUSEL`)이 섞이지 않는가.
+ */
+describe("publishSingleImage", () => {
+  const noWaitSleep = () => Promise.resolve();
+
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function jsonResponse(status: number, body: unknown) {
+    return { ok: status >= 200 && status < 300, status, json: async () => body };
+  }
+
+  function bodyToString(body: RequestInit["body"]): string {
+    if (body === undefined || body === null) return "";
+    if (typeof body === "string") return body;
+    if (body instanceof URLSearchParams) return body.toString();
+    throw new Error("예상 못한 body 타입");
+  }
+
+  function mockGraph(calls: { method: string; url: string; body: string }[]) {
+    return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      const body = bodyToString(init?.body);
+      calls.push({ method, url, body });
+      if (method === "POST" && url.endsWith("/media")) return jsonResponse(200, { id: "container-1" });
+      if (method === "GET" && url.includes("status_code")) return jsonResponse(200, { status_code: "FINISHED" });
+      if (method === "POST" && url.endsWith("/media_publish")) return jsonResponse(200, { id: "media-9" });
+      throw new Error(`unexpected call: ${method} ${url}`);
+    });
+  }
+
+  it("컨테이너 하나를 만들고 바로 게시해 미디어 id를 돌려준다", async () => {
+    const calls: { method: string; url: string; body: string }[] = [];
+    vi.stubGlobal("fetch", mockGraph(calls));
+
+    const mediaId = await publishSingleImage(
+      { config, imageUrl: "https://x/1.png", caption: "안녕" },
+      noWaitSleep,
+    );
+
+    expect(mediaId).toBe("media-9");
+    const container = calls.find((c) => c.method === "POST" && c.url.endsWith("/media"));
+    expect(container?.body).toContain("image_url=https%3A%2F%2Fx%2F1.png");
+    expect(container?.body).toContain("caption=%EC%95%88%EB%85%95");
+    expect(calls.some((c) => c.url.endsWith("/media_publish") && c.body.includes("creation_id=container-1"))).toBe(
+      true,
+    );
+  });
+
+  it("캐러셀 표식을 보내지 않는다 — 한 장짜리는 캐러셀이 아니다", async () => {
+    const calls: { method: string; url: string; body: string }[] = [];
+    vi.stubGlobal("fetch", mockGraph(calls));
+
+    await publishSingleImage({ config, imageUrl: "https://x/1.png", caption: "" }, noWaitSleep);
+
+    const posts = calls.filter((c) => c.method === "POST");
+    expect(posts.some((c) => c.body.includes("is_carousel_item"))).toBe(false);
+    expect(posts.some((c) => c.body.includes("media_type=CAROUSEL"))).toBe(false);
+    // 컨테이너 하나 + 게시 하나. 캐러셀의 '아이템 준비 → 묶기' 두 단계가 없다.
+    expect(posts).toHaveLength(2);
+  });
+
+  it("컨테이너 준비를 기다렸다가 게시한다", async () => {
+    let statusCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        if (method === "POST" && url.endsWith("/media")) return jsonResponse(200, { id: "container-1" });
+        if (method === "GET" && url.includes("status_code")) {
+          statusCalls += 1;
+          return jsonResponse(200, { status_code: statusCalls < 3 ? "IN_PROGRESS" : "FINISHED" });
+        }
+        if (method === "POST" && url.endsWith("/media_publish")) return jsonResponse(200, { id: "media-9" });
+        throw new Error(`unexpected call: ${method} ${url}`);
+      }),
+    );
+
+    await expect(
+      publishSingleImage({ config, imageUrl: "https://x/1.png", caption: "" }, noWaitSleep),
+    ).resolves.toBe("media-9");
+    expect(statusCalls).toBe(3);
+  });
+
+  it("진행 보고는 '게시 중' 한 단계다 — 준비할 아이템도, 묶을 것도 없다", async () => {
+    vi.stubGlobal("fetch", mockGraph([]));
+    const seen: PublishStageProgress[] = [];
+
+    await publishSingleImage(
+      { config, imageUrl: "https://x/1.png", caption: "" },
+      noWaitSleep,
+      (p) => seen.push(p),
+    );
+
+    expect(seen).toEqual([{ stage: "preparing", index: 1, total: 1 }, { stage: "publishing" }]);
+  });
+
+  it("실패는 한국어로 바뀌고 토큰이 섞이지 않는다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(400, {
+          error: { message: `Error validating access token: ${config.accessToken}`, type: "OAuthException", code: 190 },
+        }),
+      ),
+    );
+
+    const failure = publishSingleImage({ config, imageUrl: "https://x/1.png", caption: "" }, noWaitSleep);
+    await expect(failure).rejects.toBeInstanceOf(InstagramApiError);
+    const msg = friendlyPublishError(await failure.catch((e: unknown) => e));
+    expect(msg).toContain("연결");
+    expect(msg).not.toContain(config.accessToken);
+    expect(msg).not.toContain("OAuthException");
+  });
+});
+
+/**
+ * 장수 → 경로 판정. 이 판정은 `/api/publish` 와 예약 실행기 **두 곳**이 쓴다 — 둘이 어긋나면
+ * 손으로 올릴 땐 되는데 예약하면 안 되는 일이 생긴다. 그래서 한 함수로 묶어 여기서 잡는다.
+ */
+describe("publishKindFor", () => {
+  it("1장은 단일 게시다 — 캐러셀은 2장부터다", () => {
+    expect(publishKindFor(1)).toBe("single");
+  });
+
+  it("2~10장은 캐러셀이다", () => {
+    expect(publishKindFor(CAROUSEL_MIN_ITEMS)).toBe("carousel");
+    expect(publishKindFor(CAROUSEL_MAX_ITEMS)).toBe("carousel");
+  });
+
+  it("0장과 상한 초과는 올릴 수 없다", () => {
+    expect(publishKindFor(0)).toBeNull();
+    expect(publishKindFor(CAROUSEL_MAX_ITEMS + 1)).toBeNull();
+  });
+
+  it("올릴 수 있는 최소 장수는 1장이다", () => {
+    expect(PUBLISHABLE_MIN_ITEMS).toBe(1);
+    expect(publishKindFor(PUBLISHABLE_MIN_ITEMS)).not.toBeNull();
   });
 });

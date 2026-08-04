@@ -4,10 +4,12 @@ import type { InstagramConfig, InstagramConnectionConfig } from "@/lib/instagram
 export type { InstagramConfig, InstagramConnectionConfig };
 
 /**
- * 인스타그램 콘텐츠 게시(Graph API) 캐러셀 클라이언트.
+ * 인스타그램 콘텐츠 게시(Graph API) 클라이언트 — 캐러셀(2~10장)과 한 장짜리 두 경로가 있다.
+ * 한 장은 캐러셀로 못 올린다(Graph API 가 2장 미만 캐러셀을 거부한다, `CAROUSEL_MIN_ITEMS`).
  *
  * **사진이 서버 밖으로 나가는 지점**: 인스타그램 콘텐츠 게시 API 는 파일을 직접 받지 않는다.
- * 아래 `createCarouselItemContainer()`가 `image_url`을 담아 요청을 보내는 순간, 인스타그램
+ * 아래 `createCarouselItemContainer()`·`createSingleImageContainer()`가 `image_url`을 담아
+ * 요청을 보내는 순간, 인스타그램
  * 서버가 **그 주소로 직접 사진을 가져간다** — 우리는 업로드하지 않고 "가져가라"고 알려 줄 뿐이다.
  * 그래서 그 주소는 반드시 인터넷에서 닿는 공개 주소여야 하고(`PUBLIC_BASE_URL` 기반), 이 함수가
  * 호출되는 순간부터 카드 이미지는 이 PC 를 벗어난다.
@@ -45,6 +47,20 @@ const POLL_MAX_ATTEMPTS = 5;
 export const CAROUSEL_MIN_ITEMS = 2;
 /** 캐러셀 최대 장수. */
 export const CAROUSEL_MAX_ITEMS = 10;
+
+/** 올릴 수 있는 최소 장수. 1장은 캐러셀이 아니라 단일 게시로 나간다(정보전달이 여기 해당). */
+export const PUBLISHABLE_MIN_ITEMS = 1;
+
+/**
+ * 장수를 보고 어느 경로로 올릴지 정한다. 올릴 수 없으면 `null`.
+ *
+ * **`/api/publish` 와 예약 실행기가 같은 판정을 써야 한다** — 둘이 어긋나면 손으로는 올라가는데
+ * 예약하면 실패하는(또는 그 반대) 일이 생긴다. 그래서 갈림을 여기 한 곳에 둔다.
+ */
+export function publishKindFor(count: number): "single" | "carousel" | null {
+  if (count < PUBLISHABLE_MIN_ITEMS || count > CAROUSEL_MAX_ITEMS) return null;
+  return count < CAROUSEL_MIN_ITEMS ? "single" : "carousel";
+}
 
 /**
  * 사진 `itemCount`장을 캐러셀로 게시할 때 이론상 최악의 총 대기 시간(ms). 아이템 컨테이너
@@ -253,7 +269,29 @@ async function createCarouselContainer(config: InstagramConfig, childIds: string
   return result.id;
 }
 
-async function publishCarouselContainer(config: InstagramConfig, containerId: string): Promise<string> {
+/**
+ * 한 장짜리 컨테이너. 캐러셀 아이템과 달리 `is_carousel_item` 을 **보내지 않고**, 캡션도
+ * 여기서 함께 넣는다 — 묶는 단계가 없으므로 캡션을 붙일 다른 자리가 없다.
+ */
+async function createSingleImageContainer(
+  config: InstagramConfig,
+  imageUrl: string,
+  caption: string,
+): Promise<string> {
+  const params = new URLSearchParams({
+    image_url: imageUrl,
+    caption,
+    access_token: config.accessToken,
+  });
+  const result = await callGraphApi(
+    `${graphApiBase(config)}/${config.businessAccountId}/media`,
+    { method: "POST", body: params },
+    MediaContainerResponse,
+  );
+  return result.id;
+}
+
+async function publishContainer(config: InstagramConfig, containerId: string): Promise<string> {
   const params = new URLSearchParams({ creation_id: containerId, access_token: config.accessToken });
   const result = await callGraphApi(
     `${graphApiBase(config)}/${config.businessAccountId}/media_publish`,
@@ -339,5 +377,32 @@ export async function publishCarousel(
   await waitUntilReady(config, containerId, sleep);
 
   onProgress?.({ stage: "publishing" });
-  return publishCarouselContainer(config, containerId);
+  return publishContainer(config, containerId);
+}
+
+export type PublishSingleImageArgs = {
+  config: InstagramConfig;
+  /** 인스타그램이 직접 가져갈 공개 주소 하나. `buildCarouselImageUrls(..., 1)[0]` 로 만든다. */
+  imageUrl: string;
+  caption: string;
+};
+
+/**
+ * 한 장 게시(컨테이너 → 게시). 정보전달처럼 이미지가 하나뿐인 경우에 쓴다 —
+ * Graph API 는 2장 미만 캐러셀을 거부한다(`CAROUSEL_MIN_ITEMS`).
+ *
+ * 캐러셀의 '아이템 준비 → 묶기' 두 단계가 없어 더 단순하다. 진행 보고는 캐러셀과 **같은 타입**을
+ * 쓰되 `bundling` 이 없다 — 묶을 것이 없으므로 없는 단계를 보고하지 않는다.
+ */
+export async function publishSingleImage(
+  { config, imageUrl, caption }: PublishSingleImageArgs,
+  sleep: (ms: number) => Promise<void> = defaultSleep,
+  onProgress?: (progress: PublishStageProgress) => void,
+): Promise<string> {
+  onProgress?.({ stage: "preparing", index: 1, total: 1 });
+  const containerId = await createSingleImageContainer(config, imageUrl, caption);
+  await waitUntilReady(config, containerId, sleep);
+
+  onProgress?.({ stage: "publishing" });
+  return publishContainer(config, containerId);
 }

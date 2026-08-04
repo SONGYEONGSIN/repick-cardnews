@@ -219,3 +219,78 @@ describe("POST /api/publish 해시태그 검증·결합", () => {
     expect(carouselCaption).toBe("오늘의 카드뉴스\n\n#다이어트 #헬스");
   });
 });
+
+/**
+ * 정보전달은 한 장이다. 예전엔 이 라우트가 2장 미만을 무조건 거절했다 — 캐러셀만 알았기 때문이다.
+ * 이제 장수에 따라 갈린다(`publishKindFor`). 여기서 잡는 것: 한 장이 실제로 올라가는가,
+ * 그리고 그 요청에 캐러셀 표식이 섞이지 않는가.
+ */
+describe("POST /api/publish 장수에 따른 갈림", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    clearEnv();
+    vi.unstubAllGlobals();
+  });
+
+  /** 단일 게시(컨테이너 하나 → 게시)를 성공시키고, 오간 요청 본문을 모아 준다. */
+  function stubSingleImageGraphApi() {
+    const bodies: string[] = [];
+    const mockFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      const body = init?.body instanceof URLSearchParams ? init.body.toString() : String(init?.body ?? "");
+      if (method === "POST") bodies.push(body);
+      const jsonResponse = (status: number, data: unknown) => ({
+        ok: status >= 200 && status < 300,
+        status,
+        json: async () => data,
+      });
+      if (method === "POST" && url.endsWith("/media")) return jsonResponse(200, { id: "container-1" });
+      if (method === "GET" && url.includes("status_code")) return jsonResponse(200, { status_code: "FINISHED" });
+      if (method === "POST" && url.endsWith("/media_publish")) return jsonResponse(200, { id: "media-solo" });
+      throw new Error(`unexpected call: ${method} ${url}`);
+    });
+    vi.stubGlobal("fetch", mockFetch);
+    return bodies;
+  }
+
+  it("한 장이면 단일 게시로 올린다 — 캐러셀 표식을 보내지 않는다", async () => {
+    setFullEnv();
+    const bodies = stubSingleImageGraphApi();
+    const token = randomUUID();
+    saveShare(token, { images: [Buffer.from("a")], keyword: "여름 전기세", issuedAt: Date.now() });
+
+    const res = await POST(makeRequest("localhost:3500", { token, caption: "한 장" }));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ mediaId: "media-solo" });
+    expect(bodies.some((b) => b.includes("is_carousel_item"))).toBe(false);
+    expect(bodies.some((b) => b.includes("media_type=CAROUSEL"))).toBe(false);
+  });
+
+  it("한 장이어도 캡션과 해시태그를 합쳐 보낸다", async () => {
+    setFullEnv();
+    const bodies = stubSingleImageGraphApi();
+    const token = randomUUID();
+    saveShare(token, { images: [Buffer.from("a")], keyword: "여름 전기세", issuedAt: Date.now() });
+
+    await POST(makeRequest("localhost:3500", { token, caption: "본문", hashtags: ["살림"] }));
+
+    const container = bodies.find((b) => b.includes("image_url"));
+    expect(container).toBeDefined();
+    expect(decodeURIComponent(container ?? "")).toContain("본문");
+    expect(decodeURIComponent(container ?? "")).toContain("#살림");
+  });
+
+  it("한 장도 아니면(0장) 한국어로 거절한다", async () => {
+    setFullEnv();
+    const token = randomUUID();
+    saveShare(token, { images: [], keyword: "빈 것", issuedAt: Date.now() });
+
+    const res = await POST(makeRequest("localhost:3500", { token, caption: "" }));
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(/[가-힣]/.test(body.error)).toBe(true);
+  });
+});

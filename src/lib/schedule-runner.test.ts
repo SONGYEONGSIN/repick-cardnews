@@ -64,8 +64,8 @@ describe("readPublicBaseUrl — .env.local 에서 다시 읽는다", () => {
 });
 
 describe("runScheduledItem", () => {
-  it("이미지가 모자라면 게시하지 않고 한국어로 실패한다", async () => {
-    saveImages("a1", [Buffer.from("one")], root);
+  it("이미지가 없으면 게시하지 않고 한국어로 실패한다", async () => {
+    saveImages("a1", [], root);
     const publish = vi.fn();
 
     const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
@@ -73,6 +73,49 @@ describe("runScheduledItem", () => {
     expect(res.ok).toBe(false);
     expect(publish).not.toHaveBeenCalled();
     expect(res.ok === false && /[가-힣]/.test(res.message)).toBe(true);
+  });
+
+  // 정보전달은 **한 장**이다. 손으로 올릴 땐 되는데 예약하면 실패하는 일이 없도록,
+  // 예약 실행기도 `/api/publish` 와 같은 갈림(`publishKindFor`)을 탄다.
+  it("한 장이면 단일 게시 경로로 부른다 — 캐러셀로 보내지 않는다", async () => {
+    saveImages("a1", [Buffer.from("one")], root);
+    const publish = vi.fn();
+    const publishSingle = vi.fn(async (args: { imageUrl: string }) => {
+      expect(args.imageUrl).toContain("/1.png");
+      return "media-single";
+    });
+
+    const res = await runScheduledItem(item({ imageCount: 1 }), {
+      now: 1,
+      root,
+      envPath,
+      fetchImpl: okFetch(),
+      publish,
+      publishSingle,
+    });
+
+    expect(res).toEqual({ ok: true, mediaId: "media-single" });
+    expect(publish).not.toHaveBeenCalled();
+    expect(publishSingle).toHaveBeenCalledOnce();
+  });
+
+  it("상한을 넘으면 게시하지 않는다", async () => {
+    saveImages("a1", Array.from({ length: 11 }, (_, i) => Buffer.from(String(i))), root);
+    const publish = vi.fn();
+    const publishSingle = vi.fn();
+
+    const res = await runScheduledItem(item({ imageCount: 11 }), {
+      now: 1,
+      root,
+      envPath,
+      fetchImpl: okFetch(),
+      publish,
+      publishSingle,
+    });
+
+    expect(res.ok).toBe(false);
+    expect(publish).not.toHaveBeenCalled();
+    expect(publishSingle).not.toHaveBeenCalled();
   });
 
   it("설정이 없으면 무엇이 없는지 한국어로 말한다", async () => {

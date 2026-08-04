@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod/v4";
 import { isLocalHost } from "@/lib/local-guard";
-import { CAROUSEL_MAX_ITEMS, CAROUSEL_MIN_ITEMS } from "@/lib/instagram";
+import { CAROUSEL_MAX_ITEMS, PUBLISHABLE_MIN_ITEMS } from "@/lib/instagram";
 import { MAX_HASHTAGS, combineCaptionWithHashtags } from "@/lib/hashtags";
 import { describeSchedule } from "@/lib/schedule-due";
 import { appendItem, readQueue, saveImages, updateStatus, type ScheduleItem } from "@/lib/schedule-queue";
@@ -22,7 +22,8 @@ const CreateSchema = z.object({
   keyword: z.string().min(1, { error: "주제가 없어요." }),
   images: z
     .array(z.string(), { error: "올릴 사진이 없어요." })
-    .min(CAROUSEL_MIN_ITEMS, { error: `사진이 ${CAROUSEL_MIN_ITEMS}장 이상이어야 해요.` })
+    // 한 장(정보전달)도 예약된다 — 실제 게시는 장수를 보고 갈라진다(`publishKindFor`).
+    .min(PUBLISHABLE_MIN_ITEMS, { error: `사진이 ${PUBLISHABLE_MIN_ITEMS}장 이상이어야 해요.` })
     .max(CAROUSEL_MAX_ITEMS, { error: `사진은 ${CAROUSEL_MAX_ITEMS}장까지예요.` }),
 });
 
