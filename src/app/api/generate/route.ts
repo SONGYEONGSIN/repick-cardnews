@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { InfographicSpec, CardnewsSpec, INFO_FORMATS, type InfoFormat } from "@/lib/schema";
+import { CardnewsSpec, INFO_FORMATS, infoSpecFor, type InfoFormat } from "@/lib/schema";
 import { stripEmojiDeep } from "@/lib/strip-emoji";
 import { readVault, buildSystemPrompt, buildUserContent } from "@/lib/prompt";
 import { runClaudeCli, NoStructuredOutput } from "@/lib/claude-cli";
@@ -41,7 +41,8 @@ export async function POST(req: Request) {
     return Response.json({ error: e instanceof Error ? e.message : "잘못된 요청" }, { status: 400 });
   }
 
-  const spec = body.type === "informationsend" ? InfographicSpec : CardnewsSpec;
+  // 형식 하나짜리 스키마를 넘긴다 — union 은 도구 스키마로 못 쓴다(`infoSpecFor` 주석 참고).
+  const spec = body.type === "informationsend" ? infoSpecFor(body.format) : CardnewsSpec;
 
   try {
     const vault = await readVault();
@@ -65,10 +66,18 @@ export async function POST(req: Request) {
         : raw;
     const parsed = spec.safeParse(stripEmojiDeep(filled));
     if (!parsed.success) {
+      // 어느 칸이 어긋났는지 남긴다 — 모델이 무엇을 잘못 냈는지 알아야 프롬프트를 고친다.
+      console.error(
+        "[카피 스키마 불일치]",
+        parsed.error.issues.slice(0, 5).map((i) => `${i.path.join(".")}: ${i.message}`).join(" · "),
+      );
       return Response.json({ error: SCHEMA_MISMATCH }, { status: 502 });
     }
     return Response.json({ spec: parsed.data });
   } catch (e) {
+    // 사용자에게는 한국어 안내만 간다. **왜 실패했는지는 서버 콘솔에만** 남긴다 — 안 남기면
+    // 원인을 알 길이 없다(인스타 게시에서 같은 일을 겪었다, 2026-08-05).
+    console.error("[카피 생성 실패]", e instanceof Error ? `${e.name}: ${e.message}`.slice(0, 500) : String(e).slice(0, 500));
     if (e instanceof NoStructuredOutput) {
       return Response.json({ error: SCHEMA_MISMATCH }, { status: 502 });
     }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { InfographicSpec, INFO_FORMATS, itemFieldMaxes, itemRangeOf, itemTexts } from "@/lib/schema";
+import { z } from "zod/v4";
+import { InfographicSpec, INFO_FORMATS, infoSpecFor, itemFieldMaxes, itemRangeOf, itemTexts } from "@/lib/schema";
 
 /**
  * 정보전달은 틀이 하나뿐이었다 — 스키마가 `items[{keyword,desc}]` 만 허용해, 비교("A vs B")나
@@ -119,5 +120,50 @@ describe("itemFieldMaxes — 칸마다 허용 길이", () => {
     expect(InfographicSpec.safeParse(make(keywordMax, descMax)).success).toBe(true);
     expect(InfographicSpec.safeParse(make(keywordMax + 1, descMax)).success).toBe(false);
     expect(InfographicSpec.safeParse(make(keywordMax, descMax + 1)).success).toBe(false);
+  });
+});
+
+/**
+ * Claude CLI 는 스키마를 **도구의 input_schema** 로 넘기고, Anthropic API 는 그 최상위에
+ * `type` 을 요구한다. union 은 `anyOf` 로 변환돼 `type` 이 없어 **400 으로 거절당한다**
+ * (2026-08-05 실제로 그랬다: `tools.0.custom.input_schema.type: Field required`).
+ *
+ * 사용자가 형식을 골랐으므로 **그 형식의 스키마만** 넘기면 된다.
+ */
+describe("infoSpecFor — 형식 하나짜리 스키마", () => {
+  it("다섯 형식 모두 최상위가 object 다 — 그래야 도구 스키마로 넘길 수 있다", () => {
+    for (const f of INFO_FORMATS) {
+      const js = z.toJSONSchema(infoSpecFor(f.id)) as { type?: string; anyOf?: unknown };
+      expect(js.type).toBe("object");
+      expect(js.anyOf).toBeUndefined();
+    }
+  });
+
+  it("그 형식만 통과시킨다 — 다른 형식을 주면 거절한다", () => {
+    const stat = {
+      type: "informationsend" as const,
+      format: "stat" as const,
+      title: "제목",
+      items: [
+        { value: "7%", label: "라벨" },
+        { value: "2주", label: "라벨" },
+      ],
+    };
+    expect(infoSpecFor("stat").safeParse(stat).success).toBe(true);
+    expect(infoSpecFor("list").safeParse(stat).success).toBe(false);
+  });
+
+  it("union 과 같은 것을 통과시킨다 — 두 자가 어긋나면 안 된다", () => {
+    const list = {
+      type: "informationsend" as const,
+      format: "list" as const,
+      title: "제목",
+      items: [
+        { keyword: "가", desc: "나" },
+        { keyword: "다", desc: "라" },
+        { keyword: "마", desc: "바" },
+      ],
+    };
+    expect(infoSpecFor("list").safeParse(list).success).toBe(InfographicSpec.safeParse(list).success);
   });
 });

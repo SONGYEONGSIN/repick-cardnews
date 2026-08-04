@@ -115,6 +115,28 @@ export const InfographicSpec = z.discriminatedUnion("format", [
   CheckSpec,
 ]);
 
+/** 형식 하나짜리 스키마. `InfographicSpec` 의 같은 갈래다 — 두 자가 어긋나지 않게 여기서 꺼낸다. */
+const SPEC_BY_FORMAT = {
+  list: ListSpec,
+  compare: CompareSpec,
+  steps: StepsSpec,
+  stat: StatSpec,
+  check: CheckSpec,
+} as const;
+
+/**
+ * 모델에게 넘길 스키마. **union 을 그대로 넘기면 안 된다** — Claude CLI 는 스키마를 도구의
+ * `input_schema` 로 넘기고 Anthropic API 는 그 최상위에 `type` 을 요구하는데, union 은
+ * `anyOf` 로 변환돼 `type` 이 없어 400 으로 거절당한다(2026-08-05 실측:
+ * `tools.0.custom.input_schema.type: Field required`).
+ *
+ * 사용자가 형식을 골랐으므로 그 갈래 하나만 넘기면 된다. `schema.test.ts` 가 다섯 형식 모두
+ * 최상위가 object 인지 잠근다.
+ */
+export function infoSpecFor(format: InfoFormat) {
+  return SPEC_BY_FORMAT[format];
+}
+
 const HookCard = z.object({
   role: z.literal("hook"),
   heading: z.string().min(1).max(40),
