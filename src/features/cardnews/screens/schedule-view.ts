@@ -121,3 +121,23 @@ export function hasPendingFrom(items: ScheduleView[], sessionIds: readonly strin
   const mine = new Set(sessionIds);
   return items.some((item) => mine.has(item.id) && item.status === "pending");
 }
+
+/** 서버가 알려주는 시계 상태. 옛 서버는 안 줄 수 있으므로 `undefined` 를 허용한다. */
+export type SchedulerHealthView = "alive" | "stale";
+
+/**
+ * 시계가 멈췄다고 말할 문구. 말할 게 없으면 `null`.
+ *
+ * **기다리는 예약이 있을 때만 말한다** — 예약이 하나도 없는데 "시계가 멈췄어요"는 겁만 준다.
+ * 실제로 예약이 44분을 지나도 '대기 중'인 채였는데 화면은 아무 말도 못 했다(2026-08-05).
+ */
+export function schedulerWarning(health: SchedulerHealthView | undefined, hasPending: boolean): string | null {
+  if (health !== "stale" || !hasPending) return null;
+  return "예약을 돌리는 시계가 멈춰 있어요. dev 서버를 다시 켜면 이어서 올라가요.";
+}
+
+/** 목록 응답에서 시계 상태를 읽는다. 모르는 값은 `undefined` — 화면이 조용히 넘어간다. */
+export function toSchedulerHealth(body: unknown): SchedulerHealthView | undefined {
+  const r = asRecord(body);
+  return r?.scheduler === "alive" || r?.scheduler === "stale" ? r.scheduler : undefined;
+}

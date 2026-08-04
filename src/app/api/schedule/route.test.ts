@@ -5,6 +5,7 @@ import path from "node:path";
 import { DELETE, GET, POST } from "./route";
 import { appendItem, readQueue, type ScheduleItem } from "@/lib/schedule-queue";
 import { clearPublishProgress, recordPublishProgress } from "@/lib/publish-progress-store";
+import { writeHeartbeat } from "@/lib/scheduler-health";
 
 let root: string;
 beforeEach(() => {
@@ -227,5 +228,27 @@ describe("GET 진행 상황", () => {
     const body = (await res.json()) as { items: { progress?: unknown }[] };
 
     expect(body.items.every((i) => i.progress === undefined)).toBe(true);
+  });
+});
+
+/**
+ * 시계(스케줄러)가 멈춰 있으면 예약은 영영 안 올라간다. 그런데 지금껏 화면은 '대기 중'만
+ * 보여 줬다 — 목록이 시계 상태를 함께 내려줘야 사람이 알 수 있다.
+ */
+describe("GET 스케줄러 상태", () => {
+  it("맥박이 없으면 멈춘 것으로 알린다", async () => {
+    const res = await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }));
+    const body = (await res.json()) as { scheduler?: string };
+
+    expect(body.scheduler).toBe("stale");
+  });
+
+  it("방금 뛰었으면 살아 있다고 알린다", async () => {
+    writeHeartbeat(Date.now(), root);
+
+    const res = await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }));
+    const body = (await res.json()) as { scheduler?: string };
+
+    expect(body.scheduler).toBe("alive");
   });
 });

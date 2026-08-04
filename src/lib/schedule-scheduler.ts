@@ -1,6 +1,8 @@
 import { dueVerdict } from "./schedule-due";
 import { readQueue, removeImages, scheduleRoot, updateStatus, type ScheduleItem } from "./schedule-queue";
 import { runScheduledItem, type RunResult } from "./schedule-runner";
+import { TICK_MS } from "./schedule-tick-interval";
+import { writeHeartbeat } from "./scheduler-health";
 
 /**
  * 예약 스케줄러 — 서버가 도는 동안 1분마다 큐를 훑는다(`src/instrumentation.ts` 가 켠다).
@@ -12,7 +14,7 @@ import { runScheduledItem, type RunResult } from "./schedule-runner";
  * 넘어간다 — 기동 훅의 토큰 자동 갱신과 같은 원칙이다.
  */
 
-export const TICK_MS = 60 * 1000;
+export { TICK_MS };
 
 /**
  * 지금 게시가 도는 항목들. 게시는 몇 분 걸릴 수 있어 다음 tick 이 먼저 온다 — 이 표시가 없으면
@@ -32,6 +34,9 @@ function defaultRun(item: ScheduleItem, root: string, now: number): Promise<RunR
 export async function tickOnce(now: number, deps: TickDeps = {}): Promise<void> {
   const root = deps.root ?? scheduleRoot();
   const run = deps.run ?? defaultRun;
+
+  // 대기 항목이 없어도 남긴다 — 궁금한 것은 "올릴 게 있나"가 아니라 "시계가 도나"다.
+  writeHeartbeat(now, root);
 
   const pending = readQueue(root).filter((i) => i.status === "pending");
 

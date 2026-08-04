@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod/v4";
 import { isLocalHost } from "@/lib/local-guard";
 import { readPublishProgress } from "@/lib/publish-progress-store";
+import { readHeartbeat, schedulerHealth } from "@/lib/scheduler-health";
 import { CAROUSEL_MAX_ITEMS, PUBLISHABLE_MIN_ITEMS } from "@/lib/instagram";
 import { MAX_HASHTAGS, combineCaptionWithHashtags } from "@/lib/hashtags";
 import { describeSchedule } from "@/lib/schedule-due";
-import { appendItem, readQueue, saveImages, updateStatus, type ScheduleItem } from "@/lib/schedule-queue";
+import { appendItem, readQueue, saveImages, updateStatus, scheduleRoot, type ScheduleItem } from "@/lib/schedule-queue";
 
 /**
  * `/api/schedule` — 예약 목록·생성·취소.
@@ -50,7 +51,10 @@ export async function GET(req: Request) {
       };
     });
 
-  return Response.json({ items });
+  // 시계가 멈춰 있으면 예약은 영영 안 올라간다 — 그 사실을 함께 내려준다(`scheduler-health`).
+  const scheduler = schedulerHealth(readHeartbeat(scheduleRoot()), now);
+
+  return Response.json({ items, scheduler });
 }
 
 export async function POST(req: Request) {

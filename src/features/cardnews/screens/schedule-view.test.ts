@@ -4,6 +4,7 @@ import {
   hasPendingFrom,
   isPending,
   progressLine,
+  schedulerWarning,
   toLocalInputValue,
   toScheduleView,
 } from "./schedule-view";
@@ -167,5 +168,31 @@ describe("progressLine — 사람이 읽는 한 줄", () => {
 
   it("없으면 null 이다 — 부를 쪽이 안 그리면 된다", () => {
     expect(progressLine(undefined)).toBeNull();
+  });
+});
+
+/**
+ * 시계가 멈추면 예약은 영영 안 올라간다 — 화면이 그 사실을 말해야 한다. 실제로 44분이
+ * 지나도 '대기 중'만 보였다(2026-08-05).
+ */
+describe("schedulerWarning — 시계가 멈췄다고 말할 때", () => {
+  it("멈췄고 기다리는 예약이 있으면 알린다", () => {
+    expect(schedulerWarning("stale", true)).not.toBeNull();
+  });
+
+  it("멈췄어도 기다리는 예약이 없으면 조용하다 — 겁줄 일이 아니다", () => {
+    expect(schedulerWarning("stale", false)).toBeNull();
+  });
+
+  it("돌고 있으면 조용하다", () => {
+    expect(schedulerWarning("alive", true)).toBeNull();
+  });
+
+  it("모르면 조용하다 — 옛 서버는 이 값을 안 준다", () => {
+    expect(schedulerWarning(undefined, true)).toBeNull();
+  });
+
+  it("무엇을 해야 하는지까지 말한다", () => {
+    expect(schedulerWarning("stale", true)).toContain("다시");
   });
 });
