@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, CircleAlert, LoaderCircle, Trash2, X } from "lucide-react";
+import { CalendarClock, CircleAlert, LoaderCircle, X } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { inKorean } from "./errors";
@@ -212,9 +212,8 @@ export function SchedulePanel({
                       <button
                         type="button"
                         onClick={() => void remove(item.id)}
-                        className={`ml-auto flex h-8 flex-none items-center gap-1.5 rounded-lg border border-hair px-3 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+                        className={`ml-auto flex h-8 flex-none items-center rounded-lg border border-hair px-3 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-danger hover:bg-danger hover:text-surface ${FOCUS_RING} motion-reduce:transition-none`}
                       >
-                        <Trash2 size={13} aria-hidden="true" />
                         삭제
                       </button>
                     )}
@@ -392,9 +391,8 @@ export function SchedulePanel({
                       <button
                         type="button"
                         onClick={() => void remove(item.id)}
-                        className={`ml-auto flex h-8 flex-none items-center gap-1.5 rounded-lg border border-hair px-3 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink ${FOCUS_RING} motion-reduce:transition-none`}
+                        className={`ml-auto flex h-8 flex-none items-center rounded-lg border border-hair px-3 text-[13px] font-bold text-ink-2 transition-colors duration-200 hover:border-danger hover:bg-danger hover:text-surface ${FOCUS_RING} motion-reduce:transition-none`}
                       >
-                        <Trash2 size={13} aria-hidden="true" />
                         삭제
                       </button>
                     )}
