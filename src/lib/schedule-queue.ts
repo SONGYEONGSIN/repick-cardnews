@@ -25,6 +25,8 @@ const ScheduleItemSchema = z.object({
   imageCount: z.number(),
   keyword: z.string(),
   status: z.enum(["pending", "published", "failed", "missed", "canceled"]),
+  /** 상태가 마지막으로 바뀐 시각 — 목록이 "언제 올렸나" 를 보여 준다. 옛 기록에는 없다. */
+  updatedAt: z.number().optional(),
   createdAt: z.number(),
   message: z.string().optional(),
 });
@@ -83,7 +85,8 @@ export function updateStatus(
 ): void {
   const current = readQueue(root).find((i) => i.id === id);
   if (!current) return;
-  appendItem({ ...current, status, ...(message === undefined ? {} : { message }) }, root);
+  // 상태가 바뀐 시각을 함께 남긴다 — 목록이 "언제 올렸나" 를 보여 준다.
+  appendItem({ ...current, status, updatedAt: Date.now(), ...(message === undefined ? {} : { message }) }, root);
 }
 
 function imageDir(id: string, root: string): string {
@@ -110,4 +113,17 @@ export function loadImages(id: string, root: string = scheduleRoot()): Buffer[] 
 /** 성공·실패 어느 쪽에서든 부른다 — 없어도 던지지 않는다. */
 export function removeImages(id: string, root: string = scheduleRoot()): void {
   rmSync(imageDir(id, root), { recursive: true, force: true });
+}
+
+/**
+ * 기록을 **아예 지운다**(취소와 다르다 — 취소는 상태만 바꾼다). 쌓이기만 하면 목록이
+ * 쓰레기통이 되므로, 올라가지 않은 기록은 치울 수 있어야 한다.
+ *
+ * 큐는 append-only 라 지울 때만 파일을 다시 쓴다.
+ */
+export function removeItem(id: string, root: string = scheduleRoot()): void {
+  const kept = readQueue(root).filter((item) => item.id !== id);
+  ensureRoot(root);
+  writeFileSync(queueFile(root), kept.map((item) => `${JSON.stringify(item)}\n`).join(""), "utf8");
+  removeImages(id, root);
 }

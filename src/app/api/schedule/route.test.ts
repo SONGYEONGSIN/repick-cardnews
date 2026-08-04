@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DELETE, GET, POST } from "./route";
-import { appendItem, readQueue, type ScheduleItem } from "@/lib/schedule-queue";
+import { appendItem, readQueue, updateStatus, type ScheduleItem } from "@/lib/schedule-queue";
 import { clearPublishProgress, recordPublishProgress } from "@/lib/publish-progress-store";
 import { writeHeartbeat } from "@/lib/scheduler-health";
 
@@ -280,5 +280,49 @@ describe("POST 이미지 내용 검증", () => {
     const body = (await res.json()) as { error: string };
 
     expect(/[가-힣]/.test(body.error)).toBe(true);
+  });
+});
+
+/**
+ * 목록이 "언제 올렸나" 를 보여 주려면 서버가 그 시각을 남겨야 한다. 그리고 실패·취소처럼
+ * **올라가지 않은** 기록은 지울 수 있어야 한다 — 쌓이기만 하면 목록이 쓰레기통이 된다.
+ */
+describe("기록 시각과 삭제", () => {
+  it("상태가 바뀌면 그 시각을 남긴다", async () => {
+    await POST(post(validBody()));
+    const created = readQueue(root)[0];
+    expect(created.updatedAt).toBeTypeOf("number");
+  });
+
+  it("실패한 기록은 지운다", async () => {
+    await POST(post(validBody()));
+    const created = readQueue(root)[0];
+    updateStatus(created.id, "failed", "안 올라갔어요", root);
+
+    const res = await DELETE(
+      new Request(`http://localhost:3500/api/schedule?id=${created.id}&action=remove`, {
+        method: "DELETE",
+        headers: { host: "localhost:3500" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(readQueue(root).find((i) => i.id === created.id)).toBeUndefined();
+  });
+
+  it("성공한 기록은 못 지운다 — 인스타에는 남아 있는데 여기만 사라진다", async () => {
+    await POST(post(validBody()));
+    const created = readQueue(root)[0];
+    updateStatus(created.id, "published", undefined, root);
+
+    const res = await DELETE(
+      new Request(`http://localhost:3500/api/schedule?id=${created.id}&action=remove`, {
+        method: "DELETE",
+        headers: { host: "localhost:3500" },
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(readQueue(root).find((i) => i.id === created.id)).toBeDefined();
   });
 });

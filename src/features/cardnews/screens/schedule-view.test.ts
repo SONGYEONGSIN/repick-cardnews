@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   STATUS_LABELS,
+  canRemoveRecord,
+  recordWhen,
   hasPendingFrom,
   isPending,
   progressLine,
@@ -219,5 +221,54 @@ describe("toPublishBase64 — 캡처 결과를 보낼 형태로", () => {
 
   it("base64 안의 '+' 나 '/' 를 자르지 않는다", () => {
     expect(toPublishBase64("ab+/cd==")).toBe("ab+/cd==");
+  });
+});
+
+/**
+ * 목록이 예약 전용이 아니게 됐다 — 지금 바로 올린 것도 함께 쌓인다. 그래서 상태 문구도
+ * 예약 말투("올렸어요")가 아니라 **결과**를 말해야 하고, 언제 올렸는지도 보여야 하며,
+ * 끝난 기록은 지울 수 있어야 한다(2026-08-05).
+ */
+describe("STATUS_LABELS — 결과를 명시한다", () => {
+  it("성공·실패·취소가 그대로 읽힌다", () => {
+    expect(STATUS_LABELS.published).toContain("성공");
+    expect(STATUS_LABELS.failed).toContain("실패");
+    expect(STATUS_LABELS.canceled).toContain("취소");
+  });
+
+  it("아직 안 끝난 것과 놓친 것도 구분된다", () => {
+    expect(STATUS_LABELS.pending).not.toContain("성공");
+    expect(STATUS_LABELS.missed).not.toContain("성공");
+  });
+});
+
+describe("canRemoveRecord — 지울 수 있는 기록", () => {
+  it("실패·취소·놓침은 지운다", () => {
+    expect(canRemoveRecord("failed")).toBe(true);
+    expect(canRemoveRecord("canceled")).toBe(true);
+    expect(canRemoveRecord("missed")).toBe(true);
+  });
+
+  it("대기 중은 못 지운다 — 취소가 먼저다", () => {
+    expect(canRemoveRecord("pending")).toBe(false);
+  });
+
+  // 올라간 기록을 지우면 무엇을 올렸는지 알 길이 없어진다. 인스타에는 남아 있는데 여기만 사라진다.
+  it("성공한 것은 못 지운다", () => {
+    expect(canRemoveRecord("published")).toBe(false);
+  });
+});
+
+describe("recordWhen — 언제 올렸나", () => {
+  const at = new Date("2026-08-05T14:30:00+09:00").getTime();
+
+  it("월·일·시각을 읽기 좋게 준다", () => {
+    const line = recordWhen(at);
+    expect(line).toContain("8월 5일");
+    expect(line).toMatch(/\d{1,2}:\d{2}/);
+  });
+
+  it("없으면 빈 문자열이다 — 옛 기록에는 시각이 없다", () => {
+    expect(recordWhen(undefined)).toBe("");
   });
 });

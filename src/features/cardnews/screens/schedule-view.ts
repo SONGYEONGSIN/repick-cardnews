@@ -10,13 +10,18 @@
 
 export type ScheduleStatusView = "pending" | "published" | "failed" | "missed" | "canceled";
 
-/** 다섯 상태 전부 한국어. 화면에 그대로 나간다. */
+/**
+ * 다섯 상태 전부 한국어. 화면에 그대로 나간다.
+ *
+ * 목록이 예약 전용이 아니게 되면서(지금 바로 올린 것도 함께 쌓인다) 예약 말투("올렸어요")
+ * 대신 **결과**를 말한다 — 체크 표시 하나로는 성공인지 그냥 끝난 것인지 흐렸다.
+ */
 export const STATUS_LABELS: Record<ScheduleStatusView, string> = {
-  pending: "대기 중",
-  published: "올렸어요",
-  failed: "실패",
-  missed: "놓침",
-  canceled: "취소됨",
+  pending: "예약 대기 중",
+  published: "업로드 성공",
+  failed: "업로드 실패",
+  missed: "시각 놓침",
+  canceled: "취소함",
 };
 
 export type ScheduleView = {
@@ -26,6 +31,8 @@ export type ScheduleView = {
   imageCount: number;
   describe: string;
   message?: string;
+  /** 상태가 마지막으로 바뀐 시각 — 언제 올렸는지 보여 준다. 옛 기록에는 없다. */
+  updatedAt?: number;
   /** 지금 올리는 중이면 어디까지 갔는지. 서버가 함께 내려준다(`/api/schedule`). */
   progress?: SchedulePublishProgress;
 };
@@ -90,6 +97,7 @@ export function toScheduleView(status: number, body: unknown): ScheduleView[] {
       imageCount: typeof r.imageCount === "number" ? r.imageCount : 0,
       describe: typeof r.describe === "string" ? r.describe : "",
       ...(typeof r.message === "string" ? { message: r.message } : {}),
+      ...(typeof r.updatedAt === "number" ? { updatedAt: r.updatedAt } : {}),
       ...(asProgress(r.progress) ? { progress: asProgress(r.progress) as SchedulePublishProgress } : {}),
     });
   }
@@ -154,4 +162,23 @@ export function toPublishBase64(captured: string): string {
   const marker = ";base64,";
   const at = captured.indexOf(marker);
   return at === -1 ? captured : captured.slice(at + marker.length);
+}
+
+
+/**
+ * 지울 수 있는 기록인가. 끝났지만 **올라가지 않은** 것만 지운다.
+ *
+ * 성공한 기록은 못 지운다 — 인스타에는 남아 있는데 여기서만 사라지면 무엇을 올렸는지 알 길이
+ * 없어진다. 대기 중도 못 지운다: 그건 취소가 먼저다.
+ */
+export function canRemoveRecord(status: ScheduleStatusView): boolean {
+  return status === "failed" || status === "canceled" || status === "missed";
+}
+
+/** 언제 올렸는지 한 줄로. 옛 기록에는 시각이 없어 그때는 빈 문자열이다. */
+export function recordWhen(at: number | undefined): string {
+  if (at === undefined) return "";
+  const d = new Date(at);
+  const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${time}`;
 }

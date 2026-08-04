@@ -287,7 +287,7 @@ export function WorkbenchScreen({
         {/* 왼쪽 = 순서 레일 + 카피 만들기. 화면 폭의 34% 를 쓰되 하한 420px·상한 680px —
             화면이 커지면 사진 목록도 같이 넓어지고, 그래도 카드 몫은 지켜진다. 폭을 여기서
             정해야 나머지가 전부 오른쪽(카드)으로 간다. 내용이 넘치면 이 칸 안에서만 스크롤한다. */}
-        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:max-w-[680px] xl:min-w-[420px] xl:flex-none xl:basis-[34%] xl:overflow-y-auto">
+        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:max-w-[720px] xl:min-w-[460px] xl:flex-none xl:basis-[40%] xl:overflow-y-auto xl:pr-4">
           <section className="flex flex-col gap-4">
             <SectionHead
               title="넘겨 보는 순서"

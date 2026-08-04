@@ -14,6 +14,7 @@ import { inKorean } from "@/features/cardnews/screens/errors";
 import { useFitScale } from "@/features/studio/useFitScale";
 import { infoChecks } from "../checks";
 import { canGenerate, dropExit, dropzoneOpen, generateStatus, photoStage, type StartChoice } from "../workbench-view";
+import { InfoCopyToolbar } from "../parts/InfoCopyToolbar";
 import { InfoToolbar } from "../parts/InfoToolbar";
 import { toRenderCard } from "../render";
 import { canLeaveInfoWorkbench, selectedPhoto, type InfoAction, type InfoState } from "../reducer";
@@ -135,7 +136,7 @@ export function InfoWorkbenchScreen({
       <div className="flex flex-col gap-8 px-5 py-6 sm:px-8 lg:gap-9 lg:px-10 lg:py-9 xl:h-full xl:flex-row xl:gap-x-8 xl:py-3">
         {/* 왼쪽 = 고치는 곳(사진 + 글·항목·테마). 오른쪽은 결과만 본다 — 편집칸이 카드 위에
             얹혀 있으면 고치면서 카드를 볼 수 없다는 지적을 받아 옮겼다(2026-08-04). */}
-        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:max-w-[680px] xl:min-w-[420px] xl:flex-none xl:basis-[34%] xl:overflow-y-auto">
+        <div className="flex flex-col gap-8 lg:gap-9 xl:min-h-0 xl:max-w-[720px] xl:min-w-[460px] xl:flex-none xl:basis-[40%] xl:overflow-y-auto xl:pr-4">
           <section className="flex flex-col gap-4">
             <SectionHead title="사진" aside="없어도 돼요" />
 
@@ -231,8 +232,8 @@ export function InfoWorkbenchScreen({
 
           {card && state.spec && (
             <section className="flex flex-col gap-4">
-              <SectionHead title="고치기" aside="바로 반영돼요" />
-              <InfoToolbar state={state} dispatch={dispatch} hasPhoto={photo !== null} />
+              <SectionHead title="카피 고치기" aside="바로 반영돼요" />
+              <InfoCopyToolbar state={state} dispatch={dispatch} />
             </section>
           )}
         </div>
@@ -250,7 +251,11 @@ export function InfoWorkbenchScreen({
             )}
 
             {card && state.spec ? (
-              <div className="flex min-h-0 flex-1 items-center justify-center rounded-2xl bg-canvas p-4">
+              <div className="flex min-h-0 flex-1 flex-col gap-3">
+                {/* 짧은 조작(테마·글·맞춤)은 카드 옆에 둔다 — 카드뉴스와 같은 자리다.
+                    긴 항목 목록만 왼쪽 칸으로 뗐다(`InfoItemsEditor`). */}
+                <InfoToolbar state={state} dispatch={dispatch} hasPhoto={photo !== null} />
+                <div className="flex min-h-0 flex-1 items-center justify-center rounded-2xl bg-canvas p-4">
                 {/* 자리를 재서 그 안에 맞게 줄인다 — 배율을 박아 두면 자리가 좁아져도 안 줄어
                     밖으로 튀어나온다(`useFitScale` 주석 참고). */}
                 <div ref={fit.ref} className="h-full max-h-[760px] w-full">
@@ -265,6 +270,7 @@ export function InfoWorkbenchScreen({
                       <CardRenderer card={card} themeId={state.themeId} handle={state.handle} />
                     </div>
                   </div>
+                </div>
                 </div>
               </div>
             ) : (
