@@ -338,23 +338,7 @@ export function InstagramPublishPanel({
 
         {status.state === "ready" && (
           <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-            {/* 왼쪽 = 읽고 확인하는 것(무엇이 일어나나 · 연결 · 토큰) */}
-            <div className="flex flex-col gap-4">
-              <p className="text-[14px] leading-relaxed text-ink-2">
-                올리기를 누르면 이 카드 사진이 우리 공개 주소를 거쳐 인스타그램 서버로 전달돼요. "폰으로
-                보내기"와 달리 이 컴퓨터의 집 네트워크를 벗어나 인터넷으로 나가는 방식이에요.
-              </p>
-
-              <VerifyBlock verify={verify} onVerify={() => void handleVerify()} />
-              <TokenStatusBlock
-                status={tokenStatus}
-                refreshing={refreshingToken}
-                refreshResult={refreshResult}
-                onRefresh={() => void handleRefreshToken()}
-              />
-            </div>
-
-            {/* 오른쪽 = 적고 누르는 것(캡션 · 해시태그 · 게시) */}
+            {/* 왼쪽 = 적고 누르는 것(캡션 · 해시태그 · 게시) — 손이 가는 쪽이 먼저다 */}
             <div className="flex flex-col gap-4">
             <label className="flex flex-col gap-1.5">
               <span className="text-[13px] font-bold text-ink-2">캡션 (선택)</span>
@@ -397,6 +381,22 @@ export function InstagramPublishPanel({
               <Send size={15} aria-hidden="true" />
               인스타에 올리기
             </SolidButton>
+            </div>
+
+            {/* 오른쪽 = 읽고 확인하는 것(무엇이 일어나나 · 연결 · 토큰) */}
+            <div className="flex flex-col gap-4">
+              <p className="text-[14px] leading-relaxed text-ink-2">
+                올리기를 누르면 이 카드 사진이 우리 공개 주소를 거쳐 인스타그램 서버로 전달돼요. "폰으로
+                보내기"와 달리 이 컴퓨터의 집 네트워크를 벗어나 인터넷으로 나가는 방식이에요.
+              </p>
+
+              <VerifyBlock verify={verify} onVerify={() => void handleVerify()} />
+              <TokenStatusBlock
+                status={tokenStatus}
+                refreshing={refreshingToken}
+                refreshResult={refreshResult}
+                onRefresh={() => void handleRefreshToken()}
+              />
             </div>
           </div>
         )}

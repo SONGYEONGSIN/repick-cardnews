@@ -142,3 +142,41 @@ describe("POST 생성 성공 처리", () => {
     expect(await res.json()).toEqual({ spec });
   });
 });
+
+/**
+ * Claude 는 시키지 않아도 이모지를 얹어 온다(2026-08-04 실사용에서 확인). 카드에서는 제목을
+ * 한 줄 더 밀어내 띠를 키우고 팁 앞에 군더더기를 남긴다 — 여기서 걷어낸다.
+ */
+describe("POST 이모지 제거", () => {
+  function infoRequest(): Request {
+    return new Request("http://localhost/api/generate", {
+      method: "POST",
+      body: JSON.stringify({ keyword: "여름 전기세", type: "informationsend" }),
+    });
+  }
+
+  it("응답 스펙에 이모지가 남지 않는다", async () => {
+    vi.mocked(runClaudeCli).mockResolvedValueOnce({
+      type: "informationsend",
+      title: "여름 전기세 줄이는 4가지 방법 \u{1F4B8}",
+      subtitle: "작은 습관만 바꿔도 \u{2728}",
+      items: [
+        { keyword: "에어컨 26도 \u{1F32C}\u{FE0F}", desc: "너무 낮추지 말고 26도로 맞춰요." },
+        { keyword: "필터 청소", desc: "2주에 한 번이면 충분해요." },
+        { keyword: "대기전력", desc: "멀티탭 스위치를 꺼요." },
+      ],
+      tip: "\u{2705} TIP \u{2705} 검침일 기준으로 확인해요.",
+    });
+
+    const res = await POST(infoRequest());
+
+    expect(res.status).toBe(200);
+    const { spec } = (await res.json()) as { spec: { title: string; subtitle: string; tip: string; items: { keyword: string }[] } };
+    expect(spec.title).toBe("여름 전기세 줄이는 4가지 방법");
+    expect(spec.subtitle).toBe("작은 습관만 바꿔도");
+    expect(spec.tip).toBe("TIP 검침일 기준으로 확인해요.");
+    expect(spec.items[0].keyword).toBe("에어컨 26도");
+    // 그림 문자 계열이 통째로 사라졌는지 응답 전체로 다시 확인한다.
+    expect(/\p{Extended_Pictographic}/u.test(JSON.stringify(spec))).toBe(false);
+  });
+});

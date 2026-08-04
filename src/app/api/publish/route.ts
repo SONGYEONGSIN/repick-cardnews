@@ -13,6 +13,7 @@ import {
   type PublishStageProgress,
 } from "@/lib/instagram";
 import { recordPublishProgress, clearPublishProgress } from "@/lib/publish-progress-store";
+import { publishFailureDetail } from "@/lib/publish-failure-log";
 import { MAX_HASHTAGS, combineCaptionWithHashtags } from "@/lib/hashtags";
 
 /**
@@ -111,6 +112,8 @@ export async function POST(req: Request) {
         : await publishCarousel({ config: configCheck.config, imageUrls, caption }, undefined, onProgress);
     return Response.json({ mediaId });
   } catch (e) {
+    // 사용자에게는 한국어 안내만 보낸다. 원인은 서버 콘솔에만 남긴다 — 토큰은 가린다.
+    console.error("[게시 실패]", publishFailureDetail(e, [configCheck.config.accessToken]));
     return Response.json({ error: friendlyPublishError(e) }, { status: 502 });
   } finally {
     clearPublishProgress(parsed.data.token);

@@ -9,9 +9,14 @@ import {
   STATUS_LABELS,
   hasPendingFrom,
   isPending,
+  progressLine,
+  schedulerWarning,
+  toSchedulerHealth,
+  toPublishBase64,
   toLocalInputValue,
   toScheduleView,
   type ScheduleView,
+  type SchedulerHealthView,
 } from "./schedule-view";
 
 /**
@@ -23,6 +28,9 @@ import {
  * **컴퓨터가 켜져 있어야 한다는 사실을 반드시 화면에 적는다.** 안 적으면 "예약했으니 됐다"고
  * 믿고 컴퓨터를 끈다 — 로컬 앱의 구조적 제약이라 우회할 수 없다.
  */
+
+/** 대기 중인 예약이 있을 때 목록을 다시 읽는 간격. 게시 단계는 초 단위로 바뀐다. */
+const LIST_POLL_MS = 3000;
 
 export function SchedulePanel({
   busy,
@@ -48,12 +56,15 @@ export function SchedulePanel({
   const [error, setError] = useState<string | null>(null);
   // **이 세션이 만든** 예약 id 들. 큐는 전역이라 남이 옛날에 건 예약까지 막으면 안 된다.
   const [mine, setMine] = useState<string[]>([]);
+  // 서버가 알려주는 시계 상태 — 멈춰 있으면 예약이 영영 안 올라간다.
+  const [health, setHealth] = useState<SchedulerHealthView | undefined>(undefined);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/schedule");
       const body: unknown = await res.json().catch(() => null);
       setItems(toScheduleView(res.status, body));
+      setHealth(toSchedulerHealth(body));
     } catch {
       // 목록을 못 읽는 것으로 화면을 막지 않는다 — 예약 자체는 계속 걸 수 있다.
       setItems([]);
@@ -62,6 +73,16 @@ export function SchedulePanel({
 
   // 이 세션이 건 예약이 아직 대기 중인가. 두 번 걸면 두 번 올라간다.
   const pending = hasPendingFrom(items, mine);
+
+  // 대기 중인 예약이 하나라도 있으면 목록을 다시 읽는다 — 도는 동안 진행이 바뀐다.
+  // 다 끝났으면 멈춘다: 아무도 안 보는 화면에서 계속 두드리지 않는다.
+  const watching = items.some((item) => isPending(item));
+  const stopped = schedulerWarning(health, watching);
+  useEffect(() => {
+    if (!watching) return;
+    const id = setInterval(() => void load(), LIST_POLL_MS);
+    return () => clearInterval(id);
+  }, [watching, load]);
 
   // 목록이 바뀔 때마다 부모에게 알린다 — 예약이 끝나면 다시 올릴 수 있어야 한다.
   useEffect(() => {
@@ -91,7 +112,7 @@ export function SchedulePanel({
           caption,
           hashtags,
           keyword,
-          images: images.map((dataUrl) => dataUrl.split(",")[1] ?? ""),
+          images: images.map(toPublishBase64),
         }),
       });
       const body: unknown = await res.json().catch(() => null);
@@ -175,6 +196,13 @@ export function SchedulePanel({
 
         <div className="flex flex-col gap-3">
           <h3 className="text-[13px] text-ink-2">예약 목록</h3>
+          {/* 시계가 멈췄으면 목록 위에서 먼저 말한다 — '대기 중' 만 보이면 기다리면 되는 줄 안다. */}
+          {stopped && (
+            <p role="alert" className="flex items-start gap-2 rounded-lg bg-ink px-4 py-2.5 text-[13px] font-bold text-surface">
+              <CircleAlert size={14} aria-hidden="true" className="mt-0.5 flex-none" />
+              {stopped}
+            </p>
+          )}
           {items.length === 0 ? (
             <p className="text-[14px] text-ink-2">아직 예약이 없어요.</p>
           ) : (
@@ -201,6 +229,12 @@ export function SchedulePanel({
                   <span className="text-[13px] text-ink-2">
                     {item.keyword} · 카드 {item.imageCount}장
                   </span>
+                  {/* 도는 동안 어디까지 갔는지 — 없으면 안 그린다. 손으로 올릴 때와 같은 단계다. */}
+                  {progressLine(item.progress) && (
+                    <span role="status" className="text-[13px] font-bold">
+                      {progressLine(item.progress)}
+                    </span>
+                  )}
                   {/* 왜 실패했는지 감추지 않는다 — 다시 예약하려면 이유를 알아야 한다. */}
                   {item.message && <span className="text-[13px] font-bold leading-relaxed">{item.message}</span>}
                 </li>

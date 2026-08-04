@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { STATUS_LABELS, hasPendingFrom, isPending, toLocalInputValue, toScheduleView } from "./schedule-view";
+import {
+  STATUS_LABELS,
+  hasPendingFrom,
+  isPending,
+  progressLine,
+  schedulerWarning,
+  toPublishBase64,
+  toLocalInputValue,
+  toScheduleView,
+} from "./schedule-view";
 
 function row(over: Record<string, unknown> = {}) {
   return {
@@ -106,5 +115,109 @@ describe("hasPendingFrom — 이 세션이 건 예약이 아직 남았나", () =
       items: [row({ id: "a", status: "published" }), row({ id: "b", status: "pending" })],
     });
     expect(hasPendingFrom(mixed, ["a", "b"])).toBe(true);
+  });
+});
+
+/**
+ * 예약이 도는 동안 목록은 '대기 중 · N분 지났어요' 만 보여 줬다 — 실제로 어디까지 갔는지는
+ * 알 수 없었다(손으로 올릴 때는 보이는데). 서버가 함께 내려주는 진행 상황을 읽는다.
+ */
+describe("진행 상황 읽기", () => {
+  function body(progress: unknown) {
+    return {
+      items: [
+        { id: "a1", status: "pending", keyword: "수원 갈비", imageCount: 5, describe: "대기 중", progress },
+      ],
+    };
+  }
+
+  it("진행이 없으면 undefined 다 — 아직 시작 전이다", () => {
+    expect(toScheduleView(200, body(undefined))[0].progress).toBeUndefined();
+  });
+
+  it("준비 중이면 몇 장 중 몇 장인지 읽는다", () => {
+    expect(toScheduleView(200, body({ stage: "preparing", index: 2, total: 5 }))[0].progress).toEqual({
+      stage: "preparing",
+      index: 2,
+      total: 5,
+    });
+  });
+
+  it("올리는 중도 읽는다", () => {
+    expect(toScheduleView(200, body({ stage: "publishing" }))[0].progress).toEqual({ stage: "publishing" });
+  });
+
+  it("모르는 모양은 버린다 — 화면이 깨지느니 안 보여 준다", () => {
+    expect(toScheduleView(200, body({ stage: "이상한값" }))[0].progress).toBeUndefined();
+    expect(toScheduleView(200, body("문자열"))[0].progress).toBeUndefined();
+  });
+});
+
+describe("progressLine — 사람이 읽는 한 줄", () => {
+  it("준비 중은 장수를 말한다", () => {
+    expect(progressLine({ stage: "preparing", index: 2, total: 5 })).toBe("5장 중 2장 준비 중");
+  });
+
+  it("한 장짜리는 장수를 세지 않는다 — '1장 중 1장'은 군더더기다", () => {
+    expect(progressLine({ stage: "preparing", index: 1, total: 1 })).toBe("사진 준비 중");
+  });
+
+  it("묶는 중·올리는 중", () => {
+    expect(progressLine({ stage: "bundling" })).toBe("한 세트로 묶는 중");
+    expect(progressLine({ stage: "publishing" })).toBe("인스타그램에 올리는 중");
+  });
+
+  it("없으면 null 이다 — 부를 쪽이 안 그리면 된다", () => {
+    expect(progressLine(undefined)).toBeNull();
+  });
+});
+
+/**
+ * 시계가 멈추면 예약은 영영 안 올라간다 — 화면이 그 사실을 말해야 한다. 실제로 44분이
+ * 지나도 '대기 중'만 보였다(2026-08-05).
+ */
+describe("schedulerWarning — 시계가 멈췄다고 말할 때", () => {
+  it("멈췄고 기다리는 예약이 있으면 알린다", () => {
+    expect(schedulerWarning("stale", true)).not.toBeNull();
+  });
+
+  it("멈췄어도 기다리는 예약이 없으면 조용하다 — 겁줄 일이 아니다", () => {
+    expect(schedulerWarning("stale", false)).toBeNull();
+  });
+
+  it("돌고 있으면 조용하다", () => {
+    expect(schedulerWarning("alive", true)).toBeNull();
+  });
+
+  it("모르면 조용하다 — 옛 서버는 이 값을 안 준다", () => {
+    expect(schedulerWarning(undefined, true)).toBeNull();
+  });
+
+  it("무엇을 해야 하는지까지 말한다", () => {
+    expect(schedulerWarning("stale", true)).toContain("다시");
+  });
+});
+
+/**
+ * `captureImages` 는 **순수 base64**(`btoa` 결과)를 돌려준다 — `data:` 접두사가 없다. 그런데
+ * 예약 패널이 data URL 인 줄 알고 콤마로 잘라, 매번 **빈 문자열**을 보냈다. 그래서 예약이
+ * 저장한 이미지가 0바이트였고 인스타그램은 그것을 받아 `HTTP 500 · code 1` 로 거절했다
+ * (2026-08-05, 디스크 파일을 직접 열어 확인). 예약 발행은 처음부터 한 번도 되지 않았다.
+ */
+describe("toPublishBase64 — 캡처 결과를 보낼 형태로", () => {
+  it("순수 base64 는 그대로 보낸다", () => {
+    expect(toPublishBase64("iVBORw0KGgoAAAANSUhEUg==")).toBe("iVBORw0KGgoAAAANSUhEUg==");
+  });
+
+  it("data URL 로 와도 앞머리를 떼고 보낸다 — 어느 쪽이 와도 깨지지 않는다", () => {
+    expect(toPublishBase64("data:image/png;base64,iVBORw0KGgo=")).toBe("iVBORw0KGgo=");
+  });
+
+  it("빈 값은 빈 값이다 — 조용히 0바이트를 만들지 않게 부르는 쪽이 막는다", () => {
+    expect(toPublishBase64("")).toBe("");
+  });
+
+  it("base64 안의 '+' 나 '/' 를 자르지 않는다", () => {
+    expect(toPublishBase64("ab+/cd==")).toBe("ab+/cd==");
   });
 });

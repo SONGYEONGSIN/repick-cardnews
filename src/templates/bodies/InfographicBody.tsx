@@ -1,5 +1,6 @@
 import type { InfographicSpec } from "@/lib/schema";
 import type { Theme } from "@/templates/themes";
+import { DEFAULT_FIT, sizeWith, type Fit } from "@/templates/fit";
 
 export function InfographicBody({
   spec,
@@ -7,6 +8,7 @@ export function InfographicBody({
   onPhoto = false,
   compact = false,
   hideTitle = false,
+  fit = DEFAULT_FIT,
 }: {
   spec: InfographicSpec;
   theme: Theme;
@@ -18,15 +20,22 @@ export function InfographicBody({
    * 두 번 나오거나 하나도 안 나온다 — 그래서 `CardRenderer` 가 한 함수로 정해 내려 준다.
    */
   hideTitle?: boolean;
+  /**
+   * 글자 크기·간격 **배수**. 자동 규칙(`compact`)이 정한 기준값 위에 곱한다 — 1 이면
+   * 지금까지와 똑같다(`@/templates/fit`).
+   */
+  fit?: Fit;
 }) {
   const fg = onPhoto ? t.onPhoto : t.fg;
+  const px = (base: number) => sizeWith(base, fit.text);
+  const gap = (base: number) => sizeWith(base, fit.gap);
   return (
     <>
       {!hideTitle && (
       <h1
         style={{
           fontFamily: t.displayFont,
-          fontSize: compact ? 52 : 66,
+          fontSize: px(compact ? 52 : 66),
           lineHeight: 1.2,
           margin: 0,
           color: fg,
@@ -37,17 +46,17 @@ export function InfographicBody({
       )}
       {spec.subtitle && (
         <p
-          style={{ fontSize: compact ? 27 : 32, marginTop: 16, marginBottom: 8, opacity: 0.85, color: fg }}
+          style={{ fontSize: px(compact ? 27 : 32), marginTop: 16, marginBottom: 8, opacity: 0.85, color: fg, whiteSpace: "pre-line" }}
         >
           {spec.subtitle}
         </p>
       )}
       <div
         style={{
-          marginTop: compact ? 20 : 28,
+          marginTop: gap(compact ? 20 : 28),
           display: "flex",
           flexDirection: "column",
-          gap: compact ? 16 : 22,
+          gap: gap(compact ? 16 : 22),
           flex: 1,
         }}
       >
@@ -62,7 +71,7 @@ export function InfographicBody({
                 background: t.accent,
                 color: t.bg,
                 fontFamily: t.displayFont,
-                fontSize: compact ? 26 : 30,
+                fontSize: px(compact ? 26 : 30),
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -73,7 +82,7 @@ export function InfographicBody({
             <div style={{ flex: 1 }}>
               <span
                 style={{
-                  fontSize: compact ? 28 : 34,
+                  fontSize: px(compact ? 28 : 34),
                   fontWeight: 800,
                   background: t.highlight,
                   padding: "2px 8px",
@@ -86,7 +95,8 @@ export function InfographicBody({
               </span>
               <p
                 style={{
-                  fontSize: compact ? 23 : 27,
+                  fontSize: px(compact ? 23 : 27),
+                  whiteSpace: "pre-line",
                   lineHeight: 1.45,
                   marginTop: 10,
                   marginBottom: 0,
@@ -113,11 +123,11 @@ export function InfographicBody({
               UI 크롬에 대한 것이고 카드는 산출물이므로 여기서는 유지한다. */}
           {/* 사진 위에서는 accent가 스크림에 묻히므로 onPhoto 색으로 바꾼다. 사진이 없으면 accent 유지 */}
           <span
-            style={{ fontFamily: t.displayFont, fontSize: compact ? 26 : 30, color: onPhoto ? t.onPhoto : t.accent }}
+            style={{ fontFamily: t.displayFont, fontSize: px(compact ? 26 : 30), color: onPhoto ? t.onPhoto : t.accent }}
           >
             ✅ TIP{" "}
           </span>
-          <span style={{ fontSize: compact ? 23 : 27, color: fg }}>{spec.tip}</span>
+          <span style={{ fontSize: px(compact ? 23 : 27), color: fg, whiteSpace: "pre-line" }}>{spec.tip}</span>
         </div>
       )}
     </>

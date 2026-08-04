@@ -8,9 +8,13 @@ import {
   publishCarousel,
   publishKindFor,
   publishSingleImage,
+  type PublishStageProgress,
 } from "./instagram";
 import { defaultEnvLocalPath } from "./instagram-token-refresh-runtime";
+import { tunnelFailureMessage, type TunnelReach } from "./tunnel-reach";
+import { publishContextLine, publishFailureDetail } from "./publish-failure-log";
 import { saveShare } from "./share-store";
+import { clearPublishProgress, recordPublishProgress } from "./publish-progress-store";
 import { createShareToken } from "./share-token";
 import { loadImages, scheduleRoot, type ScheduleItem } from "./schedule-queue";
 
@@ -64,14 +68,19 @@ export function readPublicBaseUrl(envPath: string = defaultEnvLocalPath()): stri
   return null;
 }
 
-/** 첫 이미지를 직접 불러 터널이 살아 있는지 본다. 2xx 가 아니면 게시하지 않는다. */
-async function tunnelReaches(url: string, fetchImpl: typeof fetch): Promise<boolean> {
+/**
+ * 첫 이미지를 직접 불러 공개 주소가 쓸 만한지 본다. 2xx 가 아니면 게시하지 않는다.
+ *
+ * **결과를 두 갈래로 갈라 돌려준다.** 예전엔 참/거짓이라 실패 문구가 하나뿐이었고, 터널은
+ * 멀쩡한데 주소만 옛것인 경우에도 "터널이 켜져 있는지" 를 물어 엉뚱한 곳을 고치게 했다.
+ */
+async function tunnelReaches(url: string, fetchImpl: typeof fetch): Promise<TunnelReach> {
   try {
     const res = await fetchImpl(url);
-    return res.ok;
+    return res.ok ? "ok" : "not-ok";
   } catch {
-    // 네트워크가 끊긴 것도 "안 닿는다" 다 — 원문을 밖으로 흘리지 않는다.
-    return false;
+    // 호스트를 못 찾거나 연결이 끊긴 것 — 원문은 밖으로 흘리지 않는다.
+    return "unreachable";
   }
 }
 
@@ -105,22 +114,35 @@ export async function runScheduledItem(item: ScheduleItem, deps: RunDeps): Promi
   saveShare(token, { images, keyword: item.keyword, issuedAt: deps.now });
   const imageUrls = buildCarouselImageUrls(publicBaseUrl, token, images.length);
 
-  if (!(await tunnelReaches(imageUrls[0], fetchImpl))) {
-    return {
-      ok: false,
-      message: "공개 주소로 사진을 가져갈 수 없어 올리지 못했어요. 터널이 켜져 있는지, 주소가 맞는지 확인해 주세요.",
-    };
+  const reach = await tunnelReaches(imageUrls[0], fetchImpl);
+  if (reach !== "ok") {
+    return { ok: false, message: tunnelFailureMessage(reach) };
   }
+
+  // 도는 동안 어디까지 갔는지 **항목 id 로** 남긴다 — 목록(`/api/schedule`)이 그걸 읽어
+  // 보여 준다. 끝나면(성공이든 실패든) 반드시 지운다 — 남기면 끝난 예약이 아직 도는 것처럼
+  // 보인다.
+  const onProgress = (progress: PublishStageProgress) => recordPublishProgress(item.id, progress, deps.now);
 
   try {
     // 캡션은 **예약할 때** 해시태그까지 합쳐 둔 것이다 — 여기서 다시 조합하지 않는다.
     const config = { ...configCheck.config, publicBaseUrl };
     const mediaId =
       kind === "single"
-        ? await publishSingle({ config, imageUrl: imageUrls[0], caption: item.caption })
-        : await publish({ config, imageUrls, caption: item.caption });
+        ? await publishSingle({ config, imageUrl: imageUrls[0], caption: item.caption }, undefined, onProgress)
+        : await publish({ config, imageUrls, caption: item.caption }, undefined, onProgress);
     return { ok: true, mediaId };
   } catch (e) {
+    // 사용자에게는 한국어 안내만 간다. 왜 거절됐는지는 **서버 콘솔에만** 남긴다 —
+    // 안 남기면 원인을 알 길이 없다. 토큰은 가려서 넣는다(`publish-failure-log`).
+    console.error(
+      "[예약 게시 실패]",
+      publishFailureDetail(e, [configCheck.config.accessToken]),
+      "|",
+      publishContextLine({ imageUrl: imageUrls[0], captionLength: item.caption.length, imageCount: images.length }),
+    );
     return { ok: false, message: friendlyPublishError(e) };
+  } finally {
+    clearPublishProgress(item.id);
   }
 }

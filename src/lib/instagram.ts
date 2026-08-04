@@ -227,11 +227,26 @@ const StatusCheckResponse = z.object({ status_code: z.string() });
 const PublishResponse = z.object({ id: z.string() });
 const MeResponse = z.object({ user_id: z.string(), username: z.string() });
 
+/**
+ * 실패 메시지에 **어느 호출이었는지**를 담는다. 게시는 호출이 여러 번이라(컨테이너 생성 →
+ * 상태 확인 → 게시) "HTTP 500" 만으로는 어디서 터졌는지 알 수 없다 — 실제로 그래서 원인을
+ * 못 좁혔다(2026-08-05).
+ *
+ * **쿼리는 절대 담지 않는다** — 상태 확인 URL 에는 액세스 토큰이 들어 있다.
+ */
+function pathOf(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return "";
+  }
+}
+
 async function callGraphApi<T>(url: string, init: RequestInit | undefined, schema: z.ZodType<T>): Promise<T> {
   const res = await fetch(url, init);
   const body = await parseJson(res);
   if (!res.ok) {
-    throw new InstagramApiError(`인스타그램 API 실패 (HTTP ${res.status})`, body);
+    throw new InstagramApiError(`인스타그램 API 실패 (HTTP ${res.status} · ${pathOf(url)})`, body);
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) {

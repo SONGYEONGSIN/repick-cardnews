@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { readPublicBaseUrl, runScheduledItem } from "./schedule-runner";
 import { saveImages, type ScheduleItem } from "./schedule-queue";
+import { readPublishProgress, type PublishProgress } from "./publish-progress-store";
 
 let root: string;
 let envPath: string;
@@ -207,5 +208,88 @@ describe("runScheduledItem", () => {
     expect(res.ok).toBe(false);
     expect(publish).not.toHaveBeenCalled();
     expect(res.ok === false && res.message).not.toContain("fetch");
+  });
+});
+
+/**
+ * 예약이 도는 동안 화면은 '대기 중' 만 보여 줬다 — 손으로 올릴 때는 단계가 보이는데.
+ * 실행기가 진행을 **항목 id 로** 기록해 두면 목록이 그걸 읽어 보여 준다.
+ */
+describe("runScheduledItem 진행 기록", () => {
+  it("게시가 도는 동안 항목 id 로 진행을 남긴다", async () => {
+    saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
+    const seen: (PublishProgress | null)[] = [];
+    const publish = vi.fn(
+      async (
+        _args: unknown,
+        _sleep?: (ms: number) => Promise<void>,
+        onProgress?: (p: { stage: "preparing"; index: number; total: number } | { stage: "publishing" }) => void,
+      ) => {
+        onProgress?.({ stage: "preparing", index: 1, total: 2 });
+        seen.push(readPublishProgress("a1", 1));
+        onProgress?.({ stage: "publishing" });
+        seen.push(readPublishProgress("a1", 1));
+        return "media-1";
+      },
+    );
+
+    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+
+    expect(res).toEqual({ ok: true, mediaId: "media-1" });
+    expect(seen).toEqual([{ stage: "preparing", index: 1, total: 2 }, { stage: "publishing" }]);
+  });
+
+  it("끝나면 기록을 지운다 — 남겨 두면 끝난 예약이 도는 것처럼 보인다", async () => {
+    saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
+    const publish = vi.fn(async () => "media-1");
+
+    await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+
+    expect(readPublishProgress("a1", 1)).toBeNull();
+  });
+
+  it("실패해도 기록을 지운다", async () => {
+    saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
+    const publish = vi.fn(async () => {
+      throw new Error("boom");
+    });
+
+    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+
+    expect(res.ok).toBe(false);
+    expect(readPublishProgress("a1", 1)).toBeNull();
+  });
+});
+
+/**
+ * 실패 문구가 둘을 구분해야 한다 — "닿지 못했다"(주소·터널)와 "닿았는데 사진이 안 열린다".
+ * 하나로 뭉뚱그렸다가 사용자가 엉뚱한 곳을 고치느라 헤맸다(2026-08-05).
+ */
+describe("공개 주소 확인 실패 문구", () => {
+  it("아예 못 닿으면 주소를 짚는다", async () => {
+    saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
+    const publish = vi.fn();
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("getaddrinfo ENOTFOUND");
+    }) as unknown as typeof fetch;
+
+    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl, publish });
+
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.message).toContain("PUBLIC_BASE_URL");
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("닿았는데 사진이 안 열리면 주소 탓으로 몰지 않는다", async () => {
+    saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
+    const publish = vi.fn();
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 404 }) as unknown as Response);
+
+    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl, publish });
+
+    expect(res.ok).toBe(false);
+    expect(res.ok === false && res.message).toContain("사진");
+    expect(res.ok === false && res.message).not.toContain("PUBLIC_BASE_URL");
+    expect(publish).not.toHaveBeenCalled();
   });
 });

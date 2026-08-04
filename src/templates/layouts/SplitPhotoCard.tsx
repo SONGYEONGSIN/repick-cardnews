@@ -1,4 +1,5 @@
 import { objectPosition, type Focal, type TextYSpacers } from "@/templates/layout-utils";
+import { DEFAULT_FIT, sizeWith, type Fit } from "@/templates/fit";
 
 export function SplitPhotoCard({
   photoUrl,
@@ -8,6 +9,7 @@ export function SplitPhotoCard({
   badge,
   accent,
   titleBand,
+  fit = DEFAULT_FIT,
   children,
 }: {
   photoUrl: string | null;
@@ -24,9 +26,14 @@ export function SplitPhotoCard({
    * 두면 낭비다.
    */
   titleBand?: { text: string; bg: string; fg: string; font: string };
+  /** 여백 배수(`@/templates/fit`). 1 이면 지금까지와 똑같다. */
+  fit?: Fit;
   children: React.ReactNode;
 }) {
   const photoHeight = Math.round(1350 * band);
+  const pad = (base: number) => sizeWith(base, fit.pad);
+  // 사진이 없으면 이 띠의 제목이 카드에서 가장 큰 글이다 — 글자 크기 손잡이가 여기도 걸려야 한다.
+  const px = (base: number) => sizeWith(base, fit.text);
   return (
     <>
       {titleBand ? (
@@ -34,13 +41,13 @@ export function SplitPhotoCard({
           style={{
             flex: "0 0 auto",
             background: titleBand.bg,
-            padding: "72px 72px 64px",
+            padding: `${pad(72)}px 72px ${pad(64)}px`,
           }}
         >
           <h1
             style={{
               fontFamily: titleBand.font,
-              fontSize: 72,
+              fontSize: px(72),
               lineHeight: 1.2,
               margin: 0,
               color: titleBand.fg,
@@ -89,7 +96,8 @@ export function SplitPhotoCard({
           display: "flex",
           flexDirection: "column",
           padding: 72,
-          paddingBottom: 96,
+          paddingTop: pad(72),
+          paddingBottom: pad(96),
           borderTop: `6px solid ${accent}`,
           minHeight: 0,
         }}

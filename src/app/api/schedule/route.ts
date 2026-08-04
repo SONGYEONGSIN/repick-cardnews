@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod/v4";
 import { isLocalHost } from "@/lib/local-guard";
+import { readPublishProgress } from "@/lib/publish-progress-store";
+import { readHeartbeat, schedulerHealth } from "@/lib/scheduler-health";
 import { CAROUSEL_MAX_ITEMS, PUBLISHABLE_MIN_ITEMS } from "@/lib/instagram";
 import { MAX_HASHTAGS, combineCaptionWithHashtags } from "@/lib/hashtags";
 import { describeSchedule } from "@/lib/schedule-due";
-import { appendItem, readQueue, saveImages, updateStatus, type ScheduleItem } from "@/lib/schedule-queue";
+import { appendItem, readQueue, saveImages, updateStatus, scheduleRoot, type ScheduleItem } from "@/lib/schedule-queue";
 
 /**
  * `/api/schedule` — 예약 목록·생성·취소.
@@ -14,6 +16,13 @@ import { appendItem, readQueue, saveImages, updateStatus, type ScheduleItem } fr
  * **캡션은 예약할 때 해시태그까지 합쳐 굳힌다.** 게시 시점에 다시 조합하지 않는다 — 예약한
  * 그대로가 올라가야 한다. 카드 이미지도 같은 이유로 이때 디스크에 고정한다.
  */
+
+/** PNG 서명(8바이트)으로 시작하는가. 캡처가 빈 값을 주면 여기서 걸린다. */
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+function isPngBuffer(buf: Buffer): boolean {
+  return buf.length > PNG_SIGNATURE.length && buf.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE);
+}
 
 const CreateSchema = z.object({
   scheduledAt: z.number({ error: "언제 올릴지 시각을 골라 주세요." }),
@@ -38,9 +47,21 @@ export async function GET(req: Request) {
   // 최신 예약이 먼저 — 방금 만든 것을 바로 확인한다.
   const items = [...readQueue()]
     .sort((a, b) => b.createdAt - a.createdAt)
-    .map((item) => ({ ...item, describe: describeSchedule(item.scheduledAt, now) }));
+    // 도는 중인 항목에는 실행기가 남긴 진행을 함께 담는다 — 화면이 '5장 중 2장 준비 중'
+    // 처럼 보여 준다(`@/lib/schedule-runner` 가 항목 id 로 기록한다).
+    .map((item) => {
+      const progress = readPublishProgress(item.id, now);
+      return {
+        ...item,
+        describe: describeSchedule(item.scheduledAt, now),
+        ...(progress ? { progress } : {}),
+      };
+    });
 
-  return Response.json({ items });
+  // 시계가 멈춰 있으면 예약은 영영 안 올라간다 — 그 사실을 함께 내려준다(`scheduler-health`).
+  const scheduler = schedulerHealth(readHeartbeat(scheduleRoot()), now);
+
+  return Response.json({ items, scheduler });
 }
 
 export async function POST(req: Request) {
@@ -60,6 +81,13 @@ export async function POST(req: Request) {
 
   const id = randomUUID();
   const images = parsed.data.images.map((b64) => Buffer.from(b64, "base64"));
+
+  // **내용까지 본다.** 빈 base64 나 PNG 가 아닌 것을 그냥 저장하면, 인스타그램이 거절할 때까지
+  // 아무도 모른다 — 실제로 0바이트 파일을 저장해 두고 게시에서야 튕겼다(2026-08-05).
+  // 공개 주소 확인(`tunnelReaches`)도 0바이트를 200 으로 받아 통과시킨다.
+  if (!images.every(isPngBuffer)) {
+    return Response.json({ error: "카드 이미지를 읽지 못했어요. 화면을 새로 고치고 다시 예약해 주세요." }, { status: 400 });
+  }
   // 이미지를 먼저 굳히고 큐에 넣는다 — 반대로 하면 스케줄러가 사진 없는 항목을 볼 수 있다.
   saveImages(id, images);
 

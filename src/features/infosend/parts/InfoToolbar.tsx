@@ -14,24 +14,29 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { FOCUS_RING } from "@/components/ui";
 import { SortableItem } from "./SortableItem";
 import { THEMES, THEME_IDS, type ThemeId } from "@/templates/themes";
+import { FIT_RANGE, type Fit } from "@/templates/fit";
 import { TIP_MAX, TITLE_MAX, SUBTITLE_MAX } from "../checks";
 import { ITEMS_MAX, ITEMS_MIN, type InfoAction, type InfoState } from "../reducer";
 
 /**
- * 정보전달 툴바 — 카드뉴스 `EditToolbar` 와 **같은 골격**이다: 위는 조작, 아래는 안내.
- * 어느 형식을 만들든 같은 자리를 보게 한다(`docs/ui-standards.md` §1).
+ * 정보전달 툴바 — 위는 **머리줄**(안내 + 그 탭의 동작), 아래는 조작이다.
+ *
+ * 카드뉴스 `EditToolbar` 도 **같은 골격**이다 — 실사용에서 "안내가 아래 있으면 다 만지고
+ * 나서야 읽는다"는 지적을 받아 둘 다 뒤집었다. 어느 형식을 만들든 같은 자리를 본다.
  *
  * 테마는 카드 하나가 아니라 **결과물 전체**에 걸리므로 자기 탭을 갖는다 — 카드뉴스에서
  * '카드' 탭 안에 넣었다가 "카드 하나 설정"으로 읽혀 되돌린 것과 같은 이유다.
  */
 
-type Target = "text" | "items" | "photo" | "theme";
+type Target = "text" | "items" | "photo" | "fit" | "theme";
 
 const TABS: readonly { id: Target; label: string }[] = [
+  // 테마가 맨 앞이다 — 카드 **전체**에 걸리는 값이라 먼저 정하고 나서 글을 고친다.
+  { id: "theme", label: "테마" },
   { id: "text", label: "글" },
   { id: "items", label: "항목" },
   { id: "photo", label: "사진" },
-  { id: "theme", label: "테마" },
+  { id: "fit", label: "맞춤" },
 ];
 
 function Group({ children }: { children: React.ReactNode }) {
@@ -64,13 +69,24 @@ function Opt({
   );
 }
 
-function Btn({ children, onClick, disabled = false }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+function Btn({
+  children,
+  onClick,
+  disabled = false,
+  compact = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  /** 탭 줄에 얹을 때 — 탭(h-9)과 높이를 맞춘다. */
+  compact?: boolean;
+}) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex h-11 items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:bg-transparent disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
+      className={`flex ${compact ? "h-9" : "h-11"} items-center gap-2 rounded-lg border border-hair px-3.5 text-[14px] font-bold text-ink-2 transition-colors duration-200 hover:border-ink hover:bg-hair-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hair disabled:hover:bg-transparent disabled:hover:text-ink-2 ${FOCUS_RING} motion-reduce:transition-none`}
     >
       {children}
     </button>
@@ -95,13 +111,17 @@ function TextField({
   value,
   max,
   onChange,
+  rows,
 }: {
   label: string;
   value: string;
   max: number;
   onChange: (v: string) => void;
+  /** 주면 여러 줄 칸이 된다 — 엔터로 줄을 나눌 수 있고 카드도 그대로 그린다. */
+  rows?: number;
 }) {
   const over = value.length > max;
+  const shared = `rounded-lg border border-hair px-3 py-2 text-[14px] transition-colors duration-200 focus:border-ink focus:outline-none ${FOCUS_RING} motion-reduce:transition-none`;
   return (
     <label className="flex flex-col gap-1">
       <span className="flex items-baseline gap-2">
@@ -114,11 +134,11 @@ function TextField({
           {value.length}/{max}
         </span>
       </span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`h-10 rounded-lg border border-hair px-3 text-[14px] transition-colors duration-200 focus:border-ink focus:outline-none ${FOCUS_RING} motion-reduce:transition-none`}
-      />
+      {rows === undefined ? (
+        <input value={value} onChange={(e) => onChange(e.target.value)} className={`h-10 ${shared}`} />
+      ) : (
+        <textarea value={value} rows={rows} onChange={(e) => onChange(e.target.value)} className={`resize-y ${shared}`} />
+      )}
     </label>
   );
 }
@@ -149,6 +169,29 @@ function Dial({
       />
       <span className="w-10 flex-none text-right text-[13px] tabular-nums text-ink-2">{value}%</span>
     </label>
+  );
+}
+
+/** 배수(0.8~1.2 같은 값)를 백분율 눈금으로 다룬다 — 사람이 읽는 단위는 %다. */
+function FitDial({
+  label,
+  value,
+  range,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  range: { min: number; max: number };
+  onChange: (v: number) => void;
+}) {
+  return (
+    <Dial
+      label={label}
+      value={Math.round(value * 100)}
+      min={Math.round(range.min * 100)}
+      max={Math.round(range.max * 100)}
+      onChange={(v) => onChange(v / 100)}
+    />
   );
 }
 
@@ -188,13 +231,16 @@ export function InfoToolbar({
   function hintFor(t: Target): string {
     if (t === "items") return `항목은 ${ITEMS_MIN}~${ITEMS_MAX}개예요. 순서는 아래 목록에서 끌어 바꿔요`;
     if (t === "photo") return "사진 높이와 초점을 정해요 · 사진을 빼면 제목이 테마 색 띠로 그려져요";
+    if (t === "fit") return "좁은 카드에 많이 담으려면 줄이고, 시원하게 보이려면 키워요";
     if (t === "theme") return "바탕·글자·강조색과 제목 글꼴을 한 번에 바꿔요";
     return "제목·부제·팁을 고쳐요";
   }
 
   return (
     <div className="flex flex-col rounded-xl border border-hair">
-      <div className="flex gap-1 border-b border-hair p-2" role="tablist" aria-label="고칠 요소">
+      <div className="flex items-center gap-2 border-b border-hair p-2">
+        {/* 되돌리기는 탭이 아니다 — tablist 밖에 둔다(스크린리더가 탭으로 읽지 않게). */}
+        <div className="flex gap-1" role="tablist" aria-label="고칠 요소">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -209,10 +255,20 @@ export function InfoToolbar({
             {t.label}
           </button>
         ))}
+        </div>
       </div>
 
-      {/* 위는 조작, 아래는 안내 — 어느 탭을 눌러도 같은 자리를 본다. */}
-      <div role="tabpanel" className="flex flex-col gap-1.5 px-3 py-2.5">
+      {/* 머리줄(안내 + 그 탭의 동작)이 위, 조작이 아래 — 어느 탭을 눌러도 같은 자리를 본다.
+          안내가 아래 있으면 다 만지고 나서야 읽게 된다. */}
+      <div role="tabpanel" className="flex flex-col gap-2.5 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[13px] leading-relaxed text-ink-2">{hintFor(active)}</p>
+          {active === "fit" && (
+            <Btn compact onClick={() => dispatch({ type: "SET_FIT", patch: { text: 1, gap: 1, pad: 1 } })}>
+              기본으로
+            </Btn>
+          )}
+        </div>
         <div className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-2">
           {active === "text" && (
             <div className="flex w-full flex-col gap-3">
@@ -223,12 +279,14 @@ export function InfoToolbar({
                 onChange={(title) => dispatch({ type: "UPDATE_SPEC", patch: { title } })}
               />
               <TextField
+                rows={2}
                 label="부제"
                 value={spec.subtitle ?? ""}
                 max={SUBTITLE_MAX}
                 onChange={(subtitle) => dispatch({ type: "UPDATE_SPEC", patch: { subtitle } })}
               />
               <TextField
+                rows={3}
                 label="팁"
                 value={spec.tip ?? ""}
                 max={TIP_MAX}
@@ -239,11 +297,12 @@ export function InfoToolbar({
 
           {active === "items" && (
             <div className="flex w-full flex-col gap-3">
-              <span className="flex items-center gap-2.5">
+              {/* 세는 값은 왼쪽, 더하는 동작은 오른쪽 끝 — 목록 위 머리줄의 두 성격을 갈라 둔다. */}
+              <span className="flex w-full items-center justify-between gap-2.5">
                 <span className="text-[14px] text-ink-2">
                   항목 <span className="font-bold tabular-nums text-ink">{spec.items.length}</span>/{ITEMS_MAX}
                 </span>
-                <Btn disabled={spec.items.length >= ITEMS_MAX} onClick={() => dispatch({ type: "ADD_ITEM" })}>
+                <Btn compact disabled={spec.items.length >= ITEMS_MAX} onClick={() => dispatch({ type: "ADD_ITEM" })}>
                   항목 추가
                 </Btn>
               </span>
@@ -294,6 +353,33 @@ export function InfoToolbar({
             </>
           )}
 
+          {active === "fit" && (
+            <>
+              {/* 손잡이 셋을 한 덩어리로 묶고 '기본으로' 는 오른쪽 끝으로 민다 — 그냥 두면
+                  네 번째 손잡이처럼 줄에 끼어 보인다. 되돌리기는 종류가 다른 동작이다. */}
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <FitDial
+                  label="글자 크기"
+                  value={state.fit.text}
+                  range={FIT_RANGE.text}
+                  onChange={(text) => dispatch({ type: "SET_FIT", patch: { text } })}
+                />
+                <FitDial
+                  label="항목 간격"
+                  value={state.fit.gap}
+                  range={FIT_RANGE.gap}
+                  onChange={(gap) => dispatch({ type: "SET_FIT", patch: { gap } })}
+                />
+                <FitDial
+                  label="위아래 여백"
+                  value={state.fit.pad}
+                  range={FIT_RANGE.pad}
+                  onChange={(pad) => dispatch({ type: "SET_FIT", patch: { pad } })}
+                />
+              </span>
+            </>
+          )}
+
           {active === "theme" && (
             <span className="flex flex-wrap items-center gap-2.5">
               <span className="text-[14px] text-ink-2">
@@ -313,7 +399,6 @@ export function InfoToolbar({
             </span>
           )}
         </div>
-        <p className="text-[13px] leading-relaxed text-ink-2">{hintFor(active)}</p>
       </div>
     </div>
   );

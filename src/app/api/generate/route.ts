@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { InfographicSpec, CardnewsSpec } from "@/lib/schema";
+import { stripEmojiDeep } from "@/lib/strip-emoji";
 import { readVault, buildSystemPrompt, buildUserContent } from "@/lib/prompt";
 import { runClaudeCli, NoStructuredOutput } from "@/lib/claude-cli";
 import { friendlyGenerateError, SCHEMA_MISMATCH } from "@/lib/api-errors";
@@ -52,7 +53,10 @@ export async function POST(req: Request) {
 
     // JSON Schema 는 모양만 강제한다. `.refine()`(첫 카드 hook / 마지막 cta)은
     // z.toJSONSchema 에서 탈락하므로 여기서 진짜 스키마로 다시 검증한다.
-    const parsed = spec.safeParse(raw);
+    // 이모지는 **검증 전에** 걷어낸다 — 시키지 않아도 얹어 오는데 카드에서는 제목을 한 줄
+    // 더 밀어내고 팁 앞에 군더더기를 남긴다(`@/lib/strip-emoji`). 지운 뒤 길이 상한을
+    // 넘는지 스키마가 다시 본다.
+    const parsed = spec.safeParse(stripEmojiDeep(raw));
     if (!parsed.success) {
       return Response.json({ error: SCHEMA_MISMATCH }, { status: 502 });
     }

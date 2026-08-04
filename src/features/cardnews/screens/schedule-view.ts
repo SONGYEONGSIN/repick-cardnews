@@ -26,7 +26,40 @@ export type ScheduleView = {
   imageCount: number;
   describe: string;
   message?: string;
+  /** 지금 올리는 중이면 어디까지 갔는지. 서버가 함께 내려준다(`/api/schedule`). */
+  progress?: SchedulePublishProgress;
 };
+
+/**
+ * 예약이 도는 동안의 진행 단계. `@/lib/instagram` 의 `PublishStageProgress` 와 같은 모양이되,
+ * 이 파일은 서버 코드를 끌어오지 않으므로(클라이언트 번들) 여기서 다시 좁힌다.
+ */
+export type SchedulePublishProgress =
+  | { stage: "preparing"; index: number; total: number }
+  | { stage: "bundling" }
+  | { stage: "publishing" };
+
+function asProgress(value: unknown): SchedulePublishProgress | null {
+  const r = asRecord(value);
+  if (!r) return null;
+  if (r.stage === "bundling" || r.stage === "publishing") return { stage: r.stage };
+  if (r.stage === "preparing" && typeof r.index === "number" && typeof r.total === "number") {
+    return { stage: "preparing", index: r.index, total: r.total };
+  }
+  // 모르는 모양은 버린다 — 화면이 깨지느니 안 보여 준다.
+  return null;
+}
+
+/** 진행 단계를 사람이 읽는 한 줄로. 없으면 `null` — 부를 쪽이 안 그리면 된다. */
+export function progressLine(progress: SchedulePublishProgress | undefined): string | null {
+  if (!progress) return null;
+  if (progress.stage === "preparing") {
+    // 한 장짜리(정보전달)에 "1장 중 1장"은 군더더기다.
+    return progress.total <= 1 ? "사진 준비 중" : `${progress.total}장 중 ${progress.index}장 준비 중`;
+  }
+  if (progress.stage === "bundling") return "한 세트로 묶는 중";
+  return "인스타그램에 올리는 중";
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
@@ -57,6 +90,7 @@ export function toScheduleView(status: number, body: unknown): ScheduleView[] {
       imageCount: typeof r.imageCount === "number" ? r.imageCount : 0,
       describe: typeof r.describe === "string" ? r.describe : "",
       ...(typeof r.message === "string" ? { message: r.message } : {}),
+      ...(asProgress(r.progress) ? { progress: asProgress(r.progress) as SchedulePublishProgress } : {}),
     });
   }
   return out;
@@ -86,4 +120,38 @@ export function toLocalInputValue(ms: number): string {
 export function hasPendingFrom(items: ScheduleView[], sessionIds: readonly string[]): boolean {
   const mine = new Set(sessionIds);
   return items.some((item) => mine.has(item.id) && item.status === "pending");
+}
+
+/** 서버가 알려주는 시계 상태. 옛 서버는 안 줄 수 있으므로 `undefined` 를 허용한다. */
+export type SchedulerHealthView = "alive" | "stale";
+
+/**
+ * 시계가 멈췄다고 말할 문구. 말할 게 없으면 `null`.
+ *
+ * **기다리는 예약이 있을 때만 말한다** — 예약이 하나도 없는데 "시계가 멈췄어요"는 겁만 준다.
+ * 실제로 예약이 44분을 지나도 '대기 중'인 채였는데 화면은 아무 말도 못 했다(2026-08-05).
+ */
+export function schedulerWarning(health: SchedulerHealthView | undefined, hasPending: boolean): string | null {
+  if (health !== "stale" || !hasPending) return null;
+  return "예약을 돌리는 시계가 멈춰 있어요. dev 서버를 다시 켜면 이어서 올라가요.";
+}
+
+/** 목록 응답에서 시계 상태를 읽는다. 모르는 값은 `undefined` — 화면이 조용히 넘어간다. */
+export function toSchedulerHealth(body: unknown): SchedulerHealthView | undefined {
+  const r = asRecord(body);
+  return r?.scheduler === "alive" || r?.scheduler === "stale" ? r.scheduler : undefined;
+}
+
+/**
+ * 캡처 결과를 서버로 보낼 base64 로 바꾼다.
+ *
+ * `captureImages` 는 **순수 base64**(`btoa` 결과)를 준다 — `data:` 접두사가 없다. 그런데
+ * 예약 패널이 data URL 인 줄 알고 콤마로 잘라, 매번 빈 문자열을 보냈다. 그래서 예약이 저장한
+ * 이미지가 0바이트였고 인스타그램은 그걸 받아 거절했다(2026-08-05). 어느 형태로 오든
+ * 깨지지 않게 한 곳에서 다룬다.
+ */
+export function toPublishBase64(captured: string): string {
+  const marker = ";base64,";
+  const at = captured.indexOf(marker);
+  return at === -1 ? captured : captured.slice(at + marker.length);
 }

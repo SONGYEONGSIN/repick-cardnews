@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { DELETE, GET, POST } from "./route";
 import { appendItem, readQueue, type ScheduleItem } from "@/lib/schedule-queue";
+import { clearPublishProgress, recordPublishProgress } from "@/lib/publish-progress-store";
+import { writeHeartbeat } from "@/lib/scheduler-health";
 
 let root: string;
 beforeEach(() => {
@@ -25,8 +27,9 @@ function post(body: unknown, host = "localhost:3500") {
   });
 }
 
+/** 진짜 PNG 서명으로 시작하는 최소 바이트 — 라우트가 내용을 검사하므로 흉내만으로는 안 된다. */
 function png(): string {
-  return Buffer.from("fake-png").toString("base64");
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), Buffer.from("아무 내용")]).toString("base64");
 }
 
 function validBody(over: Record<string, unknown> = {}) {
@@ -195,5 +198,87 @@ describe("DELETE /api/schedule", () => {
     );
 
     expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * 목록이 진행 상황을 함께 내려준다 — 화면이 그걸 읽어 '5장 중 2장 준비 중' 처럼 보여 준다.
+ * 진행은 실행기가 항목 id 로 남긴다(`@/lib/schedule-runner`).
+ */
+describe("GET 진행 상황", () => {
+  it("도는 중이면 그 항목에 진행이 담긴다", async () => {
+    await POST(post(validBody({ images: [png(), png()] })));
+    const created = readQueue(root)[0];
+    recordPublishProgress(created.id, { stage: "preparing", index: 2, total: 5 }, Date.now());
+
+    const res = await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }));
+    const body = (await res.json()) as { items: { id: string; progress?: unknown }[] };
+
+    expect(body.items.find((i) => i.id === created.id)?.progress).toEqual({
+      stage: "preparing",
+      index: 2,
+      total: 5,
+    });
+    clearPublishProgress(created.id);
+  });
+
+  it("안 도는 항목에는 진행이 없다", async () => {
+    await POST(post(validBody({ images: [png(), png()] })));
+
+    const res = await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }));
+    const body = (await res.json()) as { items: { progress?: unknown }[] };
+
+    expect(body.items.every((i) => i.progress === undefined)).toBe(true);
+  });
+});
+
+/**
+ * 시계(스케줄러)가 멈춰 있으면 예약은 영영 안 올라간다. 그런데 지금껏 화면은 '대기 중'만
+ * 보여 줬다 — 목록이 시계 상태를 함께 내려줘야 사람이 알 수 있다.
+ */
+describe("GET 스케줄러 상태", () => {
+  it("맥박이 없으면 멈춘 것으로 알린다", async () => {
+    const res = await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }));
+    const body = (await res.json()) as { scheduler?: string };
+
+    expect(body.scheduler).toBe("stale");
+  });
+
+  it("방금 뛰었으면 살아 있다고 알린다", async () => {
+    writeHeartbeat(Date.now(), root);
+
+    const res = await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }));
+    const body = (await res.json()) as { scheduler?: string };
+
+    expect(body.scheduler).toBe("alive");
+  });
+});
+
+/**
+ * 빈 이미지를 받아 저장하면 **인스타그램이 거절할 때까지 아무도 모른다** — 실제로 그랬다
+ * (2026-08-05: 예약이 0바이트 파일을 저장했고, 터널 확인은 200 이라 통과했으며, 게시에서야
+ * `HTTP 500 · code 1` 로 튕겼다). 받는 자리에서 막는다.
+ */
+describe("POST 이미지 내용 검증", () => {
+  it("빈 문자열이면 400 이다", async () => {
+    const res = await POST(post(validBody({ images: [""] })));
+
+    expect(res.status).toBe(400);
+    expect(readQueue(root)).toEqual([]);
+  });
+
+  it("PNG 가 아니면 400 이다 — 저장해 두고 나중에 실패하지 않는다", async () => {
+    const notPng = Buffer.from("이건 PNG 가 아니다").toString("base64");
+    const res = await POST(post(validBody({ images: [notPng] })));
+
+    expect(res.status).toBe(400);
+    expect(readQueue(root)).toEqual([]);
+  });
+
+  it("거절 사유는 한국어다", async () => {
+    const res = await POST(post(validBody({ images: [""] })));
+    const body = (await res.json()) as { error: string };
+
+    expect(/[가-힣]/.test(body.error)).toBe(true);
   });
 });

@@ -528,3 +528,50 @@ describe("publishKindFor", () => {
     expect(publishKindFor(PUBLISHABLE_MIN_ITEMS)).not.toBeNull();
   });
 });
+
+/**
+ * 게시는 호출이 여러 번이다(컨테이너 생성 → 상태 확인 → 게시). 실패 메시지가 "HTTP 500"
+ * 뿐이면 **어디서 터졌는지 알 수 없다** — 실제로 그래서 원인을 못 좁혔다(2026-08-05).
+ * 어느 경로였는지를 담되, 토큰이 들어 있는 쿼리는 절대 담지 않는다.
+ */
+describe("실패 메시지가 어느 호출인지 알려 준다", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("컨테이너 생성에서 터지면 그 경로가 담긴다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 500, json: async () => ({ error: { message: "unknown" } }) })),
+    );
+
+    const failure = publishSingleImage(
+      { config, imageUrl: "https://x/1.png", caption: "" },
+      () => Promise.resolve(),
+    ).catch((e: unknown) => e);
+
+    const e = await failure;
+    expect(e).toBeInstanceOf(InstagramApiError);
+    expect((e as Error).message).toContain("/media");
+  });
+
+  it("상태 확인에서 터져도 경로가 담기고 토큰은 안 담긴다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        if (method === "POST") return { ok: true, status: 200, json: async () => ({ id: "c1" }) };
+        return { ok: false, status: 400, json: async () => ({ error: { message: "bad" } }) };
+      }),
+    );
+
+    const e = await publishSingleImage(
+      { config, imageUrl: "https://x/1.png", caption: "" },
+      () => Promise.resolve(),
+    ).catch((err: unknown) => err);
+
+    expect((e as Error).message).toContain("c1");
+    expect((e as Error).message).not.toContain(config.accessToken);
+    expect((e as Error).message).not.toContain("access_token");
+  });
+});

@@ -22,6 +22,7 @@ export function toRenderCard(state: InfoState): RenderCard | null {
     // 주석과 같은 이유로 RenderCard 필수 필드라 기본값을 채운다.
     highlight: DEFAULT_HIGHLIGHT,
     badge: "",
+    fit: state.fit,
     copy: state.spec,
   };
 }

@@ -185,6 +185,48 @@ try {
   await page.fill("#info-kw", "정렬 점검");
   await page.getByRole("button", { name: /만들러 가기/ }).click();
   await page.waitForTimeout(600);
+  // 고르기 화면에서도 왼쪽(고르기)과 오른쪽(카드 자리)의 박스가 같은 자리·같은 높이여야 한다.
+  const emptyPair = await page.evaluate(() => {
+    const boxes = [...document.querySelectorAll("div")].filter((e) => {
+      const c = e.className;
+      return typeof c === "string" && /border-hair/.test(c) && /rounded-xl/.test(c) && e.getBoundingClientRect().height > 100;
+    });
+    const r = (e) => { const x = e.getBoundingClientRect(); return { top: Math.round(x.top), height: Math.round(x.height) }; };
+    const left = boxes.find((e) => e.getBoundingClientRect().left < 700);
+    const right = boxes.find((e) => e.getBoundingClientRect().left > 700);
+    return left && right ? [r(left), r(right)] : null;
+  });
+  results.push({
+    gate: "정렬", route: "/info 만들기(고르기 · 카드 자리)",
+    pass: emptyPair !== null && samePlace(emptyPair[0], emptyPair[1]),
+    detail: emptyPair ? emptyPair.map((b) => `top ${b.top}·${b.height}px`).join(" / ") : "두 박스를 못 찾음",
+  });
+
+  // 부차 동작이 주 동작보다 커 보이면 안 된다 — 세로 칸 안의 버튼은 그냥 두면 칸 폭만큼
+  // 늘어난다(docs/ui-standards.md §8). 실제로 423px vs 132px 로 뒤집혔다.
+  await page.getByRole("button", { name: /사진 올리고 만들기/ }).click();
+  await page.waitForTimeout(300);
+  const widths = await page.evaluate(() => {
+    const find = (text) => [...document.querySelectorAll("button")].find((b) => (b.textContent || "").trim().startsWith(text));
+    const 부차 = find("사진 없이 만들기");
+    const 주 = find("카피 만들기");
+    return 부차 && 주
+      ? { 부차: Math.round(부차.getBoundingClientRect().width), 주: Math.round(주.getBoundingClientRect().width) }
+      : null;
+  });
+  results.push({
+    gate: "정렬", route: "/info 만들기(버튼 위계)",
+    pass: widths !== null && widths.부차 <= widths.주 * 1.5,
+    detail: widths ? `사진 없이 만들기 ${widths.부차}px ≤ 카피 만들기 ${widths.주}px × 1.5` : "두 버튼을 못 찾음",
+  });
+  await page.goto(`${BASE}/info`, { waitUntil: "networkidle" });
+  await page.fill("#info-kw", "정렬 점검");
+  await page.getByRole("button", { name: /만들러 가기/ }).click();
+  await page.waitForTimeout(400);
+
+  // 사진을 쓸지 먼저 고른다 — 고르기 전에는 '카피 만들기' 가 없다.
+  await page.getByRole("button", { name: /사진 없이 만들기/ }).click();
+  await page.waitForTimeout(300);
   await page.getByRole("button", { name: /카피 만들기/ }).click();
   await page.waitForTimeout(1500);
 
@@ -197,6 +239,34 @@ try {
     pass: heads.length === 2 && samePlace(heads[0], heads[1]),
     detail: heads.map((h) => `top ${h.top}·${h.height}px`).join(" / ") || "두 칸 제목을 못 찾음",
   });
+
+  // 낮은 화면에서 잰다 — 배율을 박아 둔 결함은 자리가 좁아져야 드러난다(1600×1000 에서는
+  // 고정 배율 카드도 들어가 버려 아무것도 못 잡는다).
+  await page.setViewportSize({ width: 1440, height: 780 });
+  await page.waitForTimeout(400);
+
+  // 카드는 **음영 자리 안에** 들어가야 한다. 1080px 템플릿을 그대로 그리므로 배율을 박아 두면
+  // 자리가 좁아져도 안 줄어 밖으로 튀어나온다 — 실제로 223px 넘쳤다(2026-08-04).
+  const spill = await page.evaluate(() => {
+    const canvas = [...document.querySelectorAll(".bg-canvas")].find((e) => e.getBoundingClientRect().height > 200);
+    const card = canvas?.querySelector("[style*='width']");
+    if (!canvas || !card) return null;
+    const c = canvas.getBoundingClientRect();
+    const k = card.getBoundingClientRect();
+    return {
+      아래: Math.round(k.bottom - c.bottom),
+      오른쪽: Math.round(k.right - c.right),
+      비율: k.height > 0 ? Number((k.width / k.height).toFixed(3)) : 0,
+    };
+  });
+  results.push({
+    gate: "정렬", route: "/info 만들기(카드가 자리 안에)",
+    pass: spill !== null && spill.아래 <= 0 && spill.오른쪽 <= 0 && Math.abs(spill.비율 - 0.8) <= 0.01,
+    detail: spill ? `아래 ${spill.아래}px · 오른쪽 ${spill.오른쪽}px · 비율 ${spill.비율}` : "카드를 못 찾음",
+  });
+
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.waitForTimeout(300);
 
   await page.getByRole("button", { name: /^내보내기$/ }).click();
   await page.waitForTimeout(1200);
