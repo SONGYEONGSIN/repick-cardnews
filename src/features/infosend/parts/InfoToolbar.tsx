@@ -322,25 +322,31 @@ export function InfoToolbar({
 
           {active === "fit" && (
             <>
-              <FitDial
-                label="글자 크기"
-                value={state.fit.text}
-                range={FIT_RANGE.text}
-                onChange={(text) => dispatch({ type: "SET_FIT", patch: { text } })}
-              />
-              <FitDial
-                label="항목 간격"
-                value={state.fit.gap}
-                range={FIT_RANGE.gap}
-                onChange={(gap) => dispatch({ type: "SET_FIT", patch: { gap } })}
-              />
-              <FitDial
-                label="위아래 여백"
-                value={state.fit.pad}
-                range={FIT_RANGE.pad}
-                onChange={(pad) => dispatch({ type: "SET_FIT", patch: { pad } })}
-              />
-              <Btn onClick={() => dispatch({ type: "SET_FIT", patch: { text: 1, gap: 1, pad: 1 } })}>기본으로</Btn>
+              {/* 손잡이 셋을 한 덩어리로 묶고 '기본으로' 는 오른쪽 끝으로 민다 — 그냥 두면
+                  네 번째 손잡이처럼 줄에 끼어 보인다. 되돌리기는 종류가 다른 동작이다. */}
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <FitDial
+                  label="글자 크기"
+                  value={state.fit.text}
+                  range={FIT_RANGE.text}
+                  onChange={(text) => dispatch({ type: "SET_FIT", patch: { text } })}
+                />
+                <FitDial
+                  label="항목 간격"
+                  value={state.fit.gap}
+                  range={FIT_RANGE.gap}
+                  onChange={(gap) => dispatch({ type: "SET_FIT", patch: { gap } })}
+                />
+                <FitDial
+                  label="위아래 여백"
+                  value={state.fit.pad}
+                  range={FIT_RANGE.pad}
+                  onChange={(pad) => dispatch({ type: "SET_FIT", patch: { pad } })}
+                />
+              </span>
+              <span className="ml-auto">
+                <Btn onClick={() => dispatch({ type: "SET_FIT", patch: { text: 1, gap: 1, pad: 1 } })}>기본으로</Btn>
+              </span>
             </>
           )}
 
