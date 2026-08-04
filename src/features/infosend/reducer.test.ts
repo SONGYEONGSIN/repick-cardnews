@@ -12,6 +12,8 @@ import {
   type InfoState,
 } from "@/features/infosend/reducer";
 import type { Photo } from "@/lib/photos";
+import { INFO_FORMATS, InfographicSpec, itemTexts } from "@/lib/schema";
+import { infoChecks } from "./checks";
 import { DEFAULT_BAND_INFO } from "@/templates/layout-utils";
 
 function photo(id: string): Photo {
@@ -25,6 +27,7 @@ function withPhotos(count: number): InfoState {
 
 const spec = {
   type: "informationsend" as const,
+  format: "list" as const,
   title: "에어컨 전기세",
   items: [
     { keyword: "온도", desc: "24~26도" },
@@ -38,6 +41,7 @@ const spec = {
 // 항목 5개(bandForItems(5)=0.25, 초기값 0.35와 다름)로 실제 갱신 여부를 구분한다.
 const spec5 = {
   type: "informationsend" as const,
+  format: "list" as const,
   title: "에어컨 전기세",
   items: [
     { keyword: "온도", desc: "24~26도" },
@@ -70,7 +74,7 @@ describe("items 편집", () => {
 
   it("항목 순서를 바꾼다", () => {
     const s = infoReducer(base, { type: "REORDER_ITEM", from: 0, to: 2 });
-    expect(s.spec?.items.map((i) => i.keyword)).toEqual(["필터", "선풍기", "온도"]);
+    expect(s.spec?.items.map((i) => itemTexts(i)[0])).toEqual(["필터", "선풍기", "온도"]);
   });
 
   it("항목을 추가한다", () => {
@@ -96,8 +100,7 @@ describe("items 편집", () => {
 
   it("항목 내용을 고친다", () => {
     const s = infoReducer(base, { type: "UPDATE_ITEM", index: 0, patch: { desc: "25도" } });
-    expect(s.spec?.items[0].desc).toBe("25도");
-    expect(s.spec?.items[0].keyword).toBe("온도");
+    expect(itemTexts(s.spec!.items[0])).toEqual(["온도", "25도"]);
   });
 });
 
@@ -235,5 +238,116 @@ describe("SET_ERROR 와 busy", () => {
 
   it("오류 문구는 그대로 담는다", () => {
     expect(infoReducer(busy, { type: "SET_ERROR", error: "실패했어요" }).error).toBe("실패했어요");
+  });
+});
+
+/**
+ * `withItems` 는 항목 배열을 갈아 끼울 때 타입을 한 번 좁힌다 — "더하거나 빼거나 옮길 뿐
+ * 모양은 안 바꾼다" 는 불변식을 타입 시스템이 못 보기 때문이다. **그 불변식을 여기서 잠근다.**
+ * 깨지면 스키마 검증에서 걸리므로, 다섯 형식 모두 다시 검증해 확인한다.
+ */
+describe("항목을 고쳐도 형식이 섞이지 않는다", () => {
+  const specs = {
+    list: { type: "informationsend" as const, format: "list" as const, title: "제목",
+      items: [{ keyword: "가", desc: "나" }, { keyword: "다", desc: "라" }, { keyword: "마", desc: "바" }] },
+    compare: { type: "informationsend" as const, format: "compare" as const, title: "제목",
+      columns: { left: "A", right: "B" },
+      items: [{ label: "기준", left: "왼", right: "오" }, { label: "기준2", left: "왼", right: "오" }, { label: "기준3", left: "왼", right: "오" }] },
+    stat: { type: "informationsend" as const, format: "stat" as const, title: "제목",
+      items: [{ value: "7%", label: "설명" }, { value: "2주", label: "설명" }] },
+    check: { type: "informationsend" as const, format: "check" as const, title: "제목",
+      items: [{ text: "하나" }, { text: "둘" }, { text: "셋" }, { text: "넷" }] },
+  };
+
+  for (const [name, spec] of Object.entries(specs)) {
+    it(`${name}: 순서를 바꿔도 스키마를 통과한다`, () => {
+      const seeded = infoReducer(initialInfoState, { type: "SET_SPEC", spec });
+      const moved = infoReducer(seeded, { type: "REORDER_ITEM", from: 0, to: 1 });
+      expect(InfographicSpec.safeParse(moved.spec).success).toBe(true);
+    });
+  }
+});
+
+/**
+ * 형식은 **카피를 만들기 전에** 고른다. 고른 값은 생성 요청에 실려 가고, 카피가 이미 있으면
+ * 형식을 바꿀 때 그 항목들을 그 형식의 빈 항목으로 갈아 끼운다 — 칸이 달라 그대로 못 옮긴다.
+ */
+describe("SET_FORMAT", () => {
+  it("처음에는 목록형이다", () => {
+    expect(initialInfoState.format).toBe("list");
+  });
+
+  it("카피가 없으면 형식만 바뀐다", () => {
+    const s = infoReducer(initialInfoState, { type: "SET_FORMAT", format: "stat" });
+    expect(s.format).toBe("stat");
+    expect(s.spec).toBeNull();
+  });
+
+  // **빈 항목은 스키마를 통과하지 않는다**(각 칸이 min(1)). 그게 맞다 — 스키마는 생성
+  // 결과를 재는 자다. 형식을 바꾼 직후는 "아직 안 채운 상태" 이고, 점검 목록이 그걸 짚는다.
+  it("카피가 있으면 그 형식의 빈 항목으로 갈아 끼운다", () => {
+    const seeded = infoReducer(initialInfoState, { type: "SET_SPEC", spec });
+    const changed = infoReducer(seeded, { type: "SET_FORMAT", format: "check" });
+
+    expect(changed.format).toBe("check");
+    expect(changed.spec?.format).toBe("check");
+    expect(changed.spec?.items).toEqual([{ text: "" }, { text: "" }, { text: "" }, { text: "" }]);
+  });
+
+  it("바꾼 직후에는 점검이 빈 항목을 짚는다 — 채우거나 다시 만들라는 뜻이다", () => {
+    const seeded = infoReducer(initialInfoState, { type: "SET_SPEC", spec });
+    const changed = infoReducer(seeded, { type: "SET_FORMAT", format: "check" });
+    expect(infoChecks(changed).some((c) => c.text.includes("빈 항목"))).toBe(true);
+  });
+
+  it("제목·부제·팁은 남긴다 — 형식이 달라도 그 글은 그대로 쓸 수 있다", () => {
+    const seeded = infoReducer(initialInfoState, { type: "SET_SPEC", spec });
+    const changed = infoReducer(seeded, { type: "SET_FORMAT", format: "compare" });
+    expect(changed.spec?.title).toBe(spec.title);
+  });
+
+  it("같은 형식을 다시 고르면 항목을 건드리지 않는다", () => {
+    const seeded = infoReducer(initialInfoState, { type: "SET_SPEC", spec });
+    const same = infoReducer(seeded, { type: "SET_FORMAT", format: "list" });
+    expect(same.spec?.items).toEqual(seeded.spec?.items);
+  });
+});
+
+/**
+ * 형식마다 **항목 말고도** 자기 칸이 있다 — 비교형의 `columns` 가 그렇다. 항목만 갈아 끼우면
+ * 그 칸이 없는 채로 남아 카드를 그릴 때 죽는다(2026-08-05: 형식을 비교로 바꾸자 화면이 꺼졌다).
+ */
+describe("SET_FORMAT 은 그 형식의 칸을 모두 갖춘다", () => {
+  it("비교로 바꾸면 양쪽 이름 칸이 생긴다", () => {
+    const seeded = infoReducer(initialInfoState, { type: "SET_SPEC", spec });
+    const changed = infoReducer(seeded, { type: "SET_FORMAT", format: "compare" });
+    expect(changed.spec).toMatchObject({ format: "compare", columns: { left: "", right: "" } });
+  });
+
+  it("비교에서 다른 형식으로 가면 그 칸을 버린다 — 남으면 스키마가 거절한다", () => {
+    const toCompare = infoReducer(
+      infoReducer(initialInfoState, { type: "SET_SPEC", spec }),
+      { type: "SET_FORMAT", format: "compare" },
+    );
+    const back = infoReducer(toCompare, { type: "SET_FORMAT", format: "list" });
+    expect(back.spec && "columns" in back.spec).toBe(false);
+  });
+
+  it("어느 형식으로 바꿔도 카드가 읽는 칸이 다 있다 — 채워 넣으면 스키마를 통과한다", () => {
+    for (const f of INFO_FORMATS) {
+      const changed = infoReducer(
+        infoReducer(initialInfoState, { type: "SET_SPEC", spec }),
+        { type: "SET_FORMAT", format: f.id },
+      );
+      // 빈 칸만 채우면 통과해야 한다 — 빠진 칸이 있으면 채워도 통과 못 한다.
+      const filled = {
+        ...changed.spec,
+        items: changed.spec!.items.map((item) =>
+          Object.fromEntries(Object.keys(item).map((k) => [k, "값"])),
+        ),
+        ...(changed.spec!.format === "compare" ? { columns: { left: "왼", right: "오" } } : {}),
+      };
+      expect(InfographicSpec.safeParse(filled).success).toBe(true);
+    }
   });
 });

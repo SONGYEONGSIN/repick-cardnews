@@ -1,9 +1,13 @@
 import type { CardnewsCard, InfographicSpec } from "@/lib/schema";
 import type { CardLayout } from "@/lib/layout-assign";
-import { THEMES, type ThemeId } from "@/templates/themes";
+import { THEMES, type Theme, type ThemeId } from "@/templates/themes";
 import { titleInBand } from "@/templates/infographic-band";
 import { CardFrame } from "@/templates/CardFrame";
 import { InfographicBody } from "@/templates/bodies/InfographicBody";
+import { CompareBody } from "@/templates/bodies/CompareBody";
+import { StepsBody } from "@/templates/bodies/StepsBody";
+import { StatBody } from "@/templates/bodies/StatBody";
+import { CheckBody } from "@/templates/bodies/CheckBody";
 import { CardnewsBody } from "@/templates/bodies/CardnewsBody";
 import { FullBleedCard } from "@/templates/layouts/FullBleedCard";
 import { SplitPhotoCard } from "@/templates/layouts/SplitPhotoCard";
@@ -42,6 +46,26 @@ export type RenderCard = {
   copy: CardnewsCard | InfographicSpec;
 };
 
+/** 정보전달 본문을 형식으로 고른다. `compact` 기준은 형식마다 다르다 — 항목 수와 글의 양이 다르다. */
+function infoBodyFor(
+  spec: Extract<RenderCard["copy"], { type: "informationsend" }>,
+  opts: { theme: Theme; onPhoto: boolean; hideTitle: boolean; fit: RenderCard["fit"] },
+) {
+  const common = { theme: opts.theme, onPhoto: opts.onPhoto, hideTitle: opts.hideTitle, fit: opts.fit };
+  switch (spec.format) {
+    case "list":
+      return <InfographicBody spec={spec} {...common} compact={spec.items.length >= 5} />;
+    case "steps":
+      return <StepsBody spec={spec} {...common} compact={spec.items.length >= 4} />;
+    case "compare":
+      return <CompareBody spec={spec} {...common} compact={spec.items.length >= 4} />;
+    case "stat":
+      return <StatBody spec={spec} {...common} compact={false} />;
+    case "check":
+      return <CheckBody spec={spec} {...common} compact={spec.items.length >= 6} />;
+  }
+}
+
 export function CardRenderer({
   card,
   themeId,
@@ -56,15 +80,10 @@ export function CardRenderer({
   // 제목을 위쪽 띠로 올릴지 **한 곳에서** 정한다 — 띠를 그리는 쪽(SplitPhotoCard)과 제목을
   // 건너뛰는 쪽(InfographicBody)이 각자 판단하면 어긋난다(`@/templates/infographic-band`).
   const bandTitle = isInfographicCopy(card.copy) && titleInBand(card.photoUrl, card.layout);
+  // 형식마다 본문이 다르다(`@/lib/schema` 의 INFO_FORMATS). 다섯을 여기서 한 번에 고른다 —
+  // 각 본문이 스스로 판단하면 형식이 늘 때마다 다섯 곳을 고쳐야 한다.
   const body = isInfographicCopy(card.copy) ? (
-    <InfographicBody
-      spec={card.copy}
-      theme={theme}
-      onPhoto={onPhoto}
-      compact={card.copy.items.length >= 5}
-      hideTitle={bandTitle}
-      fit={card.fit}
-    />
+    infoBodyFor(card.copy, { theme, onPhoto, hideTitle: bandTitle, fit: card.fit })
   ) : (
     <CardnewsBody
       card={card.copy}

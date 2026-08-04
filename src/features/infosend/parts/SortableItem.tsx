@@ -4,25 +4,29 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2 } from "lucide-react";
 
-const INPUT =
+/** 항목 칸의 공통 모양 — 형식별 칸이 서로 달라 보이지 않게 한 곳에서 정한다. */
+export const ITEM_INPUT =
   "w-full rounded-lg border border-hair bg-surface px-2.5 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum";
 
+/**
+ * 항목 한 줄의 **껍데기** — 끌기 손잡이·번호·지우기. 안에 들어가는 칸은 형식마다 다르므로
+ * 부르는 쪽이 넣는다(`children`).
+ *
+ * 형식마다 줄을 통째로 복제하면 손잡이·번호·지우기가 다섯 벌이 되고, 한 곳을 고칠 때 다섯
+ * 곳을 고쳐야 한다.
+ */
 export function SortableItem({
   id,
   index,
-  keyword,
-  desc,
   canRemove,
-  onPatch,
   onRemove,
+  children,
 }: {
   id: string;
   index: number;
-  keyword: string;
-  desc: string;
   canRemove: boolean;
-  onPatch: (patch: { keyword?: string; desc?: string }) => void;
   onRemove: () => void;
+  children: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
@@ -54,23 +58,7 @@ export function SortableItem({
           <Trash2 size={13} aria-hidden="true" />
         </button>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <input
-          value={keyword}
-          aria-label={`${index + 1}번 항목 키워드`}
-          maxLength={30}
-          onChange={(e) => onPatch({ keyword: e.target.value })}
-          className={INPUT}
-        />
-        <textarea
-          value={desc}
-          aria-label={`${index + 1}번 항목 설명`}
-          rows={2}
-          maxLength={120}
-          onChange={(e) => onPatch({ desc: e.target.value })}
-          className={INPUT}
-        />
-      </div>
+      <div className="flex flex-col gap-1.5">{children}</div>
     </li>
   );
 }

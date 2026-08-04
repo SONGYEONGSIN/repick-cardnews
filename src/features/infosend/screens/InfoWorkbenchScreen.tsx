@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type Dispatch } from "react";
 import { ArrowLeft, ArrowRight, Check, CircleAlert, ImagePlus, LoaderCircle, Sparkles } from "lucide-react";
-import { PLACEHOLDER_BOX, PLACEHOLDER_MIN_H } from "@/components/ui";
+import { FOCUS_RING, PLACEHOLDER_BOX, PLACEHOLDER_MIN_H } from "@/components/ui";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { Dropzone } from "@/features/photos/Dropzone";
 import { PhotoGrid } from "@/features/photos/PhotoGrid";
@@ -12,6 +12,8 @@ import { requestSpec } from "@/features/studio/useGenerate";
 import type { InfographicSpec } from "@/lib/schema";
 import { inKorean } from "@/features/cardnews/screens/errors";
 import { useFitScale } from "@/features/studio/useFitScale";
+import { INFO_FORMATS } from "@/lib/schema";
+import { formatChangeWarning } from "../formats";
 import { infoChecks } from "../checks";
 import { canGenerate, dropExit, dropzoneOpen, generateStatus, photoStage, type StartChoice } from "../workbench-view";
 import { InfoCopyToolbar } from "../parts/InfoCopyToolbar";
@@ -59,6 +61,8 @@ export function InfoWorkbenchScreen({
     return () => clearInterval(id);
   }, [state.busy]);
   const fit = useFitScale(CARD_W, CARD_H);
+  // 형식을 바꾸면 항목이 빈 상태가 된다 — 그 사실을 그 자리에서 말한다.
+  const formatWarning = formatChangeWarning(state.spec?.items ?? null);
 
   async function generate() {
     startedAtRef.current = Date.now();
@@ -68,6 +72,7 @@ export function InfoWorkbenchScreen({
     try {
       const spec = await requestSpec<InfographicSpec>({
         type: "informationsend",
+        format: state.format,
         keyword: state.keyword,
         // 사진은 선택이다 — 없으면 빈 배열로 보낸다(주제만 보고 쓴다).
         photos: photo ? [photo.thumbUrl] : [],
@@ -209,6 +214,38 @@ export function InfoWorkbenchScreen({
                   <LineButton onClick={() => setAdding(true)}>사진 올리기</LineButton>
                 </div>
               ))}
+
+            {/* 형식은 **카피를 만들기 전에** 고른다 — 담는 정보가 달라 생성 규칙이 달라진다. */}
+            {stage !== "choose" && (
+              <div className="flex flex-col gap-2.5">
+                <SectionHead title="형식" aside={INFO_FORMATS.find((f) => f.id === state.format)?.note} />
+                <div role="group" aria-label="정보전달 형식" className="flex flex-wrap gap-2">
+                  {INFO_FORMATS.map((f) => {
+                    const on = f.id === state.format;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        aria-pressed={on}
+                        disabled={state.busy}
+                        onClick={() => dispatch({ type: "SET_FORMAT", format: f.id })}
+                        className={`h-9 rounded-lg border px-3.5 text-[14px] font-bold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS_RING} motion-reduce:transition-none ${
+                          on ? "border-ink bg-ink text-surface" : "border-hair text-ink-2 hover:border-ink hover:bg-hair-soft hover:text-ink"
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {formatWarning && (
+                  <p role="status" className="flex items-start gap-2 text-[13px] font-bold leading-relaxed">
+                    <CircleAlert size={14} aria-hidden="true" className="mt-0.5 flex-none" />
+                    {formatWarning}
+                  </p>
+                )}
+              </div>
+            )}
 
             {stage !== "choose" && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-3">

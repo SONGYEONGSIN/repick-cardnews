@@ -1,4 +1,5 @@
-import type { InfographicSpec } from "@/lib/schema";
+import { itemTexts, type InfoFormat, type InfoItem, type InfographicSpec } from "@/lib/schema";
+import { reshapeSpec } from "./formats";
 import type { Photo } from "@/lib/photos";
 import { move } from "@/lib/reorder";
 import { DEFAULT_BAND_INFO, DEFAULT_FOCAL, type Focal } from "@/templates/layout-utils";
@@ -12,6 +13,11 @@ type Item = InfographicSpec["items"][number];
 
 export type InfoState = {
   step: number;
+  /**
+   * 만들 정보전달 **형식**. 카피를 만들기 전에 고른다 — 담는 정보가 달라 생성 요청에
+   * 실려 가야 한다(`@/lib/schema` 의 INFO_FORMATS).
+   */
+  format: InfoFormat;
   photos: Photo[];
   selectedPhotoId: string | null;
   keyword: string;
@@ -37,6 +43,8 @@ export type InfoAction =
   | { type: "SET_BAND"; band: number }
   | { type: "SET_FOCAL"; focal: Focal }
   | { type: "SET_FIT"; patch: Partial<Fit> }
+  | { type: "SET_FORMAT"; format: InfoFormat }
+  | { type: "UPDATE_COLUMNS"; patch: Partial<{ left: string; right: string }> }
   | { type: "SET_SPEC"; spec: InfographicSpec }
   | { type: "UPDATE_SPEC"; patch: Partial<Pick<InfographicSpec, "title" | "subtitle" | "tip">> }
   | { type: "UPDATE_ITEM"; index: number; patch: Partial<Item> }
@@ -50,6 +58,7 @@ export type InfoAction =
 
 export const initialInfoState: InfoState = {
   step: 0,
+  format: "list",
   photos: [],
   selectedPhotoId: null,
   keyword: "",
@@ -84,7 +93,7 @@ export function canLeaveInfoTopic(state: InfoState): boolean {
  */
 export function captionSourceLines(state: InfoState): string[] {
   if (!state.spec) return [];
-  return [state.spec.title, ...state.spec.items.map((item) => item.keyword)]
+  return [state.spec.title, ...state.spec.items.map((item) => itemTexts(item)[0])]
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 }
@@ -113,9 +122,19 @@ export function bandForItems(count: number): number {
   return 0.15;
 }
 
-function withItems(state: InfoState, next: Item[]): InfoState {
+/**
+ * 항목 배열을 갈아 끼운다. 형식마다 항목 모양이 다르지만 **배열 이름이 `items` 로 같아서**
+ * 이 한 함수로 다섯 형식을 다 다룬다(`@/lib/schema` 설계 주석 참고).
+ *
+ * 스펙 자체의 items 타입을 그대로 쓰므로 형식이 섞이지 않는다 — 목록형 스펙에 비교형 항목을
+ * 넣는 일은 타입이 막는다.
+ */
+function withItems(state: InfoState, next: InfoItem[]): InfoState {
   if (!state.spec) return state;
-  return { ...state, spec: { ...state.spec, items: next } };
+  // 항목을 **더하거나 빼거나 옮길 뿐** 모양은 바꾸지 않는다 — 그래서 배열 원소는 언제나 이
+  // 스펙 형식의 항목이다. 타입 시스템은 그 불변식을 못 보므로 여기 한 곳에서만 좁힌다.
+  // 불변식 자체는 `reducer.test.ts` 의 "형식이 섞이지 않는다" 가 다섯 형식으로 잠근다.
+  return { ...state, spec: { ...state.spec, items: next } as InfographicSpec };
 }
 
 /** bandTouched가 아니면 항목 수에 맞춰 밴드를 다시 계산하고, 아니면 기존 값을 유지한다. */
@@ -171,9 +190,21 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
       return { ...withItems(state, items), ...nextBand(state, items.length) };
     }
     case "REORDER_ITEM":
-      return state.spec ? withItems(state, move(state.spec.items, action.from, action.to)) : state;
+      // `move` 는 제네릭이라 형식별 배열을 그대로 받는다 — union 으로 넓힌 뒤 넘긴다.
+      return state.spec ? withItems(state, move<InfoItem>(state.spec.items, action.from, action.to)) : state;
     case "SET_STEP":
       return { ...state, step: action.step };
+    case "UPDATE_COLUMNS":
+      // 비교형에만 있는 값이다. 다른 형식에서 들어오면 아무 일도 하지 않는다.
+      if (!state.spec || state.spec.format !== "compare") return state;
+      return { ...state, spec: { ...state.spec, columns: { ...state.spec.columns, ...action.patch } } };
+    case "SET_FORMAT": {
+      if (action.format === state.format) return state;
+      // 카피가 있으면 항목을 그 형식의 빈 항목으로 갈아 끼운다 — 칸이 달라 그대로 못 옮긴다.
+      // 제목·부제·팁은 남긴다: 형식이 달라도 그 글은 그대로 쓸 수 있다.
+      if (!state.spec) return { ...state, format: action.format };
+      return { ...state, format: action.format, spec: reshapeSpec(state.spec, action.format) };
+    }
     case "SET_FIT":
       // 범위 밖 값은 잘라서 넣는다 — 손잡이가 아닌 곳에서 들어와도 카드가 안 깨진다.
       return { ...state, fit: clampFit({ ...state.fit, ...action.patch }) };

@@ -10,6 +10,7 @@ function photo(id: string, dataUrl = `data:image/jpeg;base64,${id}`): Photo {
 
 const spec = {
   type: "informationsend" as const,
+  format: "list" as const,
   title: "에어컨 전기세",
   subtitle: "여름철 절약 팁",
   items: [
@@ -23,6 +24,7 @@ const spec = {
 function state(overrides: Partial<InfoState> = {}): InfoState {
   return {
     step: 3,
+    format: "list",
     photos: [photo("p1")],
     selectedPhotoId: "p1",
     keyword: "에어컨 전기세",

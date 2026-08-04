@@ -14,6 +14,8 @@ describe("parseBody", () => {
       keyword: "에어컨 전기세",
       type: "cardnews",
       photos: [],
+      // 정보전달 형식의 기본값. 카드뉴스에서는 쓰이지 않지만 파싱 결과에는 들어온다.
+      format: "list",
     });
   });
   it("빈 키워드를 거부한다", () => {
@@ -139,7 +141,8 @@ describe("POST 생성 성공 처리", () => {
     const res = await POST(makeRequest({ keyword: "에어컨 전기세", type: "informationsend" }));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ spec });
+    // 모델이 판별자를 빼먹어도 서버가 고른 형식으로 채운다 — 기본은 목록형이다.
+    expect(await res.json()).toEqual({ spec: { ...spec, format: "list" } });
   });
 });
 
@@ -178,5 +181,57 @@ describe("POST 이모지 제거", () => {
     expect(spec.items[0].keyword).toBe("에어컨 26도");
     // 그림 문자 계열이 통째로 사라졌는지 응답 전체로 다시 확인한다.
     expect(/\p{Extended_Pictographic}/u.test(JSON.stringify(spec))).toBe(false);
+  });
+});
+
+/**
+ * 형식은 사용자가 고른 값이라 **서버가 이미 알고 있다.** 모델이 판별자(`format`)를 빠뜨렸다고
+ * 100초를 버리지 않는다 — 검증 전에 채운다(2026-08-05 설계).
+ */
+describe("POST 형식", () => {
+  function req(format?: string): Request {
+    return new Request("http://localhost/api/generate", {
+      method: "POST",
+      body: JSON.stringify({ keyword: "여름 전기세", type: "informationsend", ...(format ? { format } : {}) }),
+    });
+  }
+
+  it("모델이 format 을 빼먹어도 고른 형식으로 채워 통과한다", async () => {
+    vi.mocked(runClaudeCli).mockResolvedValueOnce({
+      type: "informationsend",
+      title: "제목",
+      items: [
+        { value: "7%", label: "1도만 올려도" },
+        { value: "2주", label: "필터 청소 주기" },
+      ],
+    });
+
+    const res = await POST(req("stat"));
+
+    expect(res.status).toBe(200);
+    const { spec } = (await res.json()) as { spec: { format: string } };
+    expect(spec.format).toBe("stat");
+  });
+
+  it("형식을 안 주면 목록형이다", async () => {
+    vi.mocked(runClaudeCli).mockResolvedValueOnce({
+      type: "informationsend",
+      title: "제목",
+      items: [
+        { keyword: "가", desc: "나" },
+        { keyword: "다", desc: "라" },
+        { keyword: "마", desc: "바" },
+      ],
+    });
+
+    const res = await POST(req());
+
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { spec: { format: string } }).spec.format).toBe("list");
+  });
+
+  it("모르는 형식은 400 이다 — 100초를 쓰기 전에 막는다", async () => {
+    const res = await POST(req("이상한값"));
+    expect(res.status).toBe(400);
   });
 });
