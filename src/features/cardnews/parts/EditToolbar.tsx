@@ -283,10 +283,12 @@ export function EditToolbar({
         ))}
       </div>
 
-      {/* 위는 **조작**, 아래는 **안내**. 예전엔 둘이 한 줄에 섞여 있어(헤드라인 탭은 일곱 덩어리
-          중 셋이 문장이었다) 무엇을 할 수 있는지가 한눈에 안 잡혔다. 어느 탭을 눌러도 같은
+      {/* **안내가 위, 조작이 아래.** 예전엔 둘이 한 줄에 섞여 있었고(헤드라인 탭은 일곱 덩어리
+          중 셋이 문장), 그다음엔 안내를 아래에 뒀다 — 그러니 다 만지고 나서야 읽게 된다는
+          지적을 받아 위로 올렸다(정보전달 `InfoToolbar` 와 같은 골격). 어느 탭을 눌러도 같은
           자리를 보게 한다. */}
-      <div role="tabpanel" className="flex flex-col gap-1.5 px-3 py-2.5">
+      <div role="tabpanel" className="flex flex-col gap-2.5 px-3 py-2.5">
+        <p className="text-[13px] leading-relaxed text-ink-2">{hintFor(active)}</p>
         <div className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-2">
         {isText && (
           <>
@@ -434,7 +436,6 @@ export function EditToolbar({
           </span>
         )}
         </div>
-        <p className="text-[13px] leading-relaxed text-ink-2">{hintFor(active)}</p>
       </div>
     </div>
   );

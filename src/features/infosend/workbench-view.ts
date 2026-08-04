@@ -1,3 +1,5 @@
+import { elapsedLabel } from "@/features/cardnews/screens/topic-suggest";
+
 /**
  * 만들기 화면이 **지금 무엇을 보여 줄 차례인지** 정한다.
  *
@@ -45,4 +47,29 @@ export function dropzoneOpen(stage: PhotoStage, adding: boolean, busy: boolean):
  */
 export function dropExit(photoCount: number): "cancel" | "without-photo" {
   return photoCount > 0 ? "cancel" : "without-photo";
+}
+
+/**
+ * 카피 생성은 실측 24초, 상한 120초(`@/app/api/generate/route`)다. 그동안 화면이 버튼 글자만
+ * 바꿔 두면 **얼마나 더 기다려야 하는지 알 수 없다** — 지난 시간과 예상 시간을 함께 말한다.
+ */
+const GENERATE_EXPECTED_SECONDS = 30;
+export const GENERATE_EXPECTED_LABEL = elapsedLabel(GENERATE_EXPECTED_SECONDS);
+
+export function generateStatus({
+  busy,
+  elapsed,
+  hasSpec,
+  canStart,
+}: {
+  busy: boolean;
+  /** 생성을 시작한 뒤 지난 초. */
+  elapsed: number;
+  hasSpec: boolean;
+  canStart: boolean;
+}): string {
+  if (busy) return `카피를 쓰는 중이에요 · ${elapsedLabel(elapsed)} 지났어요 (보통 ${GENERATE_EXPECTED_LABEL} 안팎)`;
+  if (!canStart) return "사진을 올리면 만들 수 있어요.";
+  if (hasSpec) return "다시 만들면 지금 고친 글은 사라져요.";
+  return "주제를 보고 제목·항목·팁을 써요.";
 }

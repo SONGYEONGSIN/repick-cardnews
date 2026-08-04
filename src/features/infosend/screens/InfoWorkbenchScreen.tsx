@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type Dispatch } from "react";
+import { useEffect, useRef, useState, type Dispatch } from "react";
 import { ArrowLeft, ArrowRight, Check, CircleAlert, ImagePlus, LoaderCircle, Sparkles } from "lucide-react";
 import { PLACEHOLDER_BOX, PLACEHOLDER_MIN_H } from "@/components/ui";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
@@ -13,7 +13,7 @@ import type { InfographicSpec } from "@/lib/schema";
 import { inKorean } from "@/features/cardnews/screens/errors";
 import { useFitScale } from "@/features/studio/useFitScale";
 import { infoChecks } from "../checks";
-import { canGenerate, dropExit, dropzoneOpen, photoStage, type StartChoice } from "../workbench-view";
+import { canGenerate, dropExit, dropzoneOpen, generateStatus, photoStage, type StartChoice } from "../workbench-view";
 import { InfoToolbar } from "../parts/InfoToolbar";
 import { toRenderCard } from "../render";
 import { canLeaveInfoWorkbench, selectedPhoto, type InfoAction, type InfoState } from "../reducer";
@@ -43,13 +43,25 @@ export function InfoWorkbenchScreen({
   // 저장할 값이 아니라 이 화면을 보는 동안의 시선이다 — reducer 에 넣지 않는다.
   const [adding, setAdding] = useState(false);
   const [choice, setChoice] = useState<StartChoice>("unset");
+  // 기다리는 동안 지난 시간. 저장할 값이 아니라 이 화면을 보는 동안의 표시다.
+  const [elapsed, setElapsed] = useState(0);
+  const startedAtRef = useRef(0);
   const card = toRenderCard(state);
   const photo = selectedPhoto(state);
   const checks = infoChecks(state);
   const stage = photoStage(choice, state.photos.length, state.spec !== null);
+
+  // 1초마다 지난 시간을 다시 센다 — 생성이 끝나면 타이머를 끈다.
+  useEffect(() => {
+    if (!state.busy) return;
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - startedAtRef.current) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [state.busy]);
   const fit = useFitScale(CARD_W, CARD_H);
 
   async function generate() {
+    startedAtRef.current = Date.now();
+    setElapsed(0);
     dispatch({ type: "SET_BUSY", busy: true });
     dispatch({ type: "SET_ERROR", error: null });
     try {
@@ -71,13 +83,12 @@ export function InfoWorkbenchScreen({
   }
 
   const showDrop = dropzoneOpen(stage, adding, state.busy);
-  const status = state.busy
-    ? "주제를 보고 카피를 쓰는 중이에요."
-    : !canGenerate(stage)
-      ? "사진을 올리면 만들 수 있어요."
-      : state.spec
-        ? "다시 만들면 지금 고친 글은 사라져요."
-        : "주제를 보고 제목·항목·팁을 써요.";
+  const status = generateStatus({
+    busy: state.busy,
+    elapsed,
+    hasSpec: state.spec !== null,
+    canStart: canGenerate(stage),
+  });
 
   return (
     <StudioFrame

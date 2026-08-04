@@ -180,7 +180,10 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
     case "SET_BUSY":
       return { ...state, busy: action.busy };
     case "SET_ERROR":
-      return { ...state, error: action.error, busy: false };
+      // busy 는 건드리지 않는다. 오류가 났다는 사실과 일이 도는 중이라는 사실은 별개다 —
+      // 함께 풀면 생성 시작 때 옛 오류를 지우는 SET_ERROR(null) 이 바쁨 표시를 즉시 꺼버리고
+      // ('카피 쓰는 중'이 한 번도 안 보였다), 대기 중 Dropzone 오류 한 번에 버튼이 되살아난다.
+      return { ...state, error: action.error };
     case "RESET":
       return initialInfoState;
   }

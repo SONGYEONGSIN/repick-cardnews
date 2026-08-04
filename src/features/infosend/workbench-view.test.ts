@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { photoStage, canGenerate, dropzoneOpen, dropExit, type StartChoice } from "./workbench-view";
+import {
+  photoStage,
+  canGenerate,
+  dropzoneOpen,
+  dropExit,
+  generateStatus,
+  GENERATE_EXPECTED_LABEL,
+  type StartChoice,
+} from "./workbench-view";
 
 /**
  * 만들기 화면은 **사진을 쓸지 말지 먼저 묻는다.** 예전엔 드롭존과 '카피 만들기' 버튼이 나란히
@@ -77,5 +85,33 @@ describe("dropExit — 드롭존에서 나가는 문", () => {
   // 이미 올린 사진이 있는데 '사진 없이'로 보내면 그 사진이 그대로 카드에 남아 말과 달라진다.
   it("사진이 있으면 '취소'다", () => {
     expect(dropExit(1)).toBe("cancel");
+  });
+});
+
+/**
+ * 카피 생성은 실측 24초, 상한 120초다. 그동안 버튼만 '카피 쓰는 중'으로 바뀌어 있어
+ * **얼마나 더 기다려야 하는지 알 수 없었다** — 무작정 기다리게 두지 않는다.
+ */
+describe("generateStatus — 기다리는 동안 무엇을 말하나", () => {
+  it("쓰는 중에는 지난 시간과 예상 시간을 말한다", () => {
+    const text = generateStatus({ busy: true, elapsed: 42, hasSpec: false, canStart: true });
+    expect(text).toContain("42초");
+    expect(text).toContain(GENERATE_EXPECTED_LABEL);
+  });
+
+  it("오래 걸리면 분으로 읽는다", () => {
+    expect(generateStatus({ busy: true, elapsed: 95, hasSpec: false, canStart: true })).toContain("1분 35초");
+  });
+
+  it("사진을 기다리는 중이면 그 사실을 먼저 말한다", () => {
+    expect(generateStatus({ busy: false, elapsed: 0, hasSpec: false, canStart: false })).toContain("사진");
+  });
+
+  it("이미 만든 게 있으면 다시 만들면 사라진다고 알린다", () => {
+    expect(generateStatus({ busy: false, elapsed: 0, hasSpec: true, canStart: true })).toContain("사라져요");
+  });
+
+  it("처음이면 무엇을 쓰는지 말한다", () => {
+    expect(generateStatus({ busy: false, elapsed: 0, hasSpec: false, canStart: true })).toContain("제목");
   });
 });

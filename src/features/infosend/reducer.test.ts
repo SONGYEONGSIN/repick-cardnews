@@ -215,3 +215,25 @@ describe("captionSourceLines", () => {
     expect(lines).toEqual(["필터", "선풍기"]);
   });
 });
+
+/**
+ * 오류가 났다는 사실과 일이 도는 중이라는 사실은 **별개**다. 함께 풀면 두 가지가 깨진다:
+ * 생성을 시작하며 `SET_ERROR(null)` 로 옛 오류를 지우는 순간 바쁨 표시가 꺼지고(실제로
+ * 그랬다 — '카피 쓰는 중'이 한 번도 안 보였다), 생성 대기 중 Dropzone 오류 한 번에 버튼이
+ * 되살아나 CLI 호출이 둘 동시에 돈다. 카드뉴스 reducer 는 같은 이유로 이미 이렇게 돼 있다.
+ */
+describe("SET_ERROR 와 busy", () => {
+  const busy = infoReducer(initialInfoState, { type: "SET_BUSY", busy: true });
+
+  it("오류를 지워도 하던 일은 계속 돈다", () => {
+    expect(infoReducer(busy, { type: "SET_ERROR", error: null }).busy).toBe(true);
+  });
+
+  it("오류가 나도 busy 를 마음대로 끄지 않는다 — 끝내는 건 SET_BUSY 몫이다", () => {
+    expect(infoReducer(busy, { type: "SET_ERROR", error: "실패했어요" }).busy).toBe(true);
+  });
+
+  it("오류 문구는 그대로 담는다", () => {
+    expect(infoReducer(busy, { type: "SET_ERROR", error: "실패했어요" }).error).toBe("실패했어요");
+  });
+});
