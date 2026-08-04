@@ -141,3 +141,17 @@ export function toSchedulerHealth(body: unknown): SchedulerHealthView | undefine
   const r = asRecord(body);
   return r?.scheduler === "alive" || r?.scheduler === "stale" ? r.scheduler : undefined;
 }
+
+/**
+ * 캡처 결과를 서버로 보낼 base64 로 바꾼다.
+ *
+ * `captureImages` 는 **순수 base64**(`btoa` 결과)를 준다 — `data:` 접두사가 없다. 그런데
+ * 예약 패널이 data URL 인 줄 알고 콤마로 잘라, 매번 빈 문자열을 보냈다. 그래서 예약이 저장한
+ * 이미지가 0바이트였고 인스타그램은 그걸 받아 거절했다(2026-08-05). 어느 형태로 오든
+ * 깨지지 않게 한 곳에서 다룬다.
+ */
+export function toPublishBase64(captured: string): string {
+  const marker = ";base64,";
+  const at = captured.indexOf(marker);
+  return at === -1 ? captured : captured.slice(at + marker.length);
+}

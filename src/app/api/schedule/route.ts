@@ -17,6 +17,13 @@ import { appendItem, readQueue, saveImages, updateStatus, scheduleRoot, type Sch
  * 그대로가 올라가야 한다. 카드 이미지도 같은 이유로 이때 디스크에 고정한다.
  */
 
+/** PNG 서명(8바이트)으로 시작하는가. 캡처가 빈 값을 주면 여기서 걸린다. */
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+function isPngBuffer(buf: Buffer): boolean {
+  return buf.length > PNG_SIGNATURE.length && buf.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE);
+}
+
 const CreateSchema = z.object({
   scheduledAt: z.number({ error: "언제 올릴지 시각을 골라 주세요." }),
   caption: z.string().max(2200, { error: "캡션이 너무 길어요." }),
@@ -74,6 +81,13 @@ export async function POST(req: Request) {
 
   const id = randomUUID();
   const images = parsed.data.images.map((b64) => Buffer.from(b64, "base64"));
+
+  // **내용까지 본다.** 빈 base64 나 PNG 가 아닌 것을 그냥 저장하면, 인스타그램이 거절할 때까지
+  // 아무도 모른다 — 실제로 0바이트 파일을 저장해 두고 게시에서야 튕겼다(2026-08-05).
+  // 공개 주소 확인(`tunnelReaches`)도 0바이트를 200 으로 받아 통과시킨다.
+  if (!images.every(isPngBuffer)) {
+    return Response.json({ error: "카드 이미지를 읽지 못했어요. 화면을 새로 고치고 다시 예약해 주세요." }, { status: 400 });
+  }
   // 이미지를 먼저 굳히고 큐에 넣는다 — 반대로 하면 스케줄러가 사진 없는 항목을 볼 수 있다.
   saveImages(id, images);
 

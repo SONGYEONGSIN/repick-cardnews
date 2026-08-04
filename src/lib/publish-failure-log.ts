@@ -27,3 +27,23 @@ export function publishFailureDetail(e: unknown, secrets: readonly string[]): st
   }
   return out.slice(0, 500);
 }
+
+/**
+ * 실패한 게시가 **무엇을 넘겼는지**. 어느 호출인지까지 좁혔는데도 원인이 안 잡힐 때, 남은
+ * 차이는 값뿐이다(2026-08-05: 손으로는 되고 예약만 `/media` 에서 거절).
+ *
+ * **공유 토큰은 가린다** — 그 주소를 아는 사람은 사진을 가져갈 수 있다. 호스트와 파일 이름은
+ * 남긴다: 주소가 맞는지 봐야 하기 때문이다. 캡션은 **길이만** 담는다.
+ */
+export function publishContextLine({
+  imageUrl,
+  captionLength,
+  imageCount,
+}: {
+  imageUrl: string;
+  captionLength: number;
+  imageCount: number;
+}): string {
+  const masked = imageUrl.replace(/\/s\/[^/]+\//, "/s/***/");
+  return `주소 ${masked} · 캡션 ${captionLength}자 · ${imageCount}장`;
+}

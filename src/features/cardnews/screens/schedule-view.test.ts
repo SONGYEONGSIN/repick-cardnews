@@ -5,6 +5,7 @@ import {
   isPending,
   progressLine,
   schedulerWarning,
+  toPublishBase64,
   toLocalInputValue,
   toScheduleView,
 } from "./schedule-view";
@@ -194,5 +195,29 @@ describe("schedulerWarning — 시계가 멈췄다고 말할 때", () => {
 
   it("무엇을 해야 하는지까지 말한다", () => {
     expect(schedulerWarning("stale", true)).toContain("다시");
+  });
+});
+
+/**
+ * `captureImages` 는 **순수 base64**(`btoa` 결과)를 돌려준다 — `data:` 접두사가 없다. 그런데
+ * 예약 패널이 data URL 인 줄 알고 콤마로 잘라, 매번 **빈 문자열**을 보냈다. 그래서 예약이
+ * 저장한 이미지가 0바이트였고 인스타그램은 그것을 받아 `HTTP 500 · code 1` 로 거절했다
+ * (2026-08-05, 디스크 파일을 직접 열어 확인). 예약 발행은 처음부터 한 번도 되지 않았다.
+ */
+describe("toPublishBase64 — 캡처 결과를 보낼 형태로", () => {
+  it("순수 base64 는 그대로 보낸다", () => {
+    expect(toPublishBase64("iVBORw0KGgoAAAANSUhEUg==")).toBe("iVBORw0KGgoAAAANSUhEUg==");
+  });
+
+  it("data URL 로 와도 앞머리를 떼고 보낸다 — 어느 쪽이 와도 깨지지 않는다", () => {
+    expect(toPublishBase64("data:image/png;base64,iVBORw0KGgo=")).toBe("iVBORw0KGgo=");
+  });
+
+  it("빈 값은 빈 값이다 — 조용히 0바이트를 만들지 않게 부르는 쪽이 막는다", () => {
+    expect(toPublishBase64("")).toBe("");
+  });
+
+  it("base64 안의 '+' 나 '/' 를 자르지 않는다", () => {
+    expect(toPublishBase64("ab+/cd==")).toBe("ab+/cd==");
   });
 });

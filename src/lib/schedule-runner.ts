@@ -12,7 +12,7 @@ import {
 } from "./instagram";
 import { defaultEnvLocalPath } from "./instagram-token-refresh-runtime";
 import { tunnelFailureMessage, type TunnelReach } from "./tunnel-reach";
-import { publishFailureDetail } from "./publish-failure-log";
+import { publishContextLine, publishFailureDetail } from "./publish-failure-log";
 import { saveShare } from "./share-store";
 import { clearPublishProgress, recordPublishProgress } from "./publish-progress-store";
 import { createShareToken } from "./share-token";
@@ -135,7 +135,12 @@ export async function runScheduledItem(item: ScheduleItem, deps: RunDeps): Promi
   } catch (e) {
     // 사용자에게는 한국어 안내만 간다. 왜 거절됐는지는 **서버 콘솔에만** 남긴다 —
     // 안 남기면 원인을 알 길이 없다. 토큰은 가려서 넣는다(`publish-failure-log`).
-    console.error("[예약 게시 실패]", publishFailureDetail(e, [configCheck.config.accessToken]));
+    console.error(
+      "[예약 게시 실패]",
+      publishFailureDetail(e, [configCheck.config.accessToken]),
+      "|",
+      publishContextLine({ imageUrl: imageUrls[0], captionLength: item.caption.length, imageCount: images.length }),
+    );
     return { ok: false, message: friendlyPublishError(e) };
   } finally {
     clearPublishProgress(item.id);

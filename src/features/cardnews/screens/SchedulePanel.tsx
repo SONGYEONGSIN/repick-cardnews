@@ -12,6 +12,7 @@ import {
   progressLine,
   schedulerWarning,
   toSchedulerHealth,
+  toPublishBase64,
   toLocalInputValue,
   toScheduleView,
   type ScheduleView,
@@ -111,7 +112,7 @@ export function SchedulePanel({
           caption,
           hashtags,
           keyword,
-          images: images.map((dataUrl) => dataUrl.split(",")[1] ?? ""),
+          images: images.map(toPublishBase64),
         }),
       });
       const body: unknown = await res.json().catch(() => null);
