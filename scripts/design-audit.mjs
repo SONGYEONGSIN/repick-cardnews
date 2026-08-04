@@ -87,6 +87,18 @@ const FAKE_SPEC = {
   ],
 };
 
+const FAKE_INFO_SPEC = {
+  type: "informationsend",
+  title: "정렬 점검용 제목",
+  subtitle: "정렬 점검용 부제",
+  items: [
+    { keyword: "하나", desc: "설명입니다." },
+    { keyword: "둘", desc: "설명입니다." },
+    { keyword: "셋", desc: "설명입니다." },
+  ],
+  tip: "정렬 점검용 팁 한 줄.",
+};
+
 function makePhotos(dir) {
   const chunk = (type, data) => {
     const len = Buffer.alloc(4);
@@ -163,6 +175,53 @@ try {
     gate: "정렬", route: "/cardnews 내보내기(파일로 저장)",
     pass: fileBoxes.length === 2 && samePlace(fileBoxes[0], fileBoxes[1]),
     detail: fileBoxes.map((b) => `top ${b.top}·${b.height}px`).join(" / ") || "두 박스를 못 찾음",
+  });
+
+  // ── 정보전달(/info) — 사진 없이 끝까지 간다. 사진이 선택이라 이 경로가 기본이다.
+  await page.route("**/api/generate", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ spec: FAKE_INFO_SPEC }) }));
+  await page.goto(`${BASE}/info`, { waitUntil: "networkidle" });
+  await page.fill("#info-kw", "정렬 점검");
+  await page.getByRole("button", { name: /만들러 가기/ }).click();
+  await page.waitForTimeout(600);
+  await page.getByRole("button", { name: /카피 만들기/ }).click();
+  await page.waitForTimeout(1500);
+
+  // 만들기: 왼쪽(사진) 과 오른쪽(카드) 의 제목줄이 같은 높이에서 시작해야 한다.
+  const heads = await page.$$eval("h2", (els) =>
+    els.filter((el) => ["사진", "카드"].includes((el.textContent || "").trim()))
+      .map((el) => { const r = el.getBoundingClientRect(); return { top: Math.round(r.top), height: Math.round(r.height) }; }));
+  results.push({
+    gate: "정렬", route: "/info 만들기(두 칸 시작 위치)",
+    pass: heads.length === 2 && samePlace(heads[0], heads[1]),
+    detail: heads.map((h) => `top ${h.top}·${h.height}px`).join(" / ") || "두 칸 제목을 못 찾음",
+  });
+
+  await page.getByRole("button", { name: /^내보내기$/ }).click();
+  await page.waitForTimeout(1200);
+
+  const infoBoxes = await page.$$eval("[class*='border-hair']", (els) =>
+    els.filter((el) => el.getBoundingClientRect().height > 60)
+      .map((el) => { const r = el.getBoundingClientRect(); return { top: Math.round(r.top), height: Math.round(r.height), text: (el.textContent || "").slice(0, 20) }; }));
+  const infoFileBoxes = infoBoxes.filter((b) => b.text.includes("네트워크") || b.text.includes("informationsend/"));
+
+  // 높이만 재면 부족하다 — 오늘은 두 박스의 내용 높이가 우연히 같아, 늘어남을 꺼도 눈금이
+  // 안 움직인다. 그래서 **늘어남 자체**(그리드의 align-items)를 함께 본다. `items-start` 를
+  // 넣는 순간 "start" 가 되어 여기서 걸린다(docs/ui-standards.md §3).
+  const stretches = await page.evaluate(() => {
+    // 위 `infoFileBoxes` 와 같은 조건으로 고른다 — 그냥 includes 로 찾으면 사이드바처럼
+    // 그 글을 품기만 한 바깥 요소가 먼저 잡힌다.
+    const box = [...document.querySelectorAll("[class*='border-hair']")].find((el) =>
+      (el.textContent || "").slice(0, 20).includes("네트워크"));
+    const grid = box?.closest("div.grid");
+    return grid ? getComputedStyle(grid).alignItems : "그리드를 못 찾음";
+  });
+  results.push({
+    gate: "정렬", route: "/info 내보내기(파일로 저장)",
+    pass: infoFileBoxes.length === 2 && samePlace(infoFileBoxes[0], infoFileBoxes[1]) && stretches === "normal",
+    detail:
+      (infoFileBoxes.map((b) => `top ${b.top}·${b.height}px`).join(" / ") || "두 박스를 못 찾음") +
+      ` · 늘어남 ${stretches}`,
   });
 } catch (e) {
   results.push({ gate: "정렬", route: "-", pass: false, detail: `측정 실패: ${e instanceof Error ? e.message.slice(0, 80) : "알 수 없음"}` });
