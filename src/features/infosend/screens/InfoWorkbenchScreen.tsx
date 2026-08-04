@@ -14,7 +14,9 @@ import { inKorean } from "@/features/cardnews/screens/errors";
 import { useFitScale } from "@/features/studio/useFitScale";
 import { infoChecks } from "../checks";
 import { canGenerate, dropExit, dropzoneOpen, generateStatus, photoStage, type StartChoice } from "../workbench-view";
+import { ITEMS_MAX, ITEMS_MIN } from "../reducer";
 import { InfoItemsEditor } from "../parts/InfoItemsEditor";
+import { InfoTextEditor } from "../parts/InfoTextEditor";
 import { InfoToolbar } from "../parts/InfoToolbar";
 import { toRenderCard } from "../render";
 import { canLeaveInfoWorkbench, selectedPhoto, type InfoAction, type InfoState } from "../reducer";
@@ -231,10 +233,16 @@ export function InfoWorkbenchScreen({
           </section>
 
           {card && state.spec && (
-            <section className="flex flex-col gap-4">
-              <SectionHead title="항목" aside="바로 반영돼요" />
-              <InfoItemsEditor state={state} dispatch={dispatch} />
-            </section>
+            <>
+              <section className="flex flex-col gap-4">
+                <SectionHead title="글" aside="바로 반영돼요" />
+                <InfoTextEditor state={state} dispatch={dispatch} />
+              </section>
+              <section className="flex flex-col gap-4">
+                <SectionHead title="항목" aside={`${ITEMS_MIN}~${ITEMS_MAX}개`} />
+                <InfoItemsEditor state={state} dispatch={dispatch} />
+              </section>
+            </>
           )}
         </div>
 

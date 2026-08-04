@@ -4,7 +4,6 @@ import { useState, type Dispatch } from "react";
 import { FOCUS_RING } from "@/components/ui";
 import { THEMES, THEME_IDS, type ThemeId } from "@/templates/themes";
 import { FIT_RANGE, type Fit } from "@/templates/fit";
-import { TIP_MAX, TITLE_MAX, SUBTITLE_MAX } from "../checks";
 import { type InfoAction, type InfoState } from "../reducer";
 
 /**
@@ -20,12 +19,11 @@ import { type InfoAction, type InfoState } from "../reducer";
  * '카드' 탭 안에 넣었다가 "카드 하나 설정"으로 읽혀 되돌린 것과 같은 이유다.
  */
 
-type Target = "text" | "photo" | "fit" | "theme";
+type Target = "photo" | "fit" | "theme";
 
 const TABS: readonly { id: Target; label: string }[] = [
   // 테마가 맨 앞이다 — 카드 **전체**에 걸리는 값이라 먼저 정하고 나서 글을 고친다.
   { id: "theme", label: "테마" },
-  { id: "text", label: "글" },
   { id: "photo", label: "사진" },
   { id: "fit", label: "맞춤" },
 ];
@@ -96,43 +94,6 @@ function ThemeSwatch({ themeId }: { themeId: ThemeId }) {
   );
 }
 
-/** 글자수와 함께 보여 주는 한 줄 입력. 넘치면 검정 채움으로 뒤집는다(카드뉴스 Counter 와 같다). */
-function TextField({
-  label,
-  value,
-  max,
-  onChange,
-  rows,
-}: {
-  label: string;
-  value: string;
-  max: number;
-  onChange: (v: string) => void;
-  /** 주면 여러 줄 칸이 된다 — 엔터로 줄을 나눌 수 있고 카드도 그대로 그린다. */
-  rows?: number;
-}) {
-  const over = value.length > max;
-  const shared = `rounded-lg border border-hair px-3 py-2 text-[14px] transition-colors duration-200 focus:border-ink focus:outline-none ${FOCUS_RING} motion-reduce:transition-none`;
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="flex items-baseline gap-2">
-        <span className="text-[13px] font-bold text-ink-2">{label}</span>
-        <span
-          className={`ml-auto rounded px-1.5 text-[12px] font-bold tabular-nums ${
-            over ? "bg-ink text-surface" : "text-ink-2"
-          }`}
-        >
-          {value.length}/{max}
-        </span>
-      </span>
-      {rows === undefined ? (
-        <input value={value} onChange={(e) => onChange(e.target.value)} className={`h-10 ${shared}`} />
-      ) : (
-        <textarea value={value} rows={rows} onChange={(e) => onChange(e.target.value)} className={`resize-y ${shared}`} />
-      )}
-    </label>
-  );
-}
 
 function Dial({
   label,
@@ -195,7 +156,7 @@ export function InfoToolbar({
   dispatch: Dispatch<InfoAction>;
   hasPhoto: boolean;
 }) {
-  const [target, setTarget] = useState<Target>("text");
+  const [target, setTarget] = useState<Target>("theme");
   const spec = state.spec;
   if (!spec) return null;
 
@@ -203,13 +164,13 @@ export function InfoToolbar({
 
   // 사진이 없으면 사진 탭이 할 일이 없다 — 없는 탭을 띄우지 않는다(카드뉴스와 같은 규칙).
   const tabs = TABS.filter((t) => t.id !== "photo" || hasPhoto);
-  const active: Target = tabs.some((t) => t.id === target) ? target : "text";
+  const active: Target = tabs.some((t) => t.id === target) ? target : "theme";
 
   function hintFor(t: Target): string {
     if (t === "photo") return "사진 높이와 초점을 정해요 · 사진을 빼면 제목이 테마 색 띠로 그려져요";
     if (t === "fit") return "좁은 카드에 많이 담으려면 줄이고, 시원하게 보이려면 키워요";
     if (t === "theme") return "바탕·글자·강조색과 제목 글꼴을 한 번에 바꿔요";
-    return "제목·부제·팁을 고쳐요";
+    return "바탕·글자·강조색과 제목 글꼴을 한 번에 바꿔요";
   }
 
   return (
@@ -246,30 +207,6 @@ export function InfoToolbar({
           )}
         </div>
         <div className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-2">
-          {active === "text" && (
-            <div className="flex w-full flex-col gap-3">
-              <TextField
-                label="제목"
-                value={spec.title}
-                max={TITLE_MAX}
-                onChange={(title) => dispatch({ type: "UPDATE_SPEC", patch: { title } })}
-              />
-              <TextField
-                rows={2}
-                label="부제"
-                value={spec.subtitle ?? ""}
-                max={SUBTITLE_MAX}
-                onChange={(subtitle) => dispatch({ type: "UPDATE_SPEC", patch: { subtitle } })}
-              />
-              <TextField
-                rows={3}
-                label="팁"
-                value={spec.tip ?? ""}
-                max={TIP_MAX}
-                onChange={(tip) => dispatch({ type: "UPDATE_SPEC", patch: { tip } })}
-              />
-            </div>
-          )}
 
 
           {active === "photo" && (
