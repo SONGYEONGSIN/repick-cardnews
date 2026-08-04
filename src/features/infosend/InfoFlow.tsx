@@ -18,7 +18,7 @@ import { infoReducer, initialInfoState } from "./reducer";
  */
 export function InfoFlow() {
   const [state, dispatch] = useReducer(infoReducer, initialInfoState);
-  const { registerRef, download, saveToFolder } = useExport();
+  const { registerRef, download, saveToFolder, captureImages } = useExport();
 
   const go = (step: number) => dispatch({ type: "SET_STEP", step });
   const card = toRenderCard(state);
@@ -45,6 +45,7 @@ export function InfoFlow() {
               templateIds: ["split"],
             })
           }
+          onCaptureImages={captureImages}
         />
       )}
 

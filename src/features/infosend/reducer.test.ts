@@ -4,6 +4,7 @@ import {
   initialInfoState,
   selectedPhoto,
   canLeaveInfoTopic,
+  captionSourceLines,
   canLeaveInfoWorkbench,
   bandForItems,
   ITEMS_MIN,
@@ -189,5 +190,28 @@ describe("3화면 IA", () => {
   it("카피가 있으면 내보내기로 간다", () => {
     const s = infoReducer({ ...initialInfoState, keyword: "여름 전기세" }, { type: "SET_SPEC", spec });
     expect(canLeaveInfoWorkbench(s)).toBe(true);
+  });
+});
+
+/**
+ * 정보전달에는 '헤드라인'이 없다 — 제목과 항목 키워드가 그 자리다. `defaultCaption` 은
+ * 줄 목록만 받으므로, 그 목록을 만드는 것이 이 함수다. **없는 말을 지어내지 않는다** —
+ * 카드에 이미 있는 글만 쓴다.
+ */
+describe("captionSourceLines", () => {
+  const withSpec = infoReducer(initialInfoState, { type: "SET_SPEC", spec });
+
+  it("제목을 첫 줄로, 항목 키워드를 뒤에 놓는다", () => {
+    expect(captionSourceLines(withSpec)).toEqual(["에어컨 전기세", "온도", "필터", "선풍기"]);
+  });
+
+  it("카피가 없으면 빈 목록이다 — 주제만으로 캡션이 만들어진다", () => {
+    expect(captionSourceLines(initialInfoState)).toEqual([]);
+  });
+
+  it("빈 제목·빈 키워드는 넣지 않는다", () => {
+    const blanked = infoReducer(withSpec, { type: "UPDATE_SPEC", patch: { title: "  " } });
+    const lines = captionSourceLines(infoReducer(blanked, { type: "UPDATE_ITEM", index: 0, patch: { keyword: "" } }));
+    expect(lines).toEqual(["필터", "선풍기"]);
   });
 });

@@ -71,6 +71,19 @@ export function canLeaveInfoTopic(state: InfoState): boolean {
   return state.keyword.trim().length > 0;
 }
 
+/**
+ * 캡션 초안의 재료 — 제목과 항목 키워드를 순서대로 준다. 카드뉴스는 헤드라인 목록을 그대로
+ * 쓰지만(`defaultCaption(keyword, headings)`) 정보전달엔 헤드라인이 없어 이 자리를 만든다.
+ *
+ * **카드에 있는 글만 쓴다** — 빈 값은 빼고, 없는 말은 지어내지 않는다.
+ */
+export function captionSourceLines(state: InfoState): string[] {
+  if (!state.spec) return [];
+  return [state.spec.title, ...state.spec.items.map((item) => item.keyword)]
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
 /** 카피가 있어야 내보낼 게 생긴다. 사진은 선택이라 여기서 보지 않는다. */
 export function canLeaveInfoWorkbench(state: InfoState): boolean {
   return state.spec !== null;
