@@ -12,7 +12,17 @@
 const EMOJI = /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{FE0F}\u{200D}\u{20E3}]/gu;
 
 export function stripEmoji(text: string): string {
-  return text.replace(EMOJI, "").replace(/\s+/g, " ").trim();
+  return (
+    text
+      .replace(EMOJI, "")
+      // 줄바꿈은 뜻이 있는 글자다(부제·팁·항목 설명이 여러 줄이 될 수 있다) — 줄 **안의**
+      // 공백만 줄이고, 줄 자체는 남긴다. `\s` 를 통째로 쓰면 사용자가 나눈 줄이 사라진다.
+      .replace(/[^\S\n]+/g, " ")
+      .split("\n")
+      .map((line) => line.trim())
+      .join("\n")
+      .trim()
+  );
 }
 
 /** 스펙처럼 중첩된 값 전체를 훑어 문자열마다 `stripEmoji` 를 건다. */

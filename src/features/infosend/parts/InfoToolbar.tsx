@@ -112,13 +112,17 @@ function TextField({
   value,
   max,
   onChange,
+  rows,
 }: {
   label: string;
   value: string;
   max: number;
   onChange: (v: string) => void;
+  /** 주면 여러 줄 칸이 된다 — 엔터로 줄을 나눌 수 있고 카드도 그대로 그린다. */
+  rows?: number;
 }) {
   const over = value.length > max;
+  const shared = `rounded-lg border border-hair px-3 py-2 text-[14px] transition-colors duration-200 focus:border-ink focus:outline-none ${FOCUS_RING} motion-reduce:transition-none`;
   return (
     <label className="flex flex-col gap-1">
       <span className="flex items-baseline gap-2">
@@ -131,11 +135,11 @@ function TextField({
           {value.length}/{max}
         </span>
       </span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`h-10 rounded-lg border border-hair px-3 text-[14px] transition-colors duration-200 focus:border-ink focus:outline-none ${FOCUS_RING} motion-reduce:transition-none`}
-      />
+      {rows === undefined ? (
+        <input value={value} onChange={(e) => onChange(e.target.value)} className={`h-10 ${shared}`} />
+      ) : (
+        <textarea value={value} rows={rows} onChange={(e) => onChange(e.target.value)} className={`resize-y ${shared}`} />
+      )}
     </label>
   );
 }
@@ -276,12 +280,14 @@ export function InfoToolbar({
                 onChange={(title) => dispatch({ type: "UPDATE_SPEC", patch: { title } })}
               />
               <TextField
+                rows={2}
                 label="부제"
                 value={spec.subtitle ?? ""}
                 max={SUBTITLE_MAX}
                 onChange={(subtitle) => dispatch({ type: "UPDATE_SPEC", patch: { subtitle } })}
               />
               <TextField
+                rows={3}
                 label="팁"
                 value={spec.tip ?? ""}
                 max={TIP_MAX}

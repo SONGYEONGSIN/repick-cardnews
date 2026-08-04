@@ -54,3 +54,21 @@ describe("stripEmojiDeep — 스펙 전체를 훑는다", () => {
     expect(stripEmojiDeep({ n: 5, ok: true, none: null })).toEqual({ n: 5, ok: true, none: null });
   });
 });
+
+/**
+ * 줄바꿈은 **뜻이 있는 글자**다(2026-08-04부터 부제·팁·항목 설명이 여러 줄이 될 수 있다).
+ * 이모지를 지우면서 줄까지 붙여 버리면 사용자가 나눈 줄이 사라진다.
+ */
+describe("stripEmoji 와 줄바꿈", () => {
+  it("줄바꿈은 남긴다", () => {
+    expect(stripEmoji("누진구간 넘기 전,\n냉방은 짧고 강하게")).toBe("누진구간 넘기 전,\n냉방은 짧고 강하게");
+  });
+
+  it("줄 안의 이어진 공백만 하나로 줄인다", () => {
+    expect(stripEmoji("앞줄   여백\n뒷줄   여백")).toBe("앞줄 여백\n뒷줄 여백");
+  });
+
+  it("이모지를 뗀 자리의 공백도 줄 단위로 정리한다", () => {
+    expect(stripEmoji("첫 줄 \u{1F31E}\n둘째 줄 \u{2705}")).toBe("첫 줄\n둘째 줄");
+  });
+});

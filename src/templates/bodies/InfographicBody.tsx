@@ -46,7 +46,7 @@ export function InfographicBody({
       )}
       {spec.subtitle && (
         <p
-          style={{ fontSize: px(compact ? 27 : 32), marginTop: 16, marginBottom: 8, opacity: 0.85, color: fg }}
+          style={{ fontSize: px(compact ? 27 : 32), marginTop: 16, marginBottom: 8, opacity: 0.85, color: fg, whiteSpace: "pre-line" }}
         >
           {spec.subtitle}
         </p>
@@ -96,6 +96,7 @@ export function InfographicBody({
               <p
                 style={{
                   fontSize: px(compact ? 23 : 27),
+                  whiteSpace: "pre-line",
                   lineHeight: 1.45,
                   marginTop: 10,
                   marginBottom: 0,
@@ -126,7 +127,7 @@ export function InfographicBody({
           >
             ✅ TIP{" "}
           </span>
-          <span style={{ fontSize: px(compact ? 23 : 27), color: fg }}>{spec.tip}</span>
+          <span style={{ fontSize: px(compact ? 23 : 27), color: fg, whiteSpace: "pre-line" }}>{spec.tip}</span>
         </div>
       )}
     </>
