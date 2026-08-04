@@ -1,4 +1,5 @@
-import { itemTexts, type InfoItem, type InfographicSpec } from "@/lib/schema";
+import { itemTexts, type InfoFormat, type InfoItem, type InfographicSpec } from "@/lib/schema";
+import { seedItemsFor } from "./formats";
 import type { Photo } from "@/lib/photos";
 import { move } from "@/lib/reorder";
 import { DEFAULT_BAND_INFO, DEFAULT_FOCAL, type Focal } from "@/templates/layout-utils";
@@ -12,6 +13,11 @@ type Item = InfographicSpec["items"][number];
 
 export type InfoState = {
   step: number;
+  /**
+   * 만들 정보전달 **형식**. 카피를 만들기 전에 고른다 — 담는 정보가 달라 생성 요청에
+   * 실려 가야 한다(`@/lib/schema` 의 INFO_FORMATS).
+   */
+  format: InfoFormat;
   photos: Photo[];
   selectedPhotoId: string | null;
   keyword: string;
@@ -37,6 +43,7 @@ export type InfoAction =
   | { type: "SET_BAND"; band: number }
   | { type: "SET_FOCAL"; focal: Focal }
   | { type: "SET_FIT"; patch: Partial<Fit> }
+  | { type: "SET_FORMAT"; format: InfoFormat }
   | { type: "SET_SPEC"; spec: InfographicSpec }
   | { type: "UPDATE_SPEC"; patch: Partial<Pick<InfographicSpec, "title" | "subtitle" | "tip">> }
   | { type: "UPDATE_ITEM"; index: number; patch: Partial<Item> }
@@ -50,6 +57,7 @@ export type InfoAction =
 
 export const initialInfoState: InfoState = {
   step: 0,
+  format: "list",
   photos: [],
   selectedPhotoId: null,
   keyword: "",
@@ -185,6 +193,15 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
       return state.spec ? withItems(state, move<InfoItem>(state.spec.items, action.from, action.to)) : state;
     case "SET_STEP":
       return { ...state, step: action.step };
+    case "SET_FORMAT": {
+      if (action.format === state.format) return state;
+      // 카피가 있으면 항목을 그 형식의 빈 항목으로 갈아 끼운다 — 칸이 달라 그대로 못 옮긴다.
+      // 제목·부제·팁은 남긴다: 형식이 달라도 그 글은 그대로 쓸 수 있다.
+      if (!state.spec) return { ...state, format: action.format };
+      const { items: _drop, ...rest } = state.spec;
+      const next = { ...rest, format: action.format, items: seedItemsFor(action.format) } as InfographicSpec;
+      return { ...state, format: action.format, spec: next };
+    }
     case "SET_FIT":
       // 범위 밖 값은 잘라서 넣는다 — 손잡이가 아닌 곳에서 들어와도 카드가 안 깨진다.
       return { ...state, fit: clampFit({ ...state.fit, ...action.patch }) };

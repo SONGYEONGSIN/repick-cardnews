@@ -24,6 +24,7 @@ const spec = {
 function state(overrides: Partial<InfoState> = {}): InfoState {
   return {
     step: 3,
+    format: "list",
     photos: [photo("p1")],
     selectedPhotoId: "p1",
     keyword: "에어컨 전기세",

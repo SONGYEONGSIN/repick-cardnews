@@ -1,8 +1,12 @@
 /** 카피 생성 API(`/api/generate`) 호출 래퍼. 실패 시 서버가 준 한국어 메시지를 그대로 던진다. */
+import type { InfoFormat } from "@/lib/schema";
+
 export async function requestSpec<T>(args: {
   type: "cardnews" | "informationsend";
   keyword: string;
   photos: string[];
+  /** 정보전달 형식. 서버가 이걸로 생성 규칙을 고르고, 모델이 빠뜨리면 채운다. */
+  format?: InfoFormat;
 }): Promise<T> {
   const res = await fetch("/api/generate", {
     method: "POST",
