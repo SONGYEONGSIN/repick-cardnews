@@ -80,7 +80,11 @@ async function stub(body: string): Promise<string> {
 
 const candidates: YoutubeCandidate[] = [{ videoId: "a", title: "제목1", channelTitle: "채널1", categoryId: "24" }];
 
-describe("curateTopicsWithClaude", () => {
+/**
+ * stub 을 쓰므로 **Windows 에서 건너뛴다** — 이유는 `claude-cli.test.ts` 의 `itWithStub` 주석에
+ * 적어 두었다(셰방을 Windows 가 읽지 않는다). 이 동작의 커버리지는 macOS·Linux 가 진다.
+ */
+describe.skipIf(process.platform === "win32")("curateTopicsWithClaude", () => {
   it("stub 이 스키마에 맞는 topics(rank 포함)를 내면 그대로 돌려준다", async () => {
     const command = await stub(
       `process.stdout.write(JSON.stringify({

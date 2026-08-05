@@ -131,6 +131,21 @@ async function stub(body: string): Promise<string> {
   return file;
 }
 
+/**
+ * stub 을 쓰는 테스트는 **Windows 에서 건너뛴다.**
+ *
+ * stub 은 첫 줄의 셰방(`#!/usr/bin/env node`)으로 실행되는데, 그 줄을 읽어 주는 것은 POSIX
+ * 커널이다. Windows 는 확장자로만 실행 파일을 판단하므로 확장자 없는 이 파일을 열지 못하고
+ * `spawn` 이 ENOENT 로 죽는다 — 그러면 무엇을 검사하든 `CliNotFound` 만 돌아온다.
+ *
+ * `.cmd` 래퍼로 바꿔도 안 된다(측정함, 2026-08-05): Node 18.20+ 는 `shell: true` 없는
+ * `.cmd` spawn 을 EINVAL 로 거부한다. 그렇다고 제품 코드에 `shell: true` 를 넣을 수는 없다 —
+ * `--system-prompt` 로 사용자 문구가 그대로 들어가므로 셸 주입 통로가 된다.
+ *
+ * 그래서 이 동작의 커버리지는 macOS·Linux 가 진다. 나머지 순수 함수 테스트는 어디서든 돈다.
+ */
+const itWithStub = it.skipIf(process.platform === "win32");
+
 const base: { system: string; content: ContentBlock[]; jsonSchema: object; model: string; timeoutMs: number } = {
   system: "시스템",
   content: [{ type: "text", text: "키워드" }],
@@ -140,14 +155,14 @@ const base: { system: string; content: ContentBlock[]; jsonSchema: object; model
 };
 
 describe("runClaudeCli", () => {
-  it("stub 이 낸 structured_output 을 돌려준다", async () => {
+  itWithStub("stub 이 낸 structured_output 을 돌려준다", async () => {
     const command = await stub(
       `process.stdout.write(JSON.stringify({ type: "result", is_error: false, structured_output: { ok: 1 } }) + "\\n")`,
     );
     await expect(runClaudeCli({ ...base, command })).resolves.toEqual({ ok: 1 });
   });
 
-  it("stdin 으로 stream-json 한 줄을 보낸다", async () => {
+  itWithStub("stdin 으로 stream-json 한 줄을 보낸다", async () => {
     const command = await stub(`
       let input = "";
       process.stdin.on("data", (c) => { input += c; });
@@ -159,7 +174,7 @@ describe("runClaudeCli", () => {
     expect(out).toEqual({ type: "user", message: { role: "user", content: base.content } });
   });
 
-  it("한도에 걸린 토큰을 자식에게 물려주지 않는다", async () => {
+  itWithStub("한도에 걸린 토큰을 자식에게 물려주지 않는다", async () => {
     const command = await stub(`
       process.stdout.write(JSON.stringify({
         type: "result",
@@ -191,7 +206,7 @@ describe("runClaudeCli", () => {
     await expect(promise).rejects.toThrow("claude 실행 파일 없음");
   });
 
-  it("제한 시간을 넘기면 CliTimeout 을 던진다", async () => {
+  itWithStub("제한 시간을 넘기면 CliTimeout 을 던진다", async () => {
     const command = await stub(`setTimeout(() => {}, 60000)`);
     const promise = runClaudeCli({ ...base, command, timeoutMs: 200 });
     await expect(promise).rejects.toThrow(CliTimeout);
@@ -199,7 +214,7 @@ describe("runClaudeCli", () => {
     await expect(promise).rejects.toThrow("제한 시간 초과");
   });
 
-  it("여러 청크로 나뉘어 오는 긴 한글 stdout 을 깨지지 않게 이어붙인다", async () => {
+  itWithStub("여러 청크로 나뉘어 오는 긴 한글 stdout 을 깨지지 않게 이어붙인다", async () => {
     // 64KB 를 훌쩍 넘겨 stdout 'data' 이벤트가 여러 번 나뉘어 오게 만든다.
     // per-chunk toString() 이면 멀티바이트 한글 문자가 청크 경계에서 U+FFFD 로 깨진다.
     const koreanText = "리픽 카드뉴스 카피 테스트 문장입니다. 한글이 청크 경계에서 깨지면 안 됩니다. ".repeat(3000);
@@ -212,7 +227,7 @@ describe("runClaudeCli", () => {
     expect(JSON.stringify(out)).not.toContain("�");
   });
 
-  it("자식이 stdin 을 읽지 않고 먼저 끝나도 EPIPE 로 프로세스를 죽이지 않는다", async () => {
+  itWithStub("자식이 stdin 을 읽지 않고 먼저 끝나도 EPIPE 로 프로세스를 죽이지 않는다", async () => {
     // 파이프 버퍼(64KB)를 훌쩍 넘는 stdin 을 자식이 전혀 읽지 않고 즉시 종료하면
     // stdin.end() 의 남은 쓰기가 EPIPE 로 실패한다. error 리스너가 없으면 Node 가
     // uncaughtException 으로 승격시켜 vitest 실행 자체가 죽는다 — 그것이 실패 신호다.
@@ -221,7 +236,7 @@ describe("runClaudeCli", () => {
     await expect(runClaudeCli({ ...base, content: bigContent, command })).rejects.toThrow(CliFailed);
   });
 
-  it("stderr 에 잡음이 섞여도 is_error 의 사용량 한도 사유가 살아남는다", async () => {
+  itWithStub("stderr 에 잡음이 섞여도 is_error 의 사용량 한도 사유가 살아남는다", async () => {
     // CLI 가 usage limit 로 is_error 결과를 내면서 동시에 stderr 에 (deprecation
     // warning 같은) 잡음도 쓰는 경우. stderr 를 사유로 통째로 대체하면 그 사유가
     // 사라져 사용량 한도 판정이 깨진다.
@@ -247,7 +262,7 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 describe("runClaudeCli 격리 인자", () => {
-  it("격리 플래그와 $schema 를 뗀 스키마를 그대로 넘긴다", async () => {
+  itWithStub("격리 플래그와 $schema 를 뗀 스키마를 그대로 넘긴다", async () => {
     const command = await stub(
       `process.stdout.write(JSON.stringify({ type: "result", is_error: false, structured_output: process.argv.slice(2) }) + "\\n")`,
     );
