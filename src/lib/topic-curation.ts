@@ -42,6 +42,31 @@ export function buildTopicCurationUserContent(candidates: YoutubeCandidate[]): C
   return [{ type: "text", text }];
 }
 
+/**
+ * 쿠팡 후보로 만드는 사용자 내용 — **"사람들이 지금 무엇을 사는가"** 를 증거로 준다.
+ *
+ * 유튜브 목록은 이미 주제 모양이지만(`여름 전기세 아끼는 법`) 쿠팡은 **상품 이름**이다.
+ * 그래서 무엇을 하라는지 못 박는다 — 안 그러면 `제습기` 같은 상품명이 그대로 주제로 나온다.
+ *
+ * 빈 목록이면 던진다: 근거 없이 주제를 지어내게 두지 않는다.
+ */
+export function buildSellingUserContent(items: readonly { name: string; category: string }[]): ContentBlock[] {
+  if (items.length === 0) {
+    throw new TopicCurationSchemaMismatch("잘 팔리는 상품이 하나도 없어 주제를 뽑을 수 없습니다");
+  }
+  const lines = items.map((it, i) => `${i + 1}. ${it.name} | 카테고리: ${it.category}`);
+  const text = [
+    "아래는 오늘 쿠팡에서 카테고리별로 가장 많이 팔린 상품 목록입니다.",
+    "이것은 사람들이 지금 무엇을 사는지에 대한 증거입니다.",
+    "",
+    "**상품 이름을 그대로 키워드로 쓰지 마세요.** 이 목록이 가리키는 관심사·계절·상황을 읽어",
+    "정보·팁 콘텐츠의 주제를 뽑으세요. 상품 홍보 주제는 만들지 마세요.",
+    "",
+    ...lines,
+  ].join("\n");
+  return [{ type: "text", text }];
+}
+
 export const CuratedTopicSchema = z.object({
   /** 데이터랩에 넣을 검색어. 짧고 일반화된 키워드 — 특정 인물명·브랜드명은 배제한다. */
   keyword: z.string().trim().min(1).max(20),
@@ -79,13 +104,28 @@ export type CurateTopicsOptions = {
   command?: string;
 };
 
+/**
+ * 후보의 **출처**. 유튜브는 보는 것을, 쿠팡은 사는 것을 준다 — 프롬프트가 다르다.
+ * 순위를 매기는 단계(네이버)는 두 출처가 똑같이 쓴다.
+ */
+export type TopicSource =
+  | { kind: "youtube"; candidates: YoutubeCandidate[] }
+  | { kind: "selling"; items: readonly { name: string; category: string }[] };
+
 export async function curateTopicsWithClaude(
-  candidates: YoutubeCandidate[],
+  source: YoutubeCandidate[] | TopicSource,
   options: CurateTopicsOptions = {},
 ): Promise<CuratedTopic[]> {
+  // 배열을 그대로 받는 옛 부름도 유지한다 — 유튜브 경로가 그렇게 부르고 있다.
+  const normalized: TopicSource = Array.isArray(source) ? { kind: "youtube", candidates: source } : source;
+  const content =
+    normalized.kind === "youtube"
+      ? buildTopicCurationUserContent(normalized.candidates)
+      : buildSellingUserContent(normalized.items);
+
   const raw = await runClaudeCli({
     system: buildTopicCurationSystemPrompt(),
-    content: buildTopicCurationUserContent(candidates),
+    content,
     jsonSchema: z.toJSONSchema(CuratedTopicsSchema),
     model: options.model ?? MODEL,
     timeoutMs: options.timeoutMs ?? TIMEOUT_MS,

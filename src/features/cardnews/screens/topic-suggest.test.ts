@@ -1,3 +1,4 @@
+import { buildTopicsQuery } from "@/features/cardnews/screens/material-finder";
 import { describe, it, expect } from "vitest";
 import {
   CANDIDATE_SOURCE,
@@ -88,7 +89,7 @@ describe("toTopicsView — 후보가 적거나 없을 때", () => {
   });
 
   it("건너뛴 유튜브 카테고리를 감추지 않고 그대로 들고 있다(없으면 빈 배열)", () => {
-    const withSkip = toTopicsView(200, okBody({ skippedYoutubeCategories: ["People & Blogs"] }));
+    const withSkip = toTopicsView(200, okBody({ skippedCategories: ["People & Blogs"] }));
     const without = toTopicsView(200, okBody());
 
     expect(withSkip.kind === "results" && withSkip.skipped).toEqual(["People & Blogs"]);
@@ -210,7 +211,7 @@ describe("출처 표시 — 어디서 가져온 주제인지", () => {
   });
 
   it("가져온 뒤에는 실제로 쓴 카테고리 이름을 붙여 준다", () => {
-    const view = toTopicsView(200, okBody({ youtubeCategories: ["살림·요리·꿀팁", "일상·브이로그"] }));
+    const view = toTopicsView(200, okBody({ sourceCategories: ["살림·요리·꿀팁", "일상·브이로그"] }));
 
     expect(candidateSourceLine(view)).toBe(`${CANDIDATE_SOURCE} · 살림·요리·꿀팁, 일상·브이로그`);
   });
@@ -220,7 +221,7 @@ describe("출처 표시 — 어디서 가져온 주제인지", () => {
   });
 
   it("주제가 0개여도 어디서 찾아봤는지는 밝힌다 — 빈손인 이유를 알아야 한다", () => {
-    const view = toTopicsView(200, { topics: [], youtubeCategories: ["살림·요리·꿀팁"] });
+    const view = toTopicsView(200, { topics: [], sourceCategories: ["살림·요리·꿀팁"] });
 
     expect(view.kind).toBe("empty");
     expect(candidateSourceLine(view)).toBe(`${CANDIDATE_SOURCE} · 살림·요리·꿀팁`);
@@ -251,5 +252,27 @@ describe("needsAttention — 사용자가 할 일이 있는 실패만 눈에 띄
       const view = toTopicsView(200, okBody({ rankedBy }));
       expect(view.kind === "results" && view.basis.needsAttention).toBe(false);
     }
+  });
+});
+
+/**
+ * 후보 출처가 둘이 됐다 — 유튜브(보는 것)와 쿠팡(사는 것). 순위를 매기는 자(렌즈)는 그대로
+ * 공유한다: 출처가 바뀌었다고 자가 달라지면 두 결과를 견줄 수 없다.
+ */
+describe("buildTopicsQuery — 출처", () => {
+  it("기본은 유튜브다 — 지금까지와 같다", () => {
+    const q = new URLSearchParams(buildTopicsQuery("search-trend", ""));
+    expect(q.get("source")).toBe("youtube");
+  });
+
+  it("잘 팔리는 것을 고르면 source=selling 이다", () => {
+    const q = new URLSearchParams(buildTopicsQuery("search-trend", "", "selling"));
+    expect(q.get("source")).toBe("selling");
+  });
+
+  it("출처를 바꿔도 렌즈는 그대로 실려 간다", () => {
+    const q = new URLSearchParams(buildTopicsQuery("shopping", "50000006", "selling"));
+    expect(q.get("lens")).toBe("shopping");
+    expect(q.get("shoppingCategory")).toBe("50000006");
   });
 });

@@ -66,7 +66,7 @@ export const FINDER_MODES: readonly { id: FinderMode; label: string; hint: strin
   {
     id: "curated",
     label: "소재 추천",
-    hint: "급상승에서 모아 Claude가 생활 정보 주제로 다듬어 줘요. 보통 1분 40초쯤 걸려요.",
+    hint: "요즘 보는 것(유튜브)이나 사는 것(쿠팡)에서 모아 Claude가 생활 정보 주제로 다듬어 줘요. 보통 1분 40초쯤 걸려요.",
   },
 ];
 
@@ -97,8 +97,21 @@ export function buildMaterialsQuery(mode: FinderMode, opts: { categoryIds: strin
   return params.toString();
 }
 
-export function buildTopicsQuery(lens: RankLens, shoppingCategoryId: string): string {
-  const params = new URLSearchParams({ lens });
+/** 후보를 어디서 가져올지. 유튜브는 **보는 것**, 쿠팡은 **사는 것**을 준다. */
+export type TopicSourceId = "youtube" | "selling";
+
+export const TOPIC_SOURCES: readonly { id: TopicSourceId; label: string; hint: string }[] = [
+  { id: "youtube", label: "요즘 보는 것", hint: "유튜브 인기 급상승에서 찾아요" },
+  { id: "selling", label: "요즘 사는 것", hint: "쿠팡에서 잘 팔리는 것으로 찾아요" },
+];
+
+export function buildTopicsQuery(
+  lens: RankLens,
+  shoppingCategoryId: string,
+  source: TopicSourceId = "youtube",
+): string {
+  // 출처가 바뀌어도 순위를 매기는 자(렌즈)는 그대로다 — 자가 달라지면 두 결과를 견줄 수 없다.
+  const params = new URLSearchParams({ lens, source });
   // 분야는 쇼핑인사이트일 때만 뜻이 있다 — 다른 렌즈에 실어 보내면 서버가 헷갈린다.
   if (lens === "shopping") params.set("shoppingCategory", shoppingCategoryId);
   return params.toString();

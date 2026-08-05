@@ -19,6 +19,8 @@ const ENV_KEYS = {
   youtubeApiKey: "YOUTUBE_API_KEY",
   naverClientId: "NAVER_CLIENT_ID",
   naverClientSecret: "NAVER_CLIENT_SECRET",
+  coupangAccessKey: "COUPANG_ACCESS_KEY",
+  coupangSecretKey: "COUPANG_SECRET_KEY",
 } as const;
 
 const ENV_LABELS = {
@@ -71,4 +73,23 @@ export function checkTopicsConfig(env: Record<string, string | undefined>): Topi
       naver: naverCheck.configured ? naverCheck.config : null,
     },
   };
+}
+
+/**
+ * 쿠팡 파트너스 — **선택**이다. 없으면 "요즘 잘 팔리는 것" 모드만 잠기고 유튜브·네이버는
+ * 그대로 돈다. 하나가 없다고 소재 찾기 전체가 막히면 안 된다.
+ *
+ * 두 키가 **다 있어야** 준비된 것이다 — 반쪽으로는 HMAC 서명을 만들 수 없다.
+ */
+export type CoupangConfig = { accessKey: string; secretKey: string };
+export type CoupangConfigCheck = { ready: true; config: CoupangConfig } | { ready: false; missing: string[] };
+
+export function checkCoupangConfig(env: Record<string, string | undefined>): CoupangConfigCheck {
+  const accessKey = env[ENV_KEYS.coupangAccessKey]?.trim();
+  const secretKey = env[ENV_KEYS.coupangSecretKey]?.trim();
+  const missing: string[] = [];
+  if (!accessKey) missing.push(`쿠팡 액세스 키(${ENV_KEYS.coupangAccessKey})`);
+  if (!secretKey) missing.push(`쿠팡 시크릿 키(${ENV_KEYS.coupangSecretKey})`);
+  if (missing.length > 0) return { ready: false, missing };
+  return { ready: true, config: { accessKey: accessKey as string, secretKey: secretKey as string } };
 }

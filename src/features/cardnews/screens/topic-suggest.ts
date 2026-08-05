@@ -96,8 +96,9 @@ export function toTopicsView(status: number, body: unknown): TopicsView {
     needsAttention: typeof record.rankedBy === "string" && NEEDS_ATTENTION_BASES.has(record.rankedBy),
   };
   const message = asString(record.message);
-  const categories = toStringList(record.youtubeCategories);
-  const skipped = toStringList(record.skippedYoutubeCategories);
+  // 출처가 둘(유튜브·쿠팡)이 되면서 이름이 중립적으로 바뀌었다.
+  const categories = toStringList(record.sourceCategories);
+  const skipped = toStringList(record.skippedCategories);
 
   if (topics.length === 0) return { kind: "empty", basis, message, categories, skipped };
   return { kind: "results", topics, basis, message, categories, skipped };

@@ -20,6 +20,8 @@ import {
   type FinderMode,
   type MaterialsView,
   type RankLens,
+  TOPIC_SOURCES,
+  type TopicSourceId,
 } from "./material-finder";
 
 /**
@@ -82,6 +84,9 @@ export function MaterialFinderScreen({
   const [lens, setLens] = useState<RankLens>("search-trend");
   const [shoppingCategoryId, setShoppingCategoryId] = useState("");
   const [naverConfigured, setNaverConfigured] = useState(false);
+  // 쿠팡도 선택이다 — 없으면 "요즘 사는 것" 만 잠기고 나머지는 그대로 쓴다.
+  const [coupangConfigured, setCoupangConfigured] = useState(false);
+  const [topicSource, setTopicSource] = useState<TopicSourceId>("youtube");
   const [fetchState, setFetchState] = useState<FetchState>({ kind: "idle" });
   const [elapsed, setElapsed] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -95,8 +100,9 @@ export function MaterialFinderScreen({
       .then((res) => (res.ok ? res.json() : null))
       .then((data: unknown) => {
         if (!alive) return;
-        const ok = typeof data === "object" && data !== null && (data as { naverConfigured?: unknown }).naverConfigured;
-        setNaverConfigured(ok === true);
+        const r = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+        setNaverConfigured(r.naverConfigured === true);
+        setCoupangConfigured(r.coupangConfigured === true);
       })
       .catch(() => undefined);
     return () => {
@@ -237,6 +243,38 @@ export function MaterialFinderScreen({
 
         {mode === "curated" && (
           <div className="flex flex-col gap-3">
+            <SectionHead title="어디에서 찾을까요" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {TOPIC_SOURCES.map((src) => {
+                // 쿠팡 키가 없으면 그 출처만 잠근다 — 눌러 봐야 100초 뒤에 막힌다.
+                const enabled = src.id === "youtube" || coupangConfigured;
+                const on = src.id === topicSource;
+                return (
+                  <label
+                    key={src.id}
+                    className={`flex flex-col gap-1.5 rounded-xl border-2 p-4 transition-colors duration-200 ${
+                      on ? "border-ink" : "border-hair"
+                    } ${enabled ? "cursor-pointer hover:border-ink-3" : "opacity-60"} motion-reduce:transition-none`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="topic-source"
+                        checked={on}
+                        disabled={!enabled}
+                        onChange={() => setTopicSource(src.id)}
+                        className={`h-4 w-4 accent-ink ${FOCUS_RING}`}
+                      />
+                      <span className="text-[16px] font-black tracking-tight">{src.label}</span>
+                    </span>
+                    <span className="text-[13px] leading-relaxed text-ink-2">
+                      {enabled ? src.hint : "쿠팡 파트너스 키를 .env.local 에 넣으면 쓸 수 있어요"}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
             <SectionHead title="무엇으로 줄 세울까요" />
             <div className="grid gap-3 sm:grid-cols-3">
               {RANK_LENSES.map((l) => {
@@ -310,7 +348,7 @@ export function MaterialFinderScreen({
                 한국어로 막아 주므로 할당량이 새지 않는다. */}
             <TopicSuggestPanel
               keyword={keyword}
-              query={buildTopicsQuery(lens, shoppingCategoryId)}
+              query={buildTopicsQuery(lens, shoppingCategoryId, topicSource)}
               onSelect={onPick}
             />
           </div>
