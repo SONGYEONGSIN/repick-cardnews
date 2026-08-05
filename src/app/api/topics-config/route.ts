@@ -7,12 +7,16 @@
  * 한쪽만 설정된 경우도 `false` 다(`checkNaverDatalabConfig` 가 둘 다 있어야 `configured`).
  * 반쪽 설정으로 렌즈를 열어 주면 사용자가 100초를 기다린 끝에 실패를 보게 된다.
  */
-import { checkNaverDatalabConfig } from "@/lib/topics-config";
+import { checkCoupangConfig, checkNaverDatalabConfig } from "@/lib/topics-config";
 import { isLocalHost } from "@/lib/local-guard";
 
 export async function GET(req: Request) {
   if (!isLocalHost(req.headers.get("host"))) {
     return Response.json({ error: "이 컴퓨터의 브라우저에서만 확인할 수 있어요." }, { status: 403 });
   }
-  return Response.json({ naverConfigured: checkNaverDatalabConfig(process.env).configured });
+  return Response.json({
+    naverConfigured: checkNaverDatalabConfig(process.env).configured,
+    // 쿠팡도 선택이다. 없는데 모드를 열어 두면 100초를 기다린 끝에 "설정이 없어요" 를 본다.
+    coupangConfigured: checkCoupangConfig(process.env).ready,
+  });
 }

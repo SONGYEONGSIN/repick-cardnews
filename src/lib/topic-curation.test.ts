@@ -2,14 +2,7 @@ import { mkdtemp, writeFile, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, expect } from "vitest";
-import {
-  buildTopicCurationSystemPrompt,
-  buildTopicCurationUserContent,
-  CuratedTopicsSchema,
-  curateTopicsWithClaude,
-  friendlyTopicCurationError,
-  TopicCurationSchemaMismatch,
-} from "@/lib/topic-curation";
+import { buildSellingUserContent, buildTopicCurationSystemPrompt, buildTopicCurationUserContent, CuratedTopicsSchema, curateTopicsWithClaude, friendlyTopicCurationError, TopicCurationSchemaMismatch } from "@/lib/topic-curation";
 import { CliNotFound, CliTimeout, CliFailed, NoStructuredOutput } from "@/lib/claude-cli";
 import type { YoutubeCandidate } from "@/lib/youtube-trending";
 
@@ -137,5 +130,38 @@ describe("friendlyTopicCurationError", () => {
     const msg = friendlyTopicCurationError(new CliFailed("boom"));
     expect(msg).not.toContain("boom");
     expect(msg).toContain("실패");
+  });
+});
+
+/**
+ * 후보의 **출처가 둘**이 됐다: 유튜브(보는 것)와 쿠팡(사는 것). 프롬프트가 그 차이를 말해
+ * 주지 않으면 Claude 가 상품명을 그대로 주제로 뱉는다 — `제습기` 는 주제가 아니다.
+ */
+describe("쿠팡 후보로 만드는 사용자 내용", () => {
+  const items = [
+    { name: "휴대용 선풍기", category: "가전디지털" },
+    { name: "스노클링 물안경", category: "스포츠/레저용품" },
+  ];
+
+  it("상품 이름과 카테고리를 담는다", () => {
+    const text = buildSellingUserContent(items)[0];
+    expect(text.type).toBe("text");
+    expect(text.type === "text" && text.text).toContain("휴대용 선풍기");
+    expect(text.type === "text" && text.text).toContain("스포츠/레저용품");
+  });
+
+  it("무엇을 뜻하는 목록인지 말해 준다 — '지금 팔리는 것'", () => {
+    const text = buildSellingUserContent(items)[0];
+    expect(text.type === "text" && text.text).toContain("팔린");
+  });
+
+  // 상품명을 그대로 주제로 뱉지 않게, 무엇을 하라는지 못 박는다.
+  it("상품이 아니라 주제를 뽑으라고 말한다", () => {
+    const text = buildSellingUserContent(items)[0];
+    expect(text.type === "text" && text.text).toContain("상품 이름을 그대로");
+  });
+
+  it("빈 목록이면 던진다 — 근거 없이 주제를 지어내게 두지 않는다", () => {
+    expect(() => buildSellingUserContent([])).toThrow();
   });
 });

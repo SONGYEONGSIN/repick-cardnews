@@ -154,7 +154,7 @@ describe("GET /api/topics 데이터랩 없음 — Claude 순위로 정렬", () =
     expect(data.note).toBeUndefined();
     expect(data.rankedBy).toBeUndefined();
     // 후보를 어디서 찾아봤는지는 여전히 밝힌다 — 빈손인 이유를 알아야 한다.
-    expect(data.youtubeCategories.length).toBeGreaterThan(0);
+    expect(data.sourceCategories.length).toBeGreaterThan(0);
   });
 
   it("빈 topics 면 200과 '오늘은 없다'는 한국어 message를 함께 준다", async () => {
@@ -283,12 +283,12 @@ describe("GET /api/topics 유튜브 카테고리 일부 실패 — 부분 실패
     expect(res.status).toBe(200);
     const data = await res.json();
     // 화면에 그대로 나가는 이름이라 한국어여야 한다 — 영문 카테고리명이 새어 나가면 안 된다.
-    expect(data.skippedYoutubeCategories).toEqual(["일상·브이로그"]);
+    expect(data.skippedCategories).toEqual(["일상·브이로그"]);
     // 실패한 것만 빼고, 실제로 쓴 카테고리도 밝힌다.
-    expect(data.youtubeCategories).toEqual(["살림·요리·꿀팁", "생활기술·가전"]);
+    expect(data.sourceCategories).toEqual(["살림·요리·꿀팁", "생활기술·가전"]);
   });
 
-  it("전부 성공하면 youtubeCategories에 쓴 카테고리 이름이 한국어로 전부 담긴다", async () => {
+  it("전부 성공하면 sourceCategories에 쓴 카테고리 이름이 한국어로 전부 담긴다", async () => {
     process.env.YOUTUBE_API_KEY = "yt-key";
     vi.stubGlobal("fetch", stubYoutubeSuccess());
     vi.mocked(runClaudeCli).mockResolvedValueOnce({
@@ -297,10 +297,10 @@ describe("GET /api/topics 유튜브 카테고리 일부 실패 — 부분 실패
 
     const data = await (await GET(makeRequest("localhost:3500"))).json();
 
-    expect(data.youtubeCategories).toEqual(["살림·요리·꿀팁", "일상·브이로그", "생활기술·가전"]);
+    expect(data.sourceCategories).toEqual(["살림·요리·꿀팁", "일상·브이로그", "생활기술·가전"]);
   });
 
-  it("카테고리를 하나도 못 건너뛰면(전부 성공) skippedYoutubeCategories 필드가 없다", async () => {
+  it("카테고리를 하나도 못 건너뛰면(전부 성공) skippedCategories 필드가 없다", async () => {
     process.env.YOUTUBE_API_KEY = "yt-key";
     vi.stubGlobal("fetch", stubYoutubeSuccess());
     vi.mocked(runClaudeCli).mockResolvedValueOnce({
@@ -310,7 +310,7 @@ describe("GET /api/topics 유튜브 카테고리 일부 실패 — 부분 실패
     const res = await GET(makeRequest("localhost:3500"));
     const data = await res.json();
 
-    expect(data.skippedYoutubeCategories).toBeUndefined();
+    expect(data.skippedCategories).toBeUndefined();
   });
 });
 
@@ -430,5 +430,28 @@ describe("GET /api/topics — 순위 렌즈 선택", () => {
     expect(res.status).toBe(200);
     expect(data.rankedBy).toBe("claude-shopping-unavailable");
     expect(data.topics).toHaveLength(1);
+  });
+});
+
+/**
+ * 후보 출처가 둘이 됐다: 유튜브(보는 것)와 쿠팡(사는 것). 순위를 매기는 단계(네이버)는
+ * 그대로 공유한다 — 출처가 바뀌었다고 자가 달라지면 두 결과를 비교할 수 없다.
+ */
+describe("GET source=selling", () => {
+  it("쿠팡 설정이 없으면 그 모드만 막고 이유를 한국어로 말한다", async () => {
+    delete process.env.COUPANG_ACCESS_KEY;
+    delete process.env.COUPANG_SECRET_KEY;
+
+    const res = await GET(new Request("http://localhost:3500/api/topics?source=selling", { headers: { host: "localhost:3500" } }));
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(/[가-힣]/.test(body.error)).toBe(true);
+    expect(body.error).toContain("COUPANG_ACCESS_KEY");
+  });
+
+  it("모르는 출처는 400 이다 — 100초를 쓰기 전에 막는다", async () => {
+    const res = await GET(new Request("http://localhost:3500/api/topics?source=이상한값", { headers: { host: "localhost:3500" } }));
+    expect(res.status).toBe(400);
   });
 });

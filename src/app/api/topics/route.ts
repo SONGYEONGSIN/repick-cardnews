@@ -21,10 +21,11 @@
  * 안팎(2026-08-02), 데이터랩이 붙으면 몇 초 더. 보통 100~110초다. 부르는 쪽은 이걸
  * 전제로 만들어야 한다 — 화면 진입만으로 자동 호출하면 사용자를 100초 세워 둔다.
  */
-import { checkTopicsConfig } from "@/lib/topics-config";
+import { checkCoupangConfig, checkTopicsConfig } from "@/lib/topics-config";
 import { isLocalHost } from "@/lib/local-guard";
 import { fetchYoutubeTrendingCandidates, friendlyYoutubeError } from "@/lib/youtube-trending";
-import { curateTopicsWithClaude, friendlyTopicCurationError, type CuratedTopic } from "@/lib/topic-curation";
+import { curateTopicsWithClaude, friendlyTopicCurationError, type CuratedTopic, type TopicSource } from "@/lib/topic-curation";
+import { fetchCoupangBestSellers, friendlyCoupangError } from "@/lib/coupang-best";
 import { rankKeywordsByNaverDatalab } from "@/lib/naver-datalab";
 import { isShoppingCategoryId, rankKeywordsByNaverShopping } from "@/lib/naver-shopping";
 
@@ -75,7 +76,7 @@ function topResultsByRank(curated: CuratedTopic[]): TopicResult[] {
 }
 
 /**
- * **출처를 밝힌다.** 후보는 언제나 유튜브에서 오고(`youtubeCategories`), 순위만 데이터랩이
+ * **출처를 밝힌다.** 후보는 언제나 유튜브에서 오고(`sourceCategories`), 순위만 데이터랩이
  * 매긴다(`rankedBy`·`note`) — 화면에서 둘이 경쟁하는 출처처럼 보이면 안 된다.
  *
  * 유튜브 카테고리 일부가 실패해도 파이프라인은 계속 가므로(`@/lib/youtube-trending`), 실제로
@@ -84,18 +85,18 @@ function topResultsByRank(curated: CuratedTopic[]): TopicResult[] {
 function respond(
   topics: TopicResult[],
   rankedBy: RankedBy,
-  youtubeCategories: string[],
-  skippedYoutubeCategories: string[],
+  sourceCategories: string[],
+  skippedCategories: string[],
 ) {
   const message = buildScarcityMessage(topics.length);
   return Response.json({
     topics,
     // 정렬할 게 없으면 순위 근거도 없다 — 없는 근거를 말하면 (네이버가 설정된 사람에게)
-    // 거짓이 된다. 후보를 어디서 찾아봤는지(`youtubeCategories`)는 빈손이어도 밝힌다.
+    // 거짓이 된다. 후보를 어디서 찾아봤는지(`sourceCategories`)는 빈손이어도 밝힌다.
     ...(topics.length > 0 ? { rankedBy, note: NOTE_BY_BASIS[rankedBy] } : {}),
-    youtubeCategories,
+    sourceCategories,
     ...(message ? { message } : {}),
-    ...(skippedYoutubeCategories.length > 0 ? { skippedYoutubeCategories } : {}),
+    ...(skippedCategories.length > 0 ? { skippedCategories } : {}),
   });
 }
 
@@ -104,16 +105,32 @@ export async function GET(req: Request) {
     return Response.json({ error: "트렌드 주제 가져오기는 이 컴퓨터의 브라우저에서만 할 수 있어요." }, { status: 403 });
   }
 
+  const url = new URL(req.url);
+
+  // 후보를 어디서 가져올지. 기본은 유튜브(보는 것), `selling` 은 쿠팡(사는 것)이다.
+  const source = url.searchParams.get("source") ?? "youtube";
+  if (source !== "youtube" && source !== "selling") {
+    return Response.json({ error: "어디에서 소재를 가져올지 알 수 없어요." }, { status: 400 });
+  }
+
+  // **출처마다 필요한 설정이 다르다.** 쿠팡으로 찾는데 유튜브 키를 요구하면, 없는 이유를
+  // 엉뚱하게 말하고 쓸 수 있는 기능까지 막는다.
+  const coupang = checkCoupangConfig(process.env);
+  if (source === "selling" && !coupang.ready) {
+    return Response.json(
+      { error: `잘 팔리는 것으로 소재를 찾으려면 설정이 필요해요: ${coupang.missing.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
   const configCheck = checkTopicsConfig(process.env);
-  if (!configCheck.ready) {
+  if (source === "youtube" && !configCheck.ready) {
     return Response.json(
       { error: `트렌드 주제를 가져올 설정이 없어요: ${configCheck.missing.join(", ")}` },
       { status: 400 },
     );
   }
-  const { config } = configCheck;
 
-  const url = new URL(req.url);
   const lens = url.searchParams.get("lens") ?? "search-trend";
   if (lens !== "search-trend" && lens !== "shopping" && lens !== "claude") {
     return Response.json({ error: "어떤 기준으로 순위를 매길지 알 수 없어요." }, { status: 400 });
@@ -124,33 +141,53 @@ export async function GET(req: Request) {
     return Response.json({ error: "쇼핑인사이트로 순위를 매기려면 분야를 골라 주세요." }, { status: 400 });
   }
 
-  let youtubeResult;
-  try {
-    youtubeResult = await fetchYoutubeTrendingCandidates(config.youtubeApiKey);
-  } catch (e) {
-    return Response.json({ error: friendlyYoutubeError(e) }, { status: 502 });
+  // 출처에 따라 후보를 모은다. 그 뒤 단계(주제화·순위)는 두 출처가 똑같이 쓴다.
+  let topicSource: TopicSource;
+  let sourceCategories: string[] = [];
+  let skippedCategories: string[] = [];
+
+  if (source === "selling") {
+    try {
+      const items = await fetchCoupangBestSellers(coupang.ready ? coupang.config : { accessKey: "", secretKey: "" });
+      topicSource = { kind: "selling", items };
+      sourceCategories = [...new Set(items.map((i) => i.category))];
+    } catch (e) {
+      return Response.json({ error: friendlyCoupangError(e) }, { status: 502 });
+    }
+  } else {
+    let youtubeResult;
+    try {
+      youtubeResult = await fetchYoutubeTrendingCandidates(
+        configCheck.ready ? configCheck.config.youtubeApiKey : "",
+      );
+    } catch (e) {
+      return Response.json({ error: friendlyYoutubeError(e) }, { status: 502 });
+    }
+    // 화면에 그대로 나가는 이름이라 영문 `label` 이 아니라 한국어 `displayName` 을 쓴다.
+    sourceCategories = youtubeResult.usedCategories.map((c) => c.displayName);
+    skippedCategories = youtubeResult.skippedCategories.map((c) => c.displayName);
+    topicSource = { kind: "youtube", candidates: youtubeResult.candidates };
   }
-  // 화면에 그대로 나가는 이름이라 영문 `label` 이 아니라 한국어 `displayName` 을 쓴다.
-  const youtubeCategories = youtubeResult.usedCategories.map((c) => c.displayName);
-  const skippedYoutubeCategories = youtubeResult.skippedCategories.map((c) => c.displayName);
 
   let curated: CuratedTopic[];
   try {
-    curated = await curateTopicsWithClaude(youtubeResult.candidates);
+    curated = await curateTopicsWithClaude(topicSource);
   } catch (e) {
     return Response.json({ error: friendlyTopicCurationError(e) }, { status: 502 });
   }
 
   if (curated.length === 0) {
-    return respond([], "claude-no-naver-config", youtubeCategories, skippedYoutubeCategories);
+    return respond([], "claude-no-naver-config", sourceCategories, skippedCategories);
   }
 
   if (lens === "claude") {
-    return respond(topResultsByRank(curated), "claude-lens-chosen", youtubeCategories, skippedYoutubeCategories);
+    return respond(topResultsByRank(curated), "claude-lens-chosen", sourceCategories, skippedCategories);
   }
 
-  if (!config.naver) {
-    return respond(topResultsByRank(curated), "claude-no-naver-config", youtubeCategories, skippedYoutubeCategories);
+  // 네이버 자는 두 출처가 똑같이 쓴다. 설정이 없으면 Claude 순서로 돌려준다.
+  const naver = configCheck.ready ? configCheck.config.naver : undefined;
+  if (!naver) {
+    return respond(topResultsByRank(curated), "claude-no-naver-config", sourceCategories, skippedCategories);
   }
 
   const keywords = curated.map((t) => t.keyword);
@@ -159,24 +196,24 @@ export async function GET(req: Request) {
   try {
     const ranked =
       lens === "shopping"
-        ? await rankKeywordsByNaverShopping(keywords, shoppingCategory, config.naver)
-        : await rankKeywordsByNaverDatalab(keywords, config.naver);
+        ? await rankKeywordsByNaverShopping(keywords, shoppingCategory, naver)
+        : await rankKeywordsByNaverDatalab(keywords, naver);
     const topics = ranked
       .slice(0, TOP_N)
       .map((r) => ({ keyword: r.keyword, reason: reasonByKeyword.get(r.keyword) ?? "" }));
     return respond(
       topics,
       lens === "shopping" ? "naver-shopping" : "naver-datalab",
-      youtubeCategories,
-      skippedYoutubeCategories,
+      sourceCategories,
+      skippedCategories,
     );
   } catch {
     // 순위는 선택 기능이다 — 실패해도 Claude 가 만들어 둔 결과를 버리지 않는다.
     return respond(
       topResultsByRank(curated),
       lens === "shopping" ? "claude-shopping-unavailable" : "claude-naver-unavailable",
-      youtubeCategories,
-      skippedYoutubeCategories,
+      sourceCategories,
+      skippedCategories,
     );
   }
 }

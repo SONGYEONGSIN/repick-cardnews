@@ -73,10 +73,17 @@ describe("쿼리 만들기", () => {
     );
   });
 
+  // 후보 출처가 둘이 되면서 `source` 가 함께 실린다(기본은 유튜브).
   it("소재 추천은 렌즈를 싣고, 쇼핑일 때만 분야를 함께 싣는다", () => {
-    expect(buildTopicsQuery("search-trend", "")).toBe("lens=search-trend");
-    expect(buildTopicsQuery("claude", "50000005")).toBe("lens=claude");
-    expect(buildTopicsQuery("shopping", "50000005")).toBe("lens=shopping&shoppingCategory=50000005");
+    expect(buildTopicsQuery("search-trend", "")).toBe("lens=search-trend&source=youtube");
+    expect(buildTopicsQuery("claude", "50000005")).toBe("lens=claude&source=youtube");
+    expect(buildTopicsQuery("shopping", "50000005")).toBe(
+      "lens=shopping&source=youtube&shoppingCategory=50000005",
+    );
+    // 출처를 바꿔도 렌즈·분야는 그대로 실린다.
+    expect(buildTopicsQuery("shopping", "50000005", "selling")).toBe(
+      "lens=shopping&source=selling&shoppingCategory=50000005",
+    );
   });
 });
 
