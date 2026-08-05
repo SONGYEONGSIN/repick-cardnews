@@ -85,6 +85,9 @@ describe("앱 안 링크가 살아 있는 라우트만 가리킨다", () => {
     const routes = new Set(
       readdirSync("src/app", { recursive: true })
         .filter((n): n is string => typeof n === "string" && n.endsWith("page.tsx"))
+        // Windows 의 readdir 은 `settings\page.tsx` 처럼 역슬래시로 준다. 링크는 어느 OS 에서든
+        // 정슬래시라, 여기서 맞춰 두지 않으면 살아 있는 라우트를 죽었다고 신고한다.
+        .map((n) => n.split(path.sep).join("/"))
         .map((n) => "/" + n.replace(/\/?page\.tsx$/, ""))
         .map((r) => (r === "/" ? "/" : r.replace(/\/$/, ""))),
     );
