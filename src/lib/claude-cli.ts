@@ -33,6 +33,25 @@ export function childEnv(parent: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return env;
 }
 
+/**
+ * 부를 `claude` 실행 파일. 기본은 PATH 위의 `claude` 다.
+ *
+ * Windows 에서는 그게 안 된다. npm 전역 bin(`%APPDATA%\npm`)에 있는 것은 `claude`(bash
+ * 스크립트)·`claude.cmd`·`claude.ps1` 뿐이고 Windows 가 실행 파일로 인정하는 `.exe` 가 없어
+ * `spawn` 이 ENOENT 로 죽는다. `.cmd` 를 직접 부르는 것도 막혀 있다 — Node 18.20+ 는
+ * `shell: true` 없는 `.cmd` spawn 을 EINVAL 로 거부한다. 그렇다고 `shell: true` 를 켤 수는
+ * 없다: `--system-prompt`·`--json-schema` 가 인자로 들어가므로 셸 인용 규칙을 타게 된다.
+ *
+ * 그래서 실행 파일 경로를 `.env.local` 에서 받는다(기계마다 다르고 커밋 대상이 아니다).
+ * 실측한 위치는 이랬다 — Windows 11, claude-code 2.1.222, 2026-08-05:
+ *   %APPDATA%\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe
+ *
+ * macOS·Linux 는 이 값을 두지 않으므로 지금까지와 똑같이 `claude` 를 쓴다.
+ */
+export function resolveClaudeCommand(configured = process.env.CLAUDE_CLI_PATH): string {
+  return configured?.trim() || "claude";
+}
+
 /** `claude` 실행 파일을 찾지 못했다. */
 export class CliNotFound extends Error {}
 /** CLI 가 실패를 보고했거나 결과 이벤트를 내지 않았다. */
@@ -84,7 +103,7 @@ export function runClaudeCli(args: {
 }): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const child = spawn(
-      args.command ?? "claude",
+      args.command ?? resolveClaudeCommand(),
       [
         "-p",
         "--input-format", "stream-json",

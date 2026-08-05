@@ -8,6 +8,7 @@ import {
   buildStreamJsonLine,
   childEnv,
   readStructuredOutput,
+  resolveClaudeCommand,
   runClaudeCli,
   CliFailed,
   NoStructuredOutput,
@@ -56,6 +57,31 @@ describe("buildStreamJsonLine", () => {
     };
     const parsed = JSON.parse(buildStreamJsonLine([image, { type: "text", text: "설명" }]));
     expect(parsed.message.content[0]).toEqual(image);
+  });
+});
+
+/**
+ * Windows 에서는 `spawn("claude")` 가 실패한다 — npm 전역 bin 에 있는 것은 `claude`(bash
+ * 스크립트)·`claude.cmd`·`claude.ps1` 뿐이고 Windows 가 실행할 수 있는 `.exe` 가 없다.
+ * 그래서 실행 파일 위치를 `.env.local` 에서 받는다. macOS·Linux 는 그 값이 없으므로
+ * 지금까지처럼 `claude` 를 그대로 쓴다 — **동작이 달라지지 않아야 한다.**
+ */
+describe("resolveClaudeCommand", () => {
+  it("설정이 없으면 claude 를 쓴다 — macOS·Linux 의 지금 동작", () => {
+    expect(resolveClaudeCommand(undefined)).toBe("claude");
+  });
+
+  it("경로가 설정돼 있으면 그것을 쓴다", () => {
+    expect(resolveClaudeCommand("C:/n/claude.exe")).toBe("C:/n/claude.exe");
+  });
+
+  it("빈 값·공백만 있는 값은 없는 것으로 친다 — 주석 처리하다 남은 빈 칸에 걸리지 않게", () => {
+    expect(resolveClaudeCommand("")).toBe("claude");
+    expect(resolveClaudeCommand("   ")).toBe("claude");
+  });
+
+  it("경로 앞뒤 공백은 떼어 낸다 — 붙여 넣다 딸려 온 공백으로 실행이 깨지지 않게", () => {
+    expect(resolveClaudeCommand("  /usr/local/bin/claude  ")).toBe("/usr/local/bin/claude");
   });
 });
 
