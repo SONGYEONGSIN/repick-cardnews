@@ -9,11 +9,12 @@ import { TopicSuggestPanel } from "./TopicSuggestPanel";
 import { elapsedLabel } from "./topic-suggest";
 import {
   FINDER_CATEGORIES,
-  FINDER_SHOPPING_CATEGORIES,
+  SELLING_SHOPPING_CATEGORIES,
   FINDER_MODES,
   RANK_LENSES,
   buildMaterialsQuery,
   buildTopicsQuery,
+  lensAfterSourceChange,
   lensAvailability,
   materialsSourceLine,
   toMaterialsView,
@@ -262,7 +263,12 @@ export function MaterialFinderScreen({
                         name="topic-source"
                         checked={on}
                         disabled={!enabled}
-                        onChange={() => setTopicSource(src.id)}
+                        onChange={() => {
+                          setTopicSource(src.id);
+                          // 출처를 바꾸면 고른 렌즈가 못 쓰는 것이 될 수 있다 — 흐린 렌즈가
+                          // 선택된 채 남지 않게 쓸 수 있는 것으로 되돌린다.
+                          setLens(lensAfterSourceChange(lens, naverConfigured, src.id));
+                        }}
                         className={`h-4 w-4 accent-ink ${FOCUS_RING}`}
                       />
                       <span className="text-[16px] font-black tracking-tight">{src.label}</span>
@@ -278,7 +284,7 @@ export function MaterialFinderScreen({
             <SectionHead title="무엇으로 줄 세울까요" />
             <div className="grid gap-3 sm:grid-cols-3">
               {RANK_LENSES.map((l) => {
-                const { enabled, reason } = lensAvailability(l.id, naverConfigured);
+                const { enabled, reason } = lensAvailability(l.id, naverConfigured, topicSource);
                 const on = l.id === lens;
                 return (
                   <label
@@ -318,7 +324,9 @@ export function MaterialFinderScreen({
                   className={`h-[52px] w-full max-w-sm rounded-xl border-2 border-hair bg-surface px-4 text-[16px] font-bold focus:border-ink focus:outline-none ${FOCUS_RING}`}
                 >
                   <option value="">분야를 골라 주세요</option>
-                  {FINDER_SHOPPING_CATEGORIES.map((c) => (
+                  {/* 쇼핑인사이트는 '요즘 사는 것' 에서만 고를 수 있으므로 여기 오는 소재는
+                      언제나 쿠팡에서 온다 — 쿠팡이 긁지 않는 분야는 아예 내놓지 않는다. */}
+                  {SELLING_SHOPPING_CATEGORIES.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>

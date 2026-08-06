@@ -51,6 +51,37 @@ export const FINDER_SHOPPING_CATEGORIES: readonly FinderChoice[] = [
   { id: "50000007", name: "스포츠·레저" },
 ];
 
+/**
+ * 쿠팡 소재와 짝이 맞는 쇼핑인사이트 분야의 id.
+ *
+ * 쿠팡은 **네 분야만** 긁는다(`@/lib/coupang-best` 의 `COUPANG_SEASONAL_CATEGORIES`):
+ * 가전디지털 · 주방용품 · 신선식품 · 자동차용품. 그런데 쇼핑인사이트 분야는 아홉이라
+ * 패션의류처럼 쿠팡이 가져오지도 않는 분야를 고를 수 있었다. 고르면 데이터가 없어 Claude
+ * 순위로 밀린다 — 유튜브에 쇼핑인사이트를 걸었을 때와 똑같은 헛수고다.
+ *
+ * 짝을 이렇게 봤다(**측정값이 아니라 판단이다**):
+ * | 쿠팡 | 쇼핑인사이트 |
+ * |---|---|
+ * | 가전디지털 | 디지털·가전 |
+ * | 신선식품 | 식품 |
+ * | 주방용품 | 생활·건강 · 가구·인테리어 |
+ * | 자동차용품 | **없음** — 쇼핑인사이트에 대응 분야가 없다 |
+ *
+ * 자동차용품 소재는 어느 분야로도 제대로 줄 서지 않는다. 그래서 분야를 늘리는 대신 그 한계를
+ * 여기 적어 둔다 — 없는 분야를 만들어 주는 것보다 낫다.
+ */
+export const SELLING_SHOPPING_CATEGORY_IDS: ReadonlySet<string> = new Set([
+  "50000003", // 디지털·가전
+  "50000006", // 식품
+  "50000008", // 생활·건강
+  "50000004", // 가구·인테리어
+]);
+
+/** 위 id 로 추린 목록. **손으로 다시 적지 않고 걸러 낸다** — 이름이 두 곳에서 갈리지 않게. */
+export const SELLING_SHOPPING_CATEGORIES: readonly FinderChoice[] = FINDER_SHOPPING_CATEGORIES.filter((c) =>
+  SELLING_SHOPPING_CATEGORY_IDS.has(c.id),
+);
+
 /** 모드는 **속도**로 갈린다 — 앞의 둘은 Claude 를 안 써서 1~2초, 마지막은 100초. */
 export const FINDER_MODES: readonly { id: FinderMode; label: string; hint: string }[] = [
   {
@@ -84,10 +115,43 @@ export const RANK_LENSES: readonly { id: RankLens; label: string; hint: string }
   { id: "claude", label: "Claude 판단", hint: "네이버 없이 Claude가 본 관련성 순서로 줄 세워요." },
 ];
 
-/** 네이버 키가 없으면 네이버 렌즈는 **막되 숨기지 않는다** — 왜 못 쓰는지 알아야 넣을 수 있다. */
-export function lensAvailability(lens: RankLens, naverConfigured: boolean): { enabled: boolean; reason: string | null } {
-  if (lens === "claude" || naverConfigured) return { enabled: true, reason: null };
-  return { enabled: false, reason: "네이버 클라이언트 ID·시크릿을 넣으면 쓸 수 있어요." };
+/**
+ * 렌즈를 고를 수 있는지. **막되 숨기지 않는다** — 왜 못 쓰는지 알아야 풀 수 있다.
+ *
+ * 막는 이유가 둘이고 성격이 다르다:
+ *
+ * 1. **네이버 키가 없다** — 설정 문제라 화면에서 무엇을 눌러도 안 풀린다. 그래서 먼저 말한다.
+ * 2. **쇼핑인사이트인데 후보가 유튜브에서 온다** — 쇼핑인사이트는 쇼핑 클릭 비중으로 줄
+ *    세우는데 유튜브 후보에는 물건이 아닌 것이 많다(`감자전 레시피`). 데이터가 없어 결국
+ *    Claude 순위로 폴백되는데, 그걸 100초 기다린 뒤에 알게 된다. 고르기 전에 막는다.
+ *
+ * 서버(`/api/topics`)는 이 조합을 계속 받아 준다 — 거기서는 폴백이 옳은 답이다(`rankedBy` 로
+ * 무엇으로 줄 세웠는지 밝힌다). 여기서 막는 것은 **사람의 100초를 아끼려는 것**이지 조합이
+ * 위험해서가 아니다.
+ */
+export function lensAvailability(
+  lens: RankLens,
+  naverConfigured: boolean,
+  source: TopicSourceId = "youtube",
+): { enabled: boolean; reason: string | null } {
+  if (lens === "claude") return { enabled: true, reason: null };
+  if (!naverConfigured) return { enabled: false, reason: "네이버 클라이언트 ID·시크릿을 넣으면 쓸 수 있어요." };
+  if (lens === "shopping" && source !== "selling") {
+    return { enabled: false, reason: "‘요즘 사는 것’으로 찾을 때만 쓸 수 있어요 — 물건이라야 쇼핑 데이터가 있어요." };
+  }
+  return { enabled: true, reason: null };
+}
+
+/**
+ * 출처를 바꾼 뒤에 쓸 렌즈. 고른 렌즈가 여전히 쓸 수 있으면 **그대로 둔다** — 사용자가 고른
+ * 것을 함부로 바꾸지 않는다. 못 쓰게 됐을 때만 쓸 수 있는 것으로 되돌린다.
+ *
+ * 이걸 안 하면 흐려진 렌즈가 선택된 채 남고, 그 조합으로 요청이 나간다.
+ */
+export function lensAfterSourceChange(lens: RankLens, naverConfigured: boolean, source: TopicSourceId): RankLens {
+  if (lensAvailability(lens, naverConfigured, source).enabled) return lens;
+  if (lensAvailability("search-trend", naverConfigured, source).enabled) return "search-trend";
+  return "claude";
 }
 
 export function buildMaterialsQuery(mode: FinderMode, opts: { categoryIds: string[]; query: string }): string {
