@@ -21,7 +21,7 @@ function clearEnv() {
 afterEach(clearEnv);
 
 describe("GET /api/instagram-status", () => {
-  it("설정이 하나도 없으면 ready:false 와 빠진 항목 세 개를 돌려준다", async () => {
+  it("설정이 하나도 없으면 ready:false 와 빠진 항목 두 개를 돌려준다", async () => {
     clearEnv();
 
     const res = await GET();
@@ -29,7 +29,7 @@ describe("GET /api/instagram-status", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.ready).toBe(false);
-    expect(data.missing).toHaveLength(3);
+    expect(data.missing).toHaveLength(2);
   });
 
   it("토큰만 없으면 토큰 항목만 빠졌다고 알려준다", async () => {
@@ -57,7 +57,8 @@ describe("GET /api/instagram-status", () => {
     expect(JSON.stringify(data)).not.toContain("long-lived-secret-token");
   });
 
-  it("공개 주소만 없으면 ready:false 지만 connected:true 로 연결은 됐음을 알려준다", async () => {
+  // 인스타그램이 Blob 주소에서 직접 가져가므로 공개 주소는 더 이상 게시 조건이 아니다.
+  it("공개 주소가 없어도 ready:true 다 — 인스타그램은 Blob 에서 가져간다", async () => {
     clearEnv();
     process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID = "17841400000000000";
     process.env.INSTAGRAM_ACCESS_TOKEN = "long-lived-secret-token";
@@ -65,9 +66,7 @@ describe("GET /api/instagram-status", () => {
     const res = await GET();
 
     const data = await res.json();
-    expect(data.ready).toBe(false);
-    expect(data.connected).toBe(true);
-    expect(data.missing).toEqual(["공개 주소(PUBLIC_BASE_URL)"]);
+    expect(data.ready).toBe(true);
   });
 
   it("토큰이 없으면 connected:false 로 연결 자체가 안 됐음을 알려준다", async () => {

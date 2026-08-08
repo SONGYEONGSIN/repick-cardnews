@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 import { createShareToken, SHARE_TOKEN_TTL_MS } from "@/lib/share-token";
-import { saveShare } from "@/lib/share-store";
+import { saveShare } from "@/lib/share-blob";
 import { findLanAddress } from "@/lib/lan-address";
 
 /**
@@ -56,11 +56,11 @@ export async function POST(req: Request) {
     const token = createShareToken();
     const issuedAt = Date.now();
 
-    saveShare(token, {
-      images: parsed.data.images.map((b64) => Buffer.from(b64, "base64")),
-      keyword: parsed.data.keyword,
-      issuedAt,
-    });
+    await saveShare(
+      token,
+      parsed.data.images.map((b64) => Buffer.from(b64, "base64")),
+      { keyword: parsed.data.keyword, issuedAt },
+    );
 
     const host = findLanAddress();
     const link = host ? `http://${host}:${DEV_PORT}/s/${token}` : null;

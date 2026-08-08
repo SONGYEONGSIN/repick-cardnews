@@ -1,13 +1,12 @@
 import { z } from "zod/v4";
 import { randomUUID } from "node:crypto";
-import { loadShare } from "@/lib/share-store";
+import { deleteShare, loadShare } from "@/lib/share-blob";
 import { appendItem } from "@/lib/schedule-queue";
 import { checkInstagramConfig } from "@/lib/instagram-config";
 import {
   publishCarousel,
   publishSingleImage,
   publishKindFor,
-  buildCarouselImageUrls,
   friendlyPublishError,
   PUBLISHABLE_MIN_ITEMS,
   CAROUSEL_MAX_ITEMS,
@@ -70,24 +69,26 @@ export async function POST(req: Request) {
     );
   }
 
-  const entry = loadShare(parsed.data.token, Date.now());
+  const entry = await loadShare(parsed.data.token, Date.now());
   if (!entry) {
     return Response.json({ error: "공유 링크가 없거나 만료됐어요" }, { status: 404 });
   }
 
   // 예약 실행기(`@/lib/schedule-runner`)와 **같은 갈림**을 쓴다 — 한쪽만 1장을 받으면
   // 손으로는 올라가는데 예약하면 실패한다.
-  const kind = publishKindFor(entry.images.length);
+  const kind = publishKindFor(entry.urls.length);
   if (!kind) {
     return Response.json(
       {
-        error: `한 번에 ${PUBLISHABLE_MIN_ITEMS}~${CAROUSEL_MAX_ITEMS}장까지 게시할 수 있어요 (현재 ${entry.images.length}장)`,
+        error: `한 번에 ${PUBLISHABLE_MIN_ITEMS}~${CAROUSEL_MAX_ITEMS}장까지 게시할 수 있어요 (현재 ${entry.urls.length}장)`,
       },
       { status: 400 },
     );
   }
 
-  const imageUrls = buildCarouselImageUrls(configCheck.config.publicBaseUrl, parsed.data.token, entry.images.length);
+  // 인스타그램이 **Blob 주소에서 직접** 가져간다. 예전에는 우리 서버의 `/s/...` 를 줬는데,
+  // 그러면 그 순간 우리 서버가 살아 있고 인터넷에서 닿아야 했다 — 제일 약한 고리였다.
+  const imageUrls = entry.urls;
 
   // 게시가 도는 동안 어디까지 갔는지 이 토큰 아래 기록해 둔다 — 화면(`/api/publish-progress`)이
   // 몇 초 간격으로 읽어간다. 끝나면(성공이든 실패든) `finally`에서 반드시 지운다 — 정리를
@@ -107,16 +108,29 @@ export async function POST(req: Request) {
         : await publishCarousel({ config: configCheck.config, imageUrls, caption }, undefined, onProgress);
     // 손으로 올린 것도 **예약과 같은 장부**에 남긴다 — 안 남기면 "올라갔나?" 를 인스타에
     // 가서 봐야 한다. 실패하면 남기지 않는다: 안 올라간 것을 올렸다고 적지 않는다.
-    appendItem({
-      id: randomUUID(),
-      scheduledAt: Date.now(),
-      caption,
-      imageCount: entry.images.length,
-      keyword: entry.keyword,
-      status: "published",
-      updatedAt: Date.now(),
-      createdAt: Date.now(),
-    });
+    //
+    // **장부 실패가 게시를 실패로 만들면 안 된다.** 장부는 디스크에 쓰는데 배포 서버는 그
+    // 디렉터리를 못 쓴다 — 그대로 두면 인스타에는 올라갔는데 화면은 "실패" 라고 말한다.
+    // 거짓 보고가 기록 누락보다 나쁘다.
+    try {
+      appendItem({
+        id: randomUUID(),
+        scheduledAt: Date.now(),
+        caption,
+        imageCount: entry.urls.length,
+        keyword: entry.keyword,
+        status: "published",
+        updatedAt: Date.now(),
+        createdAt: Date.now(),
+      });
+    } catch (e) {
+      console.error("[장부 기록 실패] 게시는 성공했다", publishFailureDetail(e, [configCheck.config.accessToken]));
+    }
+
+    // 1회용이다. 올렸으면 지운다 — 남겨 두면 아직 안 올린 카드와 섞여 저장 용량만 먹는다.
+    // 여기서 실패해도 게시 결과를 바꾸지 않는다.
+    await deleteShare(parsed.data.token).catch(() => undefined);
+
     return Response.json({ mediaId });
   } catch (e) {
     // 사용자에게는 한국어 안내만 보낸다. 원인은 서버 콘솔에만 남긴다 — 토큰은 가린다.

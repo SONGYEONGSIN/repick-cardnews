@@ -4,9 +4,24 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { POST } from "@/app/api/publish/route";
-import { saveShare } from "@/lib/share-store";
+import { saveShare } from "@/lib/share-blob";
 import { readPublishProgress } from "@/lib/publish-progress-store";
 import { readQueue, scheduleRoot } from "@/lib/schedule-queue";
+
+// Blob 은 네트워크다 — 이 테스트는 node 환경에서 돌고 바깥을 타면 안 된다. 토큰별로 넣은
+// 만큼의 주소를 돌려주는 최소 흉내만 낸다. share-blob 자신의 판단은 `share-blob.test.ts`.
+const blobs = new Map<string, { urls: string[]; keyword: string; issuedAt: number }>();
+vi.mock("@/lib/share-blob", () => ({
+  saveShare: vi.fn(async (token: string, images: Buffer[], meta: { keyword: string; issuedAt: number }) => {
+    const urls = images.map((_, i) => `https://blob.example/share/${token}/${i + 1}.png`);
+    blobs.set(token, { urls, ...meta });
+    return urls;
+  }),
+  loadShare: vi.fn(async (token: string) => blobs.get(token) ?? null),
+  deleteShare: vi.fn(async (token: string) => {
+    blobs.delete(token);
+  }),
+}));
 
 /**
  * 로그인 판정은 미들웨어(`src/middleware.ts`)가 하고 그 로직은 `@/lib/auth.test.ts` 가
@@ -73,7 +88,7 @@ describe("POST /api/publish 진행 상황 기록·정리", () => {
     setFullEnv();
     stubSuccessfulGraphApi();
     const token = randomUUID();
-    saveShare(token, { images: [Buffer.from("a"), Buffer.from("b")], keyword: "테스트", issuedAt: Date.now() });
+    await saveShare(token, [Buffer.from("a"), Buffer.from("b")], { keyword: "테스트", issuedAt: Date.now() });
 
     const res = await POST(makeRequest("localhost:3500", { token, caption: "" }));
 
@@ -90,7 +105,7 @@ describe("POST /api/publish 진행 상황 기록·정리", () => {
     }));
     vi.stubGlobal("fetch", mockFetch);
     const token = randomUUID();
-    saveShare(token, { images: [Buffer.from("a"), Buffer.from("b")], keyword: "테스트", issuedAt: Date.now() });
+    await saveShare(token, [Buffer.from("a"), Buffer.from("b")], { keyword: "테스트", issuedAt: Date.now() });
 
     const res = await POST(makeRequest("localhost:3500", { token, caption: "" }));
 
@@ -129,7 +144,7 @@ describe("POST /api/publish 진행 상황 기록·정리", () => {
     });
     vi.stubGlobal("fetch", mockFetch);
     const token = randomUUID();
-    saveShare(token, { images: [Buffer.from("a"), Buffer.from("b")], keyword: "테스트", issuedAt: Date.now() });
+    await saveShare(token, [Buffer.from("a"), Buffer.from("b")], { keyword: "테스트", issuedAt: Date.now() });
 
     await POST(makeRequest("localhost:3500", { token, caption: "" }));
 
@@ -158,7 +173,7 @@ describe("POST /api/publish 해시태그 검증·결합", () => {
   it("해시태그가 5개를 넘으면 400과 한국어 사유로 거절한다", async () => {
     setFullEnv();
     const token = randomUUID();
-    saveShare(token, { images: [Buffer.from("a"), Buffer.from("b")], keyword: "테스트", issuedAt: Date.now() });
+    await saveShare(token, [Buffer.from("a"), Buffer.from("b")], { keyword: "테스트", issuedAt: Date.now() });
 
     const res = await POST(
       makeRequest("localhost:3500", {
@@ -204,7 +219,7 @@ describe("POST /api/publish 해시태그 검증·결합", () => {
     });
     vi.stubGlobal("fetch", mockFetch);
     const token = randomUUID();
-    saveShare(token, { images: [Buffer.from("a"), Buffer.from("b")], keyword: "테스트", issuedAt: Date.now() });
+    await saveShare(token, [Buffer.from("a"), Buffer.from("b")], { keyword: "테스트", issuedAt: Date.now() });
 
     const res = await POST(
       makeRequest("localhost:3500", { token, caption: "오늘의 카드뉴스", hashtags: ["다이어트", "헬스"] })
@@ -253,7 +268,7 @@ describe("POST /api/publish 장수에 따른 갈림", () => {
     setFullEnv();
     const bodies = stubSingleImageGraphApi();
     const token = randomUUID();
-    saveShare(token, { images: [Buffer.from("a")], keyword: "여름 전기세", issuedAt: Date.now() });
+    await saveShare(token, [Buffer.from("a")], { keyword: "여름 전기세", issuedAt: Date.now() });
 
     const res = await POST(makeRequest("localhost:3500", { token, caption: "한 장" }));
 
@@ -267,7 +282,7 @@ describe("POST /api/publish 장수에 따른 갈림", () => {
     setFullEnv();
     const bodies = stubSingleImageGraphApi();
     const token = randomUUID();
-    saveShare(token, { images: [Buffer.from("a")], keyword: "여름 전기세", issuedAt: Date.now() });
+    await saveShare(token, [Buffer.from("a")], { keyword: "여름 전기세", issuedAt: Date.now() });
 
     await POST(makeRequest("localhost:3500", { token, caption: "본문", hashtags: ["살림"] }));
 
@@ -280,7 +295,7 @@ describe("POST /api/publish 장수에 따른 갈림", () => {
   it("한 장도 아니면(0장) 한국어로 거절한다", async () => {
     setFullEnv();
     const token = randomUUID();
-    saveShare(token, { images: [], keyword: "빈 것", issuedAt: Date.now() });
+    await saveShare(token, [], { keyword: "빈 것", issuedAt: Date.now() });
 
     const res = await POST(makeRequest("localhost:3500", { token, caption: "" }));
 
@@ -309,7 +324,7 @@ describe("POST 업로드 기록", () => {
     setFullEnv();
     stubSuccessfulGraphApi();
     const token = randomUUID();
-    saveShare(token, { images: [Buffer.from("a"), Buffer.from("b")], keyword: "수원 갈비", issuedAt: Date.now() });
+    await saveShare(token, [Buffer.from("a"), Buffer.from("b")], { keyword: "수원 갈비", issuedAt: Date.now() });
 
     const res = await POST(makeRequest("localhost:3500", { token, caption: "본문", hashtags: ["살림"] }));
 
@@ -329,7 +344,7 @@ describe("POST 업로드 기록", () => {
     );
     const before = readQueue(scheduleRoot()).length;
     const token = randomUUID();
-    saveShare(token, { images: [Buffer.from("a"), Buffer.from("b")], keyword: "실패분", issuedAt: Date.now() });
+    await saveShare(token, [Buffer.from("a"), Buffer.from("b")], { keyword: "실패분", issuedAt: Date.now() });
 
     await POST(makeRequest("localhost:3500", { token, caption: "", hashtags: [] }));
 
