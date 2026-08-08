@@ -105,6 +105,33 @@ describe("childEnv", () => {
     childEnv(parent);
     expect(parent.ANTHROPIC_AUTH_TOKEN).toBe("t");
   });
+
+  // 로컬 OAuth 세션이 없는 곳(배포 서버)에서는 토큰을 넘겨야 CLI 가 돈다. 다만 `.env.local`
+  // 에 남은 옛 토큰이 새는 것은 여전히 막아야 하므로, **이 앱만 쓰는 이름**으로 받은 값만
+  // 통과시킨다.
+  it("REPICK_CLAUDE_OAUTH_TOKEN 이 있으면 그 값을 CLI 토큰으로 넘긴다", () => {
+    const env = childEnv({ NODE_ENV: "test", REPICK_CLAUDE_OAUTH_TOKEN: "배포용" });
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("배포용");
+  });
+
+  it("우리 이름으로 준 값이 .env.local 의 옛 토큰을 이긴다", () => {
+    const env = childEnv({
+      NODE_ENV: "test",
+      CLAUDE_CODE_OAUTH_TOKEN: "옛것",
+      REPICK_CLAUDE_OAUTH_TOKEN: "배포용",
+    });
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("배포용");
+  });
+
+  it("우리 이름이 없으면 지금처럼 아무 토큰도 안 넘긴다", () => {
+    const env = childEnv({ NODE_ENV: "test", CLAUDE_CODE_OAUTH_TOKEN: "옛것" });
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
+  });
+
+  it("빈 문자열은 준 것으로 치지 않는다", () => {
+    const env = childEnv({ NODE_ENV: "test", REPICK_CLAUDE_OAUTH_TOKEN: "  " });
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
+  });
 });
 
 /** CLI 가 실제로 뱉는 stream-json 이벤트 모양. */
