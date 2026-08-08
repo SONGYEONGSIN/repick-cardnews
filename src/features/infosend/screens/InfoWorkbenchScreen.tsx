@@ -7,6 +7,7 @@ import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/sh
 import { Dropzone } from "@/features/photos/Dropzone";
 import { PhotoGrid } from "@/features/photos/PhotoGrid";
 import { CardRenderer } from "@/templates/CardRenderer";
+import { showAdBadge } from "@/templates/ad-badge";
 import { THEMES } from "@/templates/themes";
 import { requestSpec } from "@/features/studio/useGenerate";
 import type { InfographicSpec } from "@/lib/schema";
@@ -304,7 +305,7 @@ export function InfoWorkbenchScreen({
                       className="origin-top-left"
                       style={{ width: CARD_W, height: CARD_H, transform: `scale(${fit.scale})` }}
                     >
-                      <CardRenderer card={card} themeId={state.themeId} handle={state.handle} ad={state.ad} />
+                      <CardRenderer card={card} themeId={state.themeId} handle={state.handle} ad={showAdBadge(state.ad, 0, 1)} />
                     </div>
                   </div>
                 </div>

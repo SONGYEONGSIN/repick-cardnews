@@ -204,16 +204,16 @@ export function EditToolbar({
   const hasPhoto = card.layout !== "text-only";
 
   const picks: { id: EditTarget; label: string; show: boolean }[] = [
+    // **테마가 맨 앞이다.** 적용 범위가 세트 전체라, 카드 하나씩 손보기 전에 먼저 정하는
+    // 순서가 자연스럽다. 예전엔 '카드' 탭 안에 있었는데 카드 설정으로 읽혀 탭을 나눴고,
+    // 그때는 맨 뒤에 뒀다 — 쓰다 보니 제일 먼저 만지는 것이라 앞으로 옮겼다(2026-08-09).
+    { id: "theme", label: "테마", show: true },
     { id: "heading", label: "헤드라인", show: true },
     { id: "body", label: "본문", show: body !== undefined },
     // 순서 목록은 해법 카드에만 있다. 없는 카드에서는 탭 자체를 띄우지 않는다(본문과 같은 규칙).
     { id: "steps", label: "순서", show: steps !== undefined },
     { id: "photo", label: "사진", show: hasPhoto },
     { id: "card", label: "카드", show: true },
-    // 테마만 적용 범위가 다르다(카드 하나가 아니라 다섯 장 전체). 예전엔 '카드' 탭 안에
-    // 두었는데, **카드 하나짜리 탭 안에 있으니 오히려 카드 설정으로 읽혔다.** 탭을 나누고
-    // 라벨에 범위를 적어 구분한다.
-    { id: "theme", label: "테마", show: true },
   ];
   const tabs = picks.filter((p) => p.show);
 

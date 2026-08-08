@@ -1,6 +1,7 @@
 "use client";
 
 import { CardRenderer, type RenderCard } from "@/templates/CardRenderer";
+import { showAdBadge } from "@/templates/ad-badge";
 import type { ThemeId } from "@/templates/themes";
 
 /**
@@ -34,7 +35,7 @@ export function CaptureStage({
             registerRef(i, node);
           }}
         >
-          <CardRenderer card={card} themeId={themeId} handle={handle} ad={ad} />
+          <CardRenderer card={card} themeId={themeId} handle={handle} ad={showAdBadge(ad, i, cards.length)} />
         </div>
       ))}
     </div>

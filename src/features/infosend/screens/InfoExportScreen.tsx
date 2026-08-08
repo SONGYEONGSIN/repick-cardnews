@@ -5,6 +5,7 @@ import { ArrowLeft, Check, CircleAlert, RotateCcw } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
 import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/shell/StudioFrame";
 import { CardRenderer } from "@/templates/CardRenderer";
+import { showAdBadge } from "@/templates/ad-badge";
 import { THEMES } from "@/templates/themes";
 import { outputDir } from "@/lib/paths";
 import { mmdd } from "@/features/studio/useGenerate";
@@ -188,7 +189,7 @@ export function InfoExportScreen({
             <div className="overflow-hidden rounded-xl border border-hair bg-surface" style={{ width: 270 }} aria-hidden="true">
               <span className="block aspect-[4/5] w-full overflow-hidden bg-hair-soft">
                 <span className="block origin-top-left scale-[0.25]">
-                  <CardRenderer card={card} themeId={state.themeId} handle={state.handle} ad={state.ad} />
+                  <CardRenderer card={card} themeId={state.themeId} handle={state.handle} ad={showAdBadge(state.ad, 0, 1)} />
                 </span>
               </span>
             </div>
