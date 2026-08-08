@@ -42,6 +42,11 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/login")).toBe(true);
   });
 
+  // cron 서비스는 로그인할 수 없다. 대신 CRON_SECRET 이 막는다(`@/lib/cron-auth`).
+  it("cron 입구는 연다", () => {
+    expect(isPublicPath("/api/cron/tick")).toBe(true);
+  });
+
   it("Next 정적 파일은 연다", () => {
     expect(isPublicPath("/_next/static/chunk.js")).toBe(true);
     expect(isPublicPath("/favicon.ico")).toBe(true);
@@ -53,6 +58,7 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/settings/secret")).toBe(false);
     expect(isPublicPath("/loginhack")).toBe(false);
     expect(isPublicPath("/api/loginhack")).toBe(false);
+    expect(isPublicPath("/api/cronhack")).toBe(false);
   });
 });
 
