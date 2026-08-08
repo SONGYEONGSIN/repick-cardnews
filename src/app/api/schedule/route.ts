@@ -6,7 +6,7 @@ import { canRemoveRecord } from "@/features/cardnews/screens/schedule-view";
 import { CAROUSEL_MAX_ITEMS, PUBLISHABLE_MIN_ITEMS } from "@/lib/instagram";
 import { MAX_HASHTAGS, combineCaptionWithHashtags } from "@/lib/hashtags";
 import { describeSchedule } from "@/lib/schedule-due";
-import { appendItem, readQueue, removeItem, saveImages, scheduleRoot, updateStatus, type ScheduleItem } from "@/lib/schedule-queue";
+import { deleteImages, deleteItem, listItems, putImages, putItem, type ScheduledItem } from "@/lib/schedule-store";
 
 /**
  * `/api/schedule` — 예약 목록·생성·취소.
@@ -14,7 +14,11 @@ import { appendItem, readQueue, removeItem, saveImages, scheduleRoot, updateStat
  * `/api/publish` 와 같은 이유로 로그인한 사람만 부를 수 있다(`src/middleware.ts`).
  *
  * **캡션은 예약할 때 해시태그까지 합쳐 굳힌다.** 게시 시점에 다시 조합하지 않는다 — 예약한
- * 그대로가 올라가야 한다. 카드 이미지도 같은 이유로 이때 디스크에 고정한다.
+ * 그대로가 올라가야 한다. 카드 이미지도 같은 이유로 이때 Blob 에 굳힌다 — 올릴 시각에 다시
+ * 올리지 않으므로, 여기서 올린 주소가 그대로 인스타그램에 넘어간다.
+ *
+ * **응답 모양은 옛 큐 시절과 같게 유지한다**(`imageCount` 포함) — 화면(`SchedulePanel`)을
+ * 건드리지 않기 위해서다. 저장 방식이 바뀌었다고 화면까지 흔들 이유가 없다.
  */
 
 /** PNG 서명(8바이트)으로 시작하는가. 캡처가 빈 값을 주면 여기서 걸린다. */
@@ -40,21 +44,24 @@ export async function GET(req: Request) {
 
   const now = Date.now();
   // 최신 예약이 먼저 — 방금 만든 것을 바로 확인한다.
-  const items = [...readQueue()]
+  const items = [...(await listItems())]
     .sort((a, b) => b.createdAt - a.createdAt)
     // 도는 중인 항목에는 실행기가 남긴 진행을 함께 담는다 — 화면이 '5장 중 2장 준비 중'
     // 처럼 보여 준다(`@/lib/schedule-runner` 가 항목 id 로 기록한다).
     .map((item) => {
       const progress = readPublishProgress(item.id, now);
+      const { imageUrls, claimedAt: _claimedAt, ...rest } = item;
       return {
-        ...item,
+        ...rest,
+        // 화면은 장수만 쓴다. 주소를 그대로 내려보내면 로그인 없이도 카드가 보이게 된다.
+        imageCount: imageUrls.length,
         describe: describeSchedule(item.scheduledAt, now),
         ...(progress ? { progress } : {}),
       };
     });
 
   // 시계가 멈춰 있으면 예약은 영영 안 올라간다 — 그 사실을 함께 내려준다(`scheduler-health`).
-  const scheduler = schedulerHealth(readHeartbeat(scheduleRoot()), now);
+  const scheduler = schedulerHealth(await readHeartbeat(), now);
 
   return Response.json({ items, scheduler });
 }
@@ -82,20 +89,20 @@ export async function POST(req: Request) {
   if (!images.every(isPngBuffer)) {
     return Response.json({ error: "카드 이미지를 읽지 못했어요. 화면을 새로 고치고 다시 예약해 주세요." }, { status: 400 });
   }
-  // 이미지를 먼저 굳히고 큐에 넣는다 — 반대로 하면 스케줄러가 사진 없는 항목을 볼 수 있다.
-  saveImages(id, images);
+  // 이미지를 먼저 굳히고 큐에 넣는다 — 반대로 하면 tick 이 사진 없는 항목을 볼 수 있다.
+  const imageUrls = await putImages(id, images);
 
-  const item: ScheduleItem = {
+  const item: ScheduledItem = {
     id,
     scheduledAt: parsed.data.scheduledAt,
     caption: combineCaptionWithHashtags(parsed.data.caption, parsed.data.hashtags),
-    imageCount: images.length,
+    imageUrls,
     keyword: parsed.data.keyword,
     status: "pending",
     updatedAt: Date.now(),
     createdAt: now,
   };
-  appendItem(item);
+  await putItem(item);
 
   return Response.json({ id });
 }
@@ -105,7 +112,7 @@ export async function DELETE(req: Request) {
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return Response.json({ error: "어떤 예약을 취소할지 알 수 없어요." }, { status: 400 });
 
-  const found = readQueue().find((i) => i.id === id);
+  const found = (await listItems()).find((i) => i.id === id);
   if (!found) return Response.json({ error: "그 기록을 찾지 못했어요." }, { status: 404 });
 
   // `remove` 는 기록을 아예 지운다 — 취소(상태만 바꿈)와 다르다. 올라간 것은 못 지운다:
@@ -114,7 +121,7 @@ export async function DELETE(req: Request) {
     if (!canRemoveRecord(found.status)) {
       return Response.json({ error: "올라갔거나 아직 기다리는 기록은 지울 수 없어요." }, { status: 400 });
     }
-    removeItem(id);
+    await deleteItem(id);
     return Response.json({ ok: true });
   }
 
@@ -122,6 +129,8 @@ export async function DELETE(req: Request) {
     return Response.json({ error: "이미 끝난 예약은 취소할 수 없어요." }, { status: 400 });
   }
 
-  updateStatus(id, "canceled", undefined);
+  await putItem({ ...found, status: "canceled", updatedAt: Date.now() });
+  // 안 올릴 사진은 남겨 둘 이유가 없다.
+  await deleteImages(id);
   return Response.json({ ok: true });
 }

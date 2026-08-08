@@ -1,22 +1,54 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { DELETE, GET, POST } from "./route";
-import { appendItem, readQueue, updateStatus, type ScheduleItem } from "@/lib/schedule-queue";
+import type { ScheduledItem } from "@/lib/schedule-store";
 import { clearPublishProgress, recordPublishProgress } from "@/lib/publish-progress-store";
-import { writeHeartbeat } from "@/lib/scheduler-health";
 
-let root: string;
+/**
+ * Blob 은 네트워크다 — `environment: "node"` 에서 돌고 바깥을 타면 안 되므로 저장소를
+ * 흉내만 낸다. 여기서 보는 것은 **라우트가 무엇을 어떤 순서로 하느냐**다.
+ */
+let stored: ScheduledItem[] = [];
+const order: string[] = [];
+let heartbeat: number | null = null;
+
+vi.mock("@/lib/schedule-store", () => ({
+  listItems: vi.fn(async () => stored),
+  putItem: vi.fn(async (item: ScheduledItem) => {
+    order.push("putItem");
+    stored = [...stored.filter((i) => i.id !== item.id), item];
+  }),
+  putImages: vi.fn(async (id: string, images: Buffer[]) => {
+    order.push("putImages");
+    return images.map((_, i) => `https://blob.example/scheduled/${id}/${i + 1}.png`);
+  }),
+  deleteImages: vi.fn(async () => {
+    order.push("deleteImages");
+  }),
+  deleteItem: vi.fn(async (id: string) => {
+    order.push("deleteItem");
+    stored = stored.filter((i) => i.id !== id);
+  }),
+}));
+
+vi.mock("@/lib/scheduler-health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/scheduler-health")>();
+  return {
+    ...actual,
+    writeHeartbeat: vi.fn(async (now: number) => {
+      heartbeat = now;
+    }),
+    readHeartbeat: vi.fn(async () => heartbeat),
+  };
+});
+
 beforeEach(() => {
-  root = mkdtempSync(path.join(tmpdir(), "repick-api-"));
-  vi.stubEnv("REPICK_SCHEDULE_ROOT", root);
+  stored = [];
+  order.length = 0;
+  heartbeat = null;
 });
 afterEach(() => {
-  rmSync(root, { recursive: true, force: true });
   vi.unstubAllEnvs();
 });
-
 const FUTURE = Date.now() + 60 * 60 * 1000;
 
 function post(body: unknown, host = "localhost:3500") {
@@ -43,12 +75,12 @@ function validBody(over: Record<string, unknown> = {}) {
   };
 }
 
-function item(over: Partial<ScheduleItem> = {}): ScheduleItem {
+function item(over: Partial<ScheduledItem> = {}): ScheduledItem {
   return {
     id: "a1",
     scheduledAt: FUTURE,
     caption: "캡션",
-    imageCount: 2,
+    imageUrls: ["https://blob.example/scheduled/a1/1.png", "https://blob.example/scheduled/a1/2.png"],
     keyword: "수원 갈비",
     status: "pending",
     createdAt: Date.now(),
@@ -64,17 +96,24 @@ describe("POST /api/schedule", () => {
     expect(res.status).toBe(200);
     expect(typeof data.id).toBe("string");
 
-    const queue = readQueue(root);
+    const queue = stored;
     expect(queue).toHaveLength(1);
     expect(queue[0].status).toBe("pending");
-    expect(queue[0].imageCount).toBe(2);
+    expect(queue[0].imageUrls).toHaveLength(2);
+  });
+
+  // 반대로 하면 tick 이 사진 없는 항목을 볼 수 있다.
+  it("사진을 먼저 올리고 나서 항목을 넣는다", async () => {
+    await POST(post(validBody()));
+
+    expect(order).toEqual(["putImages", "putItem"]);
   });
 
   it("해시태그를 캡션에 합쳐 **예약 시점에** 굳힌다 — 게시 때 다시 조합하지 않는다", async () => {
     await POST(post(validBody({ caption: "본문", hashtags: ["살림"] })));
 
-    expect(readQueue(root)[0].caption).toContain("#살림");
-    expect(readQueue(root)[0].caption).toContain("본문");
+    expect(stored[0].caption).toContain("#살림");
+    expect(stored[0].caption).toContain("본문");
   });
 
   it("과거 시각이면 400 과 한국어 안내를 준다", async () => {
@@ -82,7 +121,7 @@ describe("POST /api/schedule", () => {
 
     expect(res.status).toBe(400);
     expect(/[가-힣]/.test((await res.json()).error)).toBe(true);
-    expect(readQueue(root)).toEqual([]);
+    expect(stored).toEqual([]);
   });
 
   // 정보전달은 한 장이다 — 손으로는 올라가는데 예약만 막히면 안 된다(`publishKindFor`).
@@ -98,7 +137,7 @@ describe("POST /api/schedule", () => {
     const res = await POST(post(validBody({ images: [] })));
 
     expect(res.status).toBe(400);
-    expect(readQueue(root)).toEqual([]);
+    expect(stored).toEqual([]);
   });
 
   it("사진이 너무 많으면 400 이다", async () => {
@@ -124,7 +163,7 @@ describe("POST /api/schedule", () => {
 
 describe("GET /api/schedule", () => {
   it("목록과 사람이 읽을 한 줄을 함께 준다", async () => {
-    appendItem(item(), root);
+    stored.push(item());
 
     const data = await (await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }))).json();
 
@@ -134,12 +173,12 @@ describe("GET /api/schedule", () => {
   });
 
   it("최신 예약이 먼저 온다", async () => {
-    appendItem(item({ id: "old", createdAt: 1 }), root);
-    appendItem(item({ id: "new", createdAt: 2 }), root);
+    stored.push(item({ id: "old", createdAt: 1 }));
+    stored.push(item({ id: "new", createdAt: 2 }));
 
     const data = await (await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }))).json();
 
-    expect(data.items.map((i: ScheduleItem) => i.id)).toEqual(["new", "old"]);
+    expect(data.items.map((i: ScheduledItem) => i.id)).toEqual(["new", "old"]);
   });
 });
 
@@ -152,21 +191,21 @@ describe("DELETE /api/schedule", () => {
   }
 
   it("pending 을 취소한다", async () => {
-    appendItem(item(), root);
+    stored.push(item());
 
     const res = await DELETE(del("a1"));
 
     expect(res.status).toBe(200);
-    expect(readQueue(root)[0].status).toBe("canceled");
+    expect(stored[0].status).toBe("canceled");
   });
 
   it("이미 올라간 것은 취소하지 않는다 — 되돌릴 수 없다", async () => {
-    appendItem(item({ status: "published" }), root);
+    stored.push(item({ status: "published" }));
 
     const res = await DELETE(del("a1"));
 
     expect(res.status).toBe(400);
-    expect(readQueue(root)[0].status).toBe("published");
+    expect(stored[0].status).toBe("published");
   });
 
   it("없는 id 면 404 와 한국어 안내를 준다", async () => {
@@ -192,7 +231,7 @@ describe("DELETE /api/schedule", () => {
 describe("GET 진행 상황", () => {
   it("도는 중이면 그 항목에 진행이 담긴다", async () => {
     await POST(post(validBody({ images: [png(), png()] })));
-    const created = readQueue(root)[0];
+    const created = stored[0];
     recordPublishProgress(created.id, { stage: "preparing", index: 2, total: 5 }, Date.now());
 
     const res = await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }));
@@ -229,7 +268,7 @@ describe("GET 스케줄러 상태", () => {
   });
 
   it("방금 뛰었으면 살아 있다고 알린다", async () => {
-    writeHeartbeat(Date.now(), root);
+    heartbeat = Date.now();
 
     const res = await GET(new Request("http://localhost:3500/api/schedule", { headers: { host: "localhost:3500" } }));
     const body = (await res.json()) as { scheduler?: string };
@@ -248,7 +287,7 @@ describe("POST 이미지 내용 검증", () => {
     const res = await POST(post(validBody({ images: [""] })));
 
     expect(res.status).toBe(400);
-    expect(readQueue(root)).toEqual([]);
+    expect(stored).toEqual([]);
   });
 
   it("PNG 가 아니면 400 이다 — 저장해 두고 나중에 실패하지 않는다", async () => {
@@ -256,7 +295,7 @@ describe("POST 이미지 내용 검증", () => {
     const res = await POST(post(validBody({ images: [notPng] })));
 
     expect(res.status).toBe(400);
-    expect(readQueue(root)).toEqual([]);
+    expect(stored).toEqual([]);
   });
 
   it("거절 사유는 한국어다", async () => {
@@ -274,14 +313,14 @@ describe("POST 이미지 내용 검증", () => {
 describe("기록 시각과 삭제", () => {
   it("상태가 바뀌면 그 시각을 남긴다", async () => {
     await POST(post(validBody()));
-    const created = readQueue(root)[0];
+    const created = stored[0];
     expect(created.updatedAt).toBeTypeOf("number");
   });
 
   it("실패한 기록은 지운다", async () => {
     await POST(post(validBody()));
-    const created = readQueue(root)[0];
-    updateStatus(created.id, "failed", "안 올라갔어요", root);
+    const created = stored[0];
+    stored = stored.map((i) => (i.id === created.id ? { ...i, status: "failed" as const, message: "안 올라갔어요" } : i));
 
     const res = await DELETE(
       new Request(`http://localhost:3500/api/schedule?id=${created.id}&action=remove`, {
@@ -291,13 +330,13 @@ describe("기록 시각과 삭제", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(readQueue(root).find((i) => i.id === created.id)).toBeUndefined();
+    expect(stored.find((i) => i.id === created.id)).toBeUndefined();
   });
 
   it("성공한 기록은 못 지운다 — 인스타에는 남아 있는데 여기만 사라진다", async () => {
     await POST(post(validBody()));
-    const created = readQueue(root)[0];
-    updateStatus(created.id, "published", undefined, root);
+    const created = stored[0];
+    stored = stored.map((i) => (i.id === created.id ? { ...i, status: "published" as const } : i));
 
     const res = await DELETE(
       new Request(`http://localhost:3500/api/schedule?id=${created.id}&action=remove`, {
@@ -307,6 +346,6 @@ describe("기록 시각과 삭제", () => {
     );
 
     expect(res.status).toBe(400);
-    expect(readQueue(root).find((i) => i.id === created.id)).toBeDefined();
+    expect(stored.find((i) => i.id === created.id)).toBeDefined();
   });
 });

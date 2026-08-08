@@ -26,9 +26,9 @@ function row(over: Record<string, unknown> = {}) {
   };
 }
 
-describe("STATUS_LABELS — 다섯 상태 전부 한국어", () => {
+describe("STATUS_LABELS — 여섯 상태 전부 한국어", () => {
   it("빠진 상태가 없고 영문이 없다", () => {
-    for (const status of ["pending", "published", "failed", "missed", "canceled"] as const) {
+    for (const status of ["pending", "publishing", "published", "failed", "missed", "canceled"] as const) {
       expect(STATUS_LABELS[status]).toBeTruthy();
       expect(STATUS_LABELS[status]).not.toMatch(/[A-Za-z]/);
     }
@@ -247,6 +247,11 @@ describe("canRemoveRecord — 지울 수 있는 기록", () => {
     expect(canRemoveRecord("failed")).toBe(true);
     expect(canRemoveRecord("canceled")).toBe(true);
     expect(canRemoveRecord("missed")).toBe(true);
+  });
+
+  // 지금 인스타로 올라가는 중이다. 여기서 기록을 지우면 무엇이 올라갔는지 알 길이 없어진다.
+  it("올리는 중은 못 지운다", () => {
+    expect(canRemoveRecord("publishing")).toBe(false);
   });
 
   it("대기 중은 못 지운다 — 취소가 먼저다", () => {

@@ -8,7 +8,7 @@
  * 화면이 `undefined` 를 그린다.
  */
 
-export type ScheduleStatusView = "pending" | "published" | "failed" | "missed" | "canceled";
+export type ScheduleStatusView = "pending" | "publishing" | "published" | "failed" | "missed" | "canceled";
 
 /**
  * 다섯 상태 전부 한국어. 화면에 그대로 나간다.
@@ -18,6 +18,9 @@ export type ScheduleStatusView = "pending" | "published" | "failed" | "missed" |
  */
 export const STATUS_LABELS: Record<ScheduleStatusView, string> = {
   pending: "예약 대기 중",
+  // 지금 인스타로 올라가는 중. 게시가 몇 분 걸리므로 이 상태가 화면에 실제로 보인다 —
+  // 아무 말 없이 '대기 중' 으로 남아 있으면 멈춘 것처럼 읽힌다.
+  publishing: "올리는 중",
   published: "업로드 성공",
   failed: "업로드 실패",
   missed: "시각 놓침",

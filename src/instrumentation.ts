@@ -23,13 +23,7 @@ export async function register() {
     // 토큰 자동 갱신은 부가 기능이다 — 어떤 이유로도 서버 기동 자체를 막으면 안 된다.
   }
 
-  // 예약 발행 스케줄러. 위와 같은 이유로 동적 import 하고(`node:fs` 를 쓴다), 같은 이유로
-  // 실패를 삼킨다. 서버가 도는 동안만 돌아간다 — 컴퓨터가 꺼져 있으면 예약도 멈춘다는 사실은
-  // 화면이 사용자에게 그대로 말한다(`SchedulePanel`).
-  try {
-    const { startScheduler } = await import("@/lib/schedule-scheduler");
-    startScheduler();
-  } catch {
-    // 스케줄러를 못 켜도 나머지 기능은 그대로 써야 한다.
-  }
+  // **여기서 예약 스케줄러를 켜지 않는다.** 예전에는 `setInterval` 을 걸었는데, 서버리스에는
+  // 요청 사이에 살아남는 프로세스가 없어 그 타이머가 돌지 않는다. 지금은 밖에서 cron 이
+  // `/api/cron/tick` 을 두드린다(`docs/deploy-setup.md`).
 }

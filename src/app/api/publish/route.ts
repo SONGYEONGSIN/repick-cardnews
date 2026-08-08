@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 import { randomUUID } from "node:crypto";
 import { deleteShare, loadShare } from "@/lib/share-blob";
-import { appendItem } from "@/lib/schedule-queue";
+import { putItem } from "@/lib/schedule-store";
 import { checkInstagramConfig } from "@/lib/instagram-config";
 import {
   publishCarousel,
@@ -113,11 +113,11 @@ export async function POST(req: Request) {
     // 디렉터리를 못 쓴다 — 그대로 두면 인스타에는 올라갔는데 화면은 "실패" 라고 말한다.
     // 거짓 보고가 기록 누락보다 나쁘다.
     try {
-      appendItem({
+      await putItem({
         id: randomUUID(),
         scheduledAt: Date.now(),
         caption,
-        imageCount: entry.urls.length,
+        imageUrls: entry.urls,
         keyword: entry.keyword,
         status: "published",
         updatedAt: Date.now(),
