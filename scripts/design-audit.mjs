@@ -27,7 +27,9 @@ const A11Y_MIN = 95;
 function lighthouseScore(url) {
   const out = path.join(mkdtempSync(path.join(tmpdir(), "lh-")), "r.json");
   const r = spawnSync("npx", ["lighthouse", url, "--only-categories=accessibility",
-    "--output=json", `--output-path=${out}`, "--chrome-flags=--headless", "--quiet"],
+    "--output=json", `--output-path=${out}`, "--chrome-flags=--headless", "--quiet",
+    // lighthouse 는 별도 프로세스라 브라우저 쿠키를 물려받지 못한다. 헤더로 직접 준다.
+    `--extra-headers=${JSON.stringify({ Cookie: COOKIE_HEADER })}`],
     { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   if (r.status !== 0) return { score: null, failures: ["lighthouse 실행 실패"] };
   const report = JSON.parse(readFileSync(out, "utf8"));
@@ -35,6 +37,44 @@ function lighthouseScore(url) {
     .filter((a) => a.score !== null && a.score < 1 && a.scoreDisplayMode !== "notApplicable")
     .map((a) => a.id);
   return { score: Math.round(report.categories.accessibility.score * 100), failures };
+}
+
+/**
+ * 게이트도 로그인을 거친다(`src/middleware.ts`, 2026-08-08).
+ *
+ * **서명 로직을 여기 베끼지 않는다.** 실제 `/api/login` 을 불러 쿠키를 받는다 — 베끼면
+ * 로그인이 바뀌는 날 게이트만 옛 방식으로 남아, 통과했다는 말이 거짓이 된다.
+ *
+ * 로그인을 안 하면 모든 라우트가 로그인 화면으로 돌아간다. 그런데 그 화면도 200 이라
+ * **폭 스위프는 통과처럼 보인다** — 아무것도 안 보면서 통과하는 게이트가 제일 나쁘다.
+ */
+async function loginCookie() {
+  const env = readFileSync(".env.local", "utf8");
+  const password = /^APP_PASSWORD=(.*)$/m.exec(env)?.[1]?.trim().replace(/^["']|["']$/g, "");
+  if (!password) throw new Error(".env.local 에 APP_PASSWORD 가 없습니다");
+
+  const res = await fetch(`${BASE}/api/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) throw new Error(`로그인 실패 (HTTP ${res.status})`);
+
+  const value = /repick_session=([^;]+)/.exec(res.headers.get("set-cookie") ?? "")?.[1];
+  if (!value) throw new Error("로그인 응답에 세션 쿠키가 없습니다");
+  return value;
+}
+
+const SESSION = await loginCookie();
+const COOKIE_HEADER = `repick_session=${SESSION}`;
+
+/** 로그인된 페이지 하나. 모든 검사가 이걸로 연다. */
+async function signedInPage(browser, viewport) {
+  const context = await browser.newContext({ viewport });
+  await context.addCookies([
+    { name: "repick_session", value: SESSION, domain: "localhost", path: "/", secure: false },
+  ]);
+  return context.newPage();
 }
 
 const results = [];
@@ -48,12 +88,23 @@ for (const route of ROUTES) {
 const browser = await chromium.launch();
 for (const route of ROUTES) {
   for (const width of WIDTHS) {
-    const page = await browser.newPage({ viewport: { width, height: 900 } });
+    const page = await signedInPage(browser, { width, height: 900 });
     const response = await page.goto(BASE + route, { waitUntil: "networkidle" });
     if (!response || !response.ok()) {
       results.push({
         gate: "sweep", route, pass: false,
         detail: `${width}px → 라우트가 200 을 응답하지 않음 (status ${response?.status() ?? "없음"})`,
+      });
+      await page.close();
+      continue;
+    }
+    // 로그인이 풀리면 모든 라우트가 로그인 화면을 준다. 그 화면도 200 이고 가로로 넘치지도
+    // 않아서 **재려던 화면을 안 재고도 통과한다.** 어디에 있는지부터 확인한다.
+    const landed = new URL(page.url()).pathname;
+    if (landed !== route) {
+      results.push({
+        gate: "sweep", route, pass: false,
+        detail: `${width}px → ${landed} 로 튕김. 로그인이 안 된 채로 재고 있다`,
       });
       await page.close();
       continue;
@@ -161,7 +212,7 @@ function samePlace(a, b) {
 
 const alignBrowser = await chromium.launch();
 try {
-  const page = await alignBrowser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const page = await signedInPage(alignBrowser, { width: 1600, height: 1000 });
   await page.route("**/api/generate", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ spec: FAKE_SPEC }) }));
 

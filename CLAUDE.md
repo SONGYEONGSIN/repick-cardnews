@@ -24,6 +24,8 @@ npm run design:audit   # 정적 게이트 + 폭 스위프(dev 서버가 떠 있�
 - **화면을 만들거나 고치면 → `docs/ui-standards.md`**
   패널 골격 · 폭 · 2단 · 되돌릴 수 없는 조작 · 색 · 검증. 여백이 남는 화면이 반복돼서 규칙으로
   못 박은 것이다
+- **배포를 건드리면 → `docs/deploy-setup.md`**
+  Vercel 에 올라가 있다. 예약 발행과 토큰 자동 갱신은 **아직 서버리스에서 안 돈다**
 - 인스타 연동을 건드리면 → `docs/instagram-setup.md`
 - 소재 찾기·트렌드를 건드리면 → `docs/trend-setup.md`
 
@@ -44,3 +46,13 @@ npm run design:audit   # 정적 게이트 + 폭 스위프(dev 서버가 떠 있�
 
 `npm run design:audit` 의 폭 스위프는 `/`·`/info` 만 훑는다. **사진과 카드가
 있어야 열리는 화면(작업대·내보내기)은 사람이 봐야 한다.**
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

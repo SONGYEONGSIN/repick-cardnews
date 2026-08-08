@@ -24,12 +24,20 @@ export function buildStreamJsonLine(content: ContentBlock[]): string {
  *
  * Next 서버는 `.env.local` 을 읽어 자기 `process.env` 에 넣는다. 그대로 물려주면
  * CLI 가 사용량 한도에 걸린 그 토큰을 다시 써서 이번 전환이 무의미해진다.
+ *
+ * **배포 서버에는 로컬 OAuth 세션이 없다.** 그래서 토큰을 넘겨야 CLI 가 도는데, 위의 이유로
+ * 아무 이름이나 통과시킬 수는 없다. 그래서 **이 앱만 쓰는 이름**(`REPICK_CLAUDE_OAUTH_TOKEN`)
+ * 으로 받은 값만 `CLAUDE_CODE_OAUTH_TOKEN` 자리에 넣는다 — 우연히 남아 있던 값이 아니라
+ * 사람이 이 배포를 위해 일부러 넣은 값이라는 뜻이다.
  */
 export function childEnv(parent: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...parent };
   delete env.ANTHROPIC_AUTH_TOKEN;
   delete env.ANTHROPIC_API_KEY;
   delete env.CLAUDE_CODE_OAUTH_TOKEN;
+
+  const ours = parent.REPICK_CLAUDE_OAUTH_TOKEN?.trim();
+  if (ours) env.CLAUDE_CODE_OAUTH_TOKEN = ours;
   return env;
 }
 
