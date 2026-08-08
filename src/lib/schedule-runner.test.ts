@@ -1,19 +1,25 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { readPublicBaseUrl, runScheduledItem } from "./schedule-runner";
+import { runScheduledItem } from "./schedule-runner";
 import { saveImages, type ScheduleItem } from "./schedule-queue";
 import { readPublishProgress, type PublishProgress } from "./publish-progress-store";
 
+// Blob 은 네트워크다. 이 저장소의 테스트는 `environment: "node"` 에서 돌고 바깥을 타면
+// 안 되므로, 실행기가 **주소를 어떻게 쓰는지**만 보도록 흉내만 낸다. share-blob 자신의
+// 판단(경로·정렬·만료)은 `share-blob.test.ts` 가 따로 덮는다.
+vi.mock("./share-blob", () => ({
+  saveShare: vi.fn(async (token: string, images: Buffer[]) =>
+    images.map((_, i) => `https://blob.example/share/${token}/${i + 1}.png`),
+  ),
+}));
+
 let root: string;
-let envPath: string;
 const OLD_ENV = { ...process.env };
 
 beforeEach(() => {
   root = mkdtempSync(path.join(tmpdir(), "repick-run-"));
-  envPath = path.join(root, ".env.local");
-  process.env.PUBLIC_BASE_URL = "https://from-process-env.example";
   process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID = "acc-1";
   process.env.INSTAGRAM_ACCESS_TOKEN = "super-secret-token";
 });
@@ -40,36 +46,12 @@ function okFetch() {
   return vi.fn(async () => ({ ok: true, status: 200 }) as unknown as Response);
 }
 
-describe("readPublicBaseUrl — .env.local 에서 다시 읽는다", () => {
-  it("파일의 값을 읽는다", () => {
-    writeFileSync(envPath, 'PUBLIC_BASE_URL=https://tunnel.example\n', "utf8");
-
-    expect(readPublicBaseUrl(envPath)).toBe("https://tunnel.example");
-  });
-
-  it("따옴표와 공백을 벗긴다", () => {
-    writeFileSync(envPath, 'PUBLIC_BASE_URL = "https://tunnel.example"  \n', "utf8");
-
-    expect(readPublicBaseUrl(envPath)).toBe("https://tunnel.example");
-  });
-
-  it("주석 줄은 무시한다", () => {
-    writeFileSync(envPath, '# PUBLIC_BASE_URL=https://주석.example\nPUBLIC_BASE_URL=https://진짜.example\n', "utf8");
-
-    expect(readPublicBaseUrl(envPath)).toBe("https://진짜.example");
-  });
-
-  it("파일이 없으면 null 이다 — process.env 로 떨어진다", () => {
-    expect(readPublicBaseUrl(path.join(root, "없음"))).toBeNull();
-  });
-});
-
 describe("runScheduledItem", () => {
   it("이미지가 없으면 게시하지 않고 한국어로 실패한다", async () => {
     saveImages("a1", [], root);
     const publish = vi.fn();
 
-    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+    const res = await runScheduledItem(item(), { now: 1, root, publish });
 
     expect(res.ok).toBe(false);
     expect(publish).not.toHaveBeenCalled();
@@ -89,8 +71,6 @@ describe("runScheduledItem", () => {
     const res = await runScheduledItem(item({ imageCount: 1 }), {
       now: 1,
       root,
-      envPath,
-      fetchImpl: okFetch(),
       publish,
       publishSingle,
     });
@@ -108,8 +88,6 @@ describe("runScheduledItem", () => {
     const res = await runScheduledItem(item({ imageCount: 11 }), {
       now: 1,
       root,
-      envPath,
-      fetchImpl: okFetch(),
       publish,
       publishSingle,
     });
@@ -124,30 +102,18 @@ describe("runScheduledItem", () => {
     saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
     const publish = vi.fn();
 
-    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+    const res = await runScheduledItem(item(), { now: 1, root, publish });
 
     expect(res.ok).toBe(false);
     expect(publish).not.toHaveBeenCalled();
     expect(res.ok === false && /[가-힣]/.test(res.message)).toBe(true);
   });
 
-  it("터널에 닿지 않으면 게시하지 않는다 — 인스타에 깨진 요청을 보내지 않는다", async () => {
-    saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
-    const publish = vi.fn();
-    const fetchImpl = vi.fn(async () => ({ ok: false, status: 502 }) as unknown as Response);
-
-    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl, publish });
-
-    expect(res.ok).toBe(false);
-    expect(publish).not.toHaveBeenCalled();
-    expect(res.ok === false && res.message).toContain("주소");
-  });
-
   it("정상 경로에서 publishCarousel 을 부르고 mediaId 를 돌려준다", async () => {
     saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
     const publish = vi.fn(async () => "media-1");
 
-    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+    const res = await runScheduledItem(item(), { now: 1, root, publish });
 
     expect(res).toEqual({ ok: true, mediaId: "media-1" });
     expect(publish).toHaveBeenCalledOnce();
@@ -161,24 +127,9 @@ describe("runScheduledItem", () => {
       return "media-1";
     });
 
-    await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+    await runScheduledItem(item(), { now: 1, root, publish });
 
     expect(seenCaption).toBe("캡션 #살림");
-  });
-
-  it(".env.local 의 PUBLIC_BASE_URL 이 process.env 보다 우선한다 — 터널을 새로 켜면 주소가 바뀐다", async () => {
-    writeFileSync(envPath, "PUBLIC_BASE_URL=https://새터널.example\n", "utf8");
-    saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
-    let seenUrls: string[] = [];
-    const publish = vi.fn(async (args: { imageUrls: string[] }) => {
-      seenUrls = args.imageUrls;
-      return "media-1";
-    });
-
-    await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
-
-    expect(seenUrls[0]).toContain("https://새터널.example");
-    expect(seenUrls[0]).not.toContain("from-process-env");
   });
 
   it("게시가 실패하면 한국어 사유를 돌려주고 토큰을 노출하지 않는다", async () => {
@@ -187,7 +138,7 @@ describe("runScheduledItem", () => {
       throw new Error("Invalid OAuth access token: super-secret-token");
     });
 
-    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+    const res = await runScheduledItem(item(), { now: 1, root, publish });
 
     expect(res.ok).toBe(false);
     if (res.ok) return;
@@ -196,19 +147,6 @@ describe("runScheduledItem", () => {
     expect(/[가-힣]/.test(res.message)).toBe(true);
   });
 
-  it("터널 확인 중 네트워크가 끊겨도 던지지 않고 한국어로 실패한다", async () => {
-    saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
-    const publish = vi.fn();
-    const fetchImpl = vi.fn(async () => {
-      throw new Error("Failed to fetch");
-    });
-
-    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl, publish });
-
-    expect(res.ok).toBe(false);
-    expect(publish).not.toHaveBeenCalled();
-    expect(res.ok === false && res.message).not.toContain("fetch");
-  });
 });
 
 /**
@@ -233,7 +171,7 @@ describe("runScheduledItem 진행 기록", () => {
       },
     );
 
-    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+    const res = await runScheduledItem(item(), { now: 1, root, publish });
 
     expect(res).toEqual({ ok: true, mediaId: "media-1" });
     expect(seen).toEqual([{ stage: "preparing", index: 1, total: 2 }, { stage: "publishing" }]);
@@ -243,7 +181,7 @@ describe("runScheduledItem 진행 기록", () => {
     saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
     const publish = vi.fn(async () => "media-1");
 
-    await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+    await runScheduledItem(item(), { now: 1, root, publish });
 
     expect(readPublishProgress("a1", 1)).toBeNull();
   });
@@ -254,42 +192,9 @@ describe("runScheduledItem 진행 기록", () => {
       throw new Error("boom");
     });
 
-    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl: okFetch(), publish });
+    const res = await runScheduledItem(item(), { now: 1, root, publish });
 
     expect(res.ok).toBe(false);
     expect(readPublishProgress("a1", 1)).toBeNull();
-  });
-});
-
-/**
- * 실패 문구가 둘을 구분해야 한다 — "닿지 못했다"(주소·터널)와 "닿았는데 사진이 안 열린다".
- * 하나로 뭉뚱그렸다가 사용자가 엉뚱한 곳을 고치느라 헤맸다(2026-08-05).
- */
-describe("공개 주소 확인 실패 문구", () => {
-  it("아예 못 닿으면 주소를 짚는다", async () => {
-    saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
-    const publish = vi.fn();
-    const fetchImpl = vi.fn(async () => {
-      throw new Error("getaddrinfo ENOTFOUND");
-    }) as unknown as typeof fetch;
-
-    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl, publish });
-
-    expect(res.ok).toBe(false);
-    expect(res.ok === false && res.message).toContain("PUBLIC_BASE_URL");
-    expect(publish).not.toHaveBeenCalled();
-  });
-
-  it("닿았는데 사진이 안 열리면 주소 탓으로 몰지 않는다", async () => {
-    saveImages("a1", [Buffer.from("one"), Buffer.from("two")], root);
-    const publish = vi.fn();
-    const fetchImpl = vi.fn(async () => ({ ok: false, status: 404 }) as unknown as Response);
-
-    const res = await runScheduledItem(item(), { now: 1, root, envPath, fetchImpl, publish });
-
-    expect(res.ok).toBe(false);
-    expect(res.ok === false && res.message).toContain("사진");
-    expect(res.ok === false && res.message).not.toContain("PUBLIC_BASE_URL");
-    expect(publish).not.toHaveBeenCalled();
   });
 });

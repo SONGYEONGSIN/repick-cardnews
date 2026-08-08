@@ -26,11 +26,14 @@ export type InstagramConnectionConfig = {
   graphHost: string;
 };
 
-/** 실제 게시(`/api/publish`)에 필요한 값 — 연결에 필요한 값에 공개 주소가 더해진다. */
-export type InstagramConfig = InstagramConnectionConfig & {
-  /** 우리 이미지가 바깥에서 닿는 공개 base URL. 예: https://xxxx.ngrok-free.app */
-  publicBaseUrl: string;
-};
+/**
+ * 실제 게시(`/api/publish`)에 필요한 값 — 연결 확인과 같다.
+ *
+ * 예전에는 **공개 주소**(`PUBLIC_BASE_URL`)가 더 필요했다. 인스타그램이 우리 서버의
+ * `/s/...` 로 이미지를 가지러 왔기 때문이다. 지금은 Blob 주소에서 직접 가져가므로
+ * (`@/lib/share-blob`) 우리 주소를 알 필요가 없다 — 필수 목록에서 뺐다.
+ */
+export type InstagramConfig = InstagramConnectionConfig;
 
 export type InstagramConnectionCheck =
   | { ready: true; config: InstagramConnectionConfig }
@@ -41,14 +44,12 @@ export type InstagramConfigCheck =
   | { ready: false; missing: string[] };
 
 const ENV_KEYS = {
-  publicBaseUrl: "PUBLIC_BASE_URL",
   businessAccountId: "INSTAGRAM_BUSINESS_ACCOUNT_ID",
   accessToken: "INSTAGRAM_ACCESS_TOKEN",
   graphHost: "INSTAGRAM_GRAPH_HOST",
 } as const;
 
 const ENV_LABELS = {
-  publicBaseUrl: `공개 주소(${ENV_KEYS.publicBaseUrl})`,
   businessAccountId: `인스타그램 비즈니스 계정 ID(${ENV_KEYS.businessAccountId})`,
   accessToken: `인스타그램 액세스 토큰(${ENV_KEYS.accessToken})`,
 } as const;
@@ -57,21 +58,19 @@ const ENV_LABELS = {
 const DEFAULT_GRAPH_HOST = "graph.instagram.com";
 
 export function checkInstagramConfig(env: Record<string, string | undefined>): InstagramConfigCheck {
-  const publicBaseUrl = env[ENV_KEYS.publicBaseUrl]?.trim();
   const businessAccountId = env[ENV_KEYS.businessAccountId]?.trim();
   const accessToken = env[ENV_KEYS.accessToken]?.trim();
   const graphHost = env[ENV_KEYS.graphHost]?.trim() || DEFAULT_GRAPH_HOST;
 
   const missing: string[] = [];
-  if (!publicBaseUrl) missing.push(ENV_LABELS.publicBaseUrl);
   if (!businessAccountId) missing.push(ENV_LABELS.businessAccountId);
   if (!accessToken) missing.push(ENV_LABELS.accessToken);
 
-  if (!publicBaseUrl || !businessAccountId || !accessToken) {
+  if (!businessAccountId || !accessToken) {
     return { ready: false, missing };
   }
 
-  return { ready: true, config: { publicBaseUrl, businessAccountId, accessToken, graphHost } };
+  return { ready: true, config: { businessAccountId, accessToken, graphHost } };
 }
 
 /**

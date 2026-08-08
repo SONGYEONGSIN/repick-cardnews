@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod/v4";
-import { isLocalHost } from "@/lib/local-guard";
 import { readPublishProgress } from "@/lib/publish-progress-store";
 import { readHeartbeat, schedulerHealth } from "@/lib/scheduler-health";
 import { canRemoveRecord } from "@/features/cardnews/screens/schedule-view";
@@ -12,7 +11,7 @@ import { appendItem, readQueue, removeItem, saveImages, scheduleRoot, updateStat
 /**
  * `/api/schedule` — 예약 목록·생성·취소.
  *
- * `/api/publish` 와 같은 이유로 이 PC 브라우저에서만 부를 수 있다(`@/lib/local-guard`).
+ * `/api/publish` 와 같은 이유로 로그인한 사람만 부를 수 있다(`src/middleware.ts`).
  *
  * **캡션은 예약할 때 해시태그까지 합쳐 굳힌다.** 게시 시점에 다시 조합하지 않는다 — 예약한
  * 그대로가 올라가야 한다. 카드 이미지도 같은 이유로 이때 디스크에 고정한다.
@@ -37,12 +36,7 @@ const CreateSchema = z.object({
     .max(CAROUSEL_MAX_ITEMS, { error: `사진은 ${CAROUSEL_MAX_ITEMS}장까지예요.` }),
 });
 
-function forbidden() {
-  return Response.json({ error: "예약 발행은 이 컴퓨터의 브라우저에서만 할 수 있어요." }, { status: 403 });
-}
-
 export async function GET(req: Request) {
-  if (!isLocalHost(req.headers.get("host"))) return forbidden();
 
   const now = Date.now();
   // 최신 예약이 먼저 — 방금 만든 것을 바로 확인한다.
@@ -66,7 +60,6 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (!isLocalHost(req.headers.get("host"))) return forbidden();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = CreateSchema.safeParse(body);
@@ -108,7 +101,6 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  if (!isLocalHost(req.headers.get("host"))) return forbidden();
 
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return Response.json({ error: "어떤 예약을 취소할지 알 수 없어요." }, { status: 400 });

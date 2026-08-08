@@ -56,22 +56,6 @@ function item(over: Partial<ScheduleItem> = {}): ScheduleItem {
   };
 }
 
-describe("로컬 전용", () => {
-  it("다른 기기에서 부르면 셋 다 403 과 한국어 안내를 준다", async () => {
-    const host = "192.168.0.5:3500";
-    const listed = await GET(new Request(`http://${host}/api/schedule`, { headers: { host } }));
-    const created = await POST(post(validBody(), host));
-    const removed = await DELETE(
-      new Request(`http://${host}/api/schedule?id=a1`, { method: "DELETE", headers: { host } }),
-    );
-
-    for (const res of [listed, created, removed]) {
-      expect(res.status).toBe(403);
-      expect(/[가-힣]/.test((await res.json()).error)).toBe(true);
-    }
-  });
-});
-
 describe("POST /api/schedule", () => {
   it("예약을 만들고 id 를 돌려준다", async () => {
     const res = await POST(post(validBody()));

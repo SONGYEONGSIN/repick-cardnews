@@ -20,15 +20,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("GET /api/materials — 로컬 전용", () => {
-  it("다른 기기에서 부르면 403 과 한국어 안내를 준다", async () => {
-    const res = await GET(makeRequest("192.168.0.5:3500", "mode=trending"));
-
-    expect(res.status).toBe(403);
-    expect(/[가-힣]/.test((await res.json()).error)).toBe(true);
-  });
-});
-
 describe("GET /api/materials — 급상승", () => {
   it("요청한 카테고리만 부르고 영상 제목을 그대로 돌려준다", async () => {
     const asked: string[] = [];

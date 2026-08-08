@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { loadShare } from "@/lib/share-store";
+import { loadShare } from "@/lib/share-blob";
 
 /**
  * GET /s/<토큰> — 폰에서 여는 독립 화면. `StudioFrame`(스튜디오 셸)을 쓰지 않는다 —
@@ -10,18 +10,19 @@ import { loadShare } from "@/lib/share-store";
  */
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const entry = loadShare(token, Date.now());
+  const entry = await loadShare(token, Date.now());
   if (!entry) notFound();
 
   return (
     <main className="flex min-h-screen w-full flex-col items-center gap-6 bg-canvas px-4 py-8">
       <p className="text-center text-[15px] font-bold text-ink">이미지를 길게 눌러 저장하세요</p>
       <div className="flex w-full max-w-[420px] flex-col gap-4">
-        {entry.images.map((_, i) => (
+        {entry.urls.map((url, i) => (
           <img
-            key={i}
-            src={`/s/${token}/${i + 1}.png`}
-            alt={`${entry.keyword} 카드 ${i + 1}/${entry.images.length}`}
+            key={url}
+            // Blob 주소를 그대로 쓴다 — 우리 서버를 한 번 더 거칠 이유가 없다.
+            src={url}
+            alt={`${entry.keyword} 카드 ${i + 1}/${entry.urls.length}`}
             className="aspect-[4/5] w-full rounded-lg border border-hair bg-surface object-cover"
           />
         ))}

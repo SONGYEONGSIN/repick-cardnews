@@ -54,13 +54,6 @@ describe("GET /api/instagram-refresh-token", () => {
 });
 
 describe("POST /api/instagram-refresh-token", () => {
-  it("집 네트워크 IP로 온 요청은 403으로 막는다", async () => {
-    const res = await POST(makeRequest("192.168.0.5:3500"));
-    expect(res.status).toBe(403);
-    const data = await res.json();
-    expect(data.error).toContain("컴퓨터");
-  });
-
   it("성공하면 새 만료일만 200으로 돌려준다(토큰 값은 담지 않는다)", async () => {
     const expiresAt = new Date("2026-10-03T04:00:00.000Z");
     vi.mocked(refreshInstagramTokenNow).mockResolvedValueOnce({ ok: true, expiresAt });

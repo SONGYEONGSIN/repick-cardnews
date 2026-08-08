@@ -2,21 +2,29 @@ import { describe, it, expect } from "vitest";
 import { checkInstagramConfig, checkInstagramConnectionConfig } from "@/lib/instagram-config";
 
 describe("checkInstagramConfig", () => {
-  it("셋 다 있으면 게시 가능 상태와 설정값을 돌려준다(호스트는 기본값)", () => {
+  it("계정 ID·토큰이 있으면 게시 가능 상태와 설정값을 돌려준다(호스트는 기본값)", () => {
     const result = checkInstagramConfig({
-      PUBLIC_BASE_URL: "https://example.ngrok-free.app",
       INSTAGRAM_BUSINESS_ACCOUNT_ID: "17841400000000000",
       INSTAGRAM_ACCESS_TOKEN: "long-lived-secret-token",
     });
     expect(result.ready).toBe(true);
     if (result.ready) {
       expect(result.config).toEqual({
-        publicBaseUrl: "https://example.ngrok-free.app",
         businessAccountId: "17841400000000000",
         accessToken: "long-lived-secret-token",
         graphHost: "graph.instagram.com",
       });
     }
+  });
+
+  // 인스타그램이 우리 서버로 이미지를 가지러 오던 시절에는 공개 주소가 필수였다. 이제는
+  // Blob 주소에서 직접 가져가므로(`@/lib/share-blob`) 우리 주소를 몰라도 게시할 수 있다.
+  it("공개 주소가 없어도 게시할 수 있다 — 인스타그램은 Blob 에서 가져간다", () => {
+    const result = checkInstagramConfig({
+      INSTAGRAM_BUSINESS_ACCOUNT_ID: "17841400000000000",
+      INSTAGRAM_ACCESS_TOKEN: "long-lived-secret-token",
+    });
+    expect(result.ready).toBe(true);
   });
 
   it("INSTAGRAM_GRAPH_HOST 를 주면 기본값 대신 그 값을 쓴다(로그인 방식이 다른 경우 대비)", () => {
@@ -41,11 +49,11 @@ describe("checkInstagramConfig", () => {
     expect(result.ready).toBe(true);
   });
 
-  it("다 없으면 세 항목 모두 빠졌다고 알려준다", () => {
+  it("다 없으면 두 항목이 빠졌다고 알려준다", () => {
     const result = checkInstagramConfig({});
     expect(result.ready).toBe(false);
     if (!result.ready) {
-      expect(result.missing).toHaveLength(3);
+      expect(result.missing).toHaveLength(2);
     }
   });
 
@@ -62,8 +70,7 @@ describe("checkInstagramConfig", () => {
 
   it("빈 문자열·공백만 있는 값은 없는 것으로 본다", () => {
     const result = checkInstagramConfig({
-      PUBLIC_BASE_URL: "   ",
-      INSTAGRAM_BUSINESS_ACCOUNT_ID: "17841400000000000",
+      INSTAGRAM_BUSINESS_ACCOUNT_ID: "   ",
       INSTAGRAM_ACCESS_TOKEN: "long-lived-secret-token",
     });
     expect(result.ready).toBe(false);

@@ -19,7 +19,6 @@ import {
 } from "@/lib/instagram";
 
 const config: InstagramConfig = {
-  publicBaseUrl: "https://example.ngrok-free.app",
   businessAccountId: "17841400000000000",
   accessToken: "long-lived-secret-token",
   graphHost: "graph.instagram.com",
