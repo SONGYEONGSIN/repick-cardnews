@@ -11,3 +11,5 @@ informationsend/*/
 
 # 예약 발행이 남기는 카드 이미지와 큐 — 저장소에 올라가면 안 된다
 .repick/
+.vercel
+.env*
