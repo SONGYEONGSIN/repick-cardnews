@@ -60,13 +60,22 @@ export function buildSystemPrompt(
   vault: { brandVoice: string; copyFormulas: string },
   hasPhotos: boolean,
   format: InfoFormat = "list",
+  /**
+   * 카드뉴스에서 만들 카드 수 — **올린 사진 수와 같다.** 안 주면 예전처럼 범위로 시킨다.
+   *
+   * 예전에는 "5~6장" 이 문장에 박혀 있어 사진을 3장만 올려도 카드가 5장 나왔고, 남는 카드가
+   * 사진 없이 떴다. 사진 수를 그대로 시키면 그 어긋남이 없다.
+   */
+  cardCount?: number,
 ): string {
   // 스키마는 items 3~6 을 허용하지만 5개 이상은 사진 밴드를 최소로 줄여도 카드에 안 들어간다.
   // 생성 단계에서 3~4개를 요청해 평소엔 큰 글자가 나오게 하고, 사용자가 직접 늘렸을 때만 축소된다.
   const rule =
     type === "informationsend"
       ? `산출물 유형은 informationsend(1장 인포그래픽), 형식은 ${format}. title, 선택 subtitle, 선택 tip 과 함께 ${FORMAT_RULES[format]}`
-      : "산출물 유형은 cardnews(5~6장 설득 시퀀스). cards 배열을 생성하라. 첫 카드는 반드시 role=hook, 마지막은 반드시 role=cta. 중간은 problem/evidence/solution 흐름.";
+      : `산출물 유형은 cardnews(설득 시퀀스). cards 배열을 ${
+          cardCount === undefined ? "5~6장" : `정확히 ${cardCount}장`
+        } 생성하라. 첫 카드는 반드시 role=hook, 마지막은 반드시 role=cta. 중간은 problem/evidence/solution 흐름.`;
 
   const lines = [
     "당신은 RE:픽의 인스타그램 콘텐츠 카피라이터입니다.",

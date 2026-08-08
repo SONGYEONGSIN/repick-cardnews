@@ -164,7 +164,12 @@ export const CardnewsSpec = z
   .object({
     type: z.literal("cardnews"),
     keyword: z.string().min(1).max(40),
-    cards: z.array(CardnewsCard).min(5).max(6),
+    /**
+     * **올린 사진 수만큼** 만든다(생성 프롬프트가 정확한 수를 시킨다). 하한이 2인 이유는
+     * 첫 장이 hook, 마지막이 cta 여야 해서다 — 한 장으로는 둘을 겸할 수 없다.
+     * 예전 하한은 5였고, 그래서 사진 3장짜리 결과가 검증에서 튕겼다.
+     */
+    cards: z.array(CardnewsCard).min(2).max(6),
   })
   .refine((v) => v.cards[0]?.role === "hook", { message: "첫 카드는 hook이어야 합니다" })
   .refine((v) => v.cards[v.cards.length - 1]?.role === "cta", { message: "마지막 카드는 cta여야 합니다" });

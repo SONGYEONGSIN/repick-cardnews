@@ -47,7 +47,15 @@ export async function POST(req: Request) {
   try {
     const vault = await readVault();
     const raw = await runClaudeCli({
-      system: buildSystemPrompt(body.type, vault, body.photos.length > 0, body.format),
+      // 카드뉴스는 **올린 사진 수만큼** 카드를 만든다 — 남는 카드가 사진 없이 뜨지 않게.
+      // 정보전달은 1장이라 장수 개념이 없다.
+      system: buildSystemPrompt(
+        body.type,
+        vault,
+        body.photos.length > 0,
+        body.format,
+        body.type === "cardnews" && body.photos.length > 0 ? body.photos.length : undefined,
+      ),
       content: buildUserContent(body.keyword, body.photos),
       jsonSchema: z.toJSONSchema(spec),
       model: MODEL,

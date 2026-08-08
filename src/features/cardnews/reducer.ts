@@ -14,7 +14,12 @@ import {
 } from "@/templates/layout-utils";
 import type { ThemeId } from "@/templates/themes";
 
-export const CARDNEWS_MIN = 5;
+/**
+ * 만들 수 있는 최소 사진 수. **카드 수는 사진 수를 따라간다**(2026-08-09) — 예전에는 5장을
+ * 요구해서, 사진이 3장이면 아예 만들 수 없었다. 하한이 2인 이유는 스키마와 같다: 첫 장이
+ * hook, 마지막이 cta 여야 시퀀스가 성립한다.
+ */
+export const CARDNEWS_MIN = 2;
 export const CARDNEWS_MAX = 6;
 
 export type CardDraft = {

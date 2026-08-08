@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod/v4";
-import { InfographicSpec, INFO_FORMATS, infoSpecFor, itemFieldMaxes, itemRangeOf, itemTexts } from "@/lib/schema";
+import { CardnewsSpec, InfographicSpec, INFO_FORMATS, infoSpecFor, itemFieldMaxes, itemRangeOf, itemTexts } from "@/lib/schema";
 
 /**
  * 정보전달은 틀이 하나뿐이었다 — 스키마가 `items[{keyword,desc}]` 만 허용해, 비교("A vs B")나
@@ -165,5 +165,38 @@ describe("infoSpecFor — 형식 하나짜리 스키마", () => {
       ],
     };
     expect(infoSpecFor("list").safeParse(list).success).toBe(InfographicSpec.safeParse(list).success);
+  });
+});
+
+/**
+ * 사진 수만큼 카드를 만든다(2026-08-09). 예전 하한은 5장이라 사진 3장짜리 결과가 검증에서
+ * 튕겼다. hook·cta 두 장은 있어야 시퀀스가 성립하므로 그 아래로는 못 내린다.
+ */
+describe("카드뉴스 장수 범위", () => {
+  // 역할마다 요구하는 칸이 다르다 — cta 는 body 가 아니라 action 이다.
+  function card(role: "hook" | "problem" | "cta") {
+    if (role === "hook") return { role, heading: "제목" };
+    if (role === "cta") return { role, heading: "제목", action: "저장하세요" };
+    return { role, heading: "제목", body: "본문" };
+  }
+  function spec(cards: unknown[]) {
+    return { type: "cardnews", keyword: "수원 갈비", cards };
+  }
+
+  it("두 장(hook·cta)이면 통과한다", () => {
+    expect(CardnewsSpec.safeParse(spec([card("hook"), card("cta")])).success).toBe(true);
+  });
+
+  it("한 장이면 거절한다 — hook 과 cta 가 동시에 될 수 없다", () => {
+    expect(CardnewsSpec.safeParse(spec([card("hook")])).success).toBe(false);
+  });
+
+  it("여섯 장까지 통과한다", () => {
+    const middle = Array.from({ length: 4 }, () => card("problem"));
+    expect(CardnewsSpec.safeParse(spec([card("hook"), ...middle, card("cta")])).success).toBe(true);
+  });
+
+  it("첫 카드가 hook 이 아니면 장수와 무관하게 거절한다", () => {
+    expect(CardnewsSpec.safeParse(spec([card("problem"), card("cta")])).success).toBe(false);
   });
 });

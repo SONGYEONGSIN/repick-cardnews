@@ -124,3 +124,26 @@ describe("형식별 생성 규칙", () => {
     expect(buildSystemPrompt("cardnews", vault, false, "compare")).toContain("cardnews");
   });
 });
+
+/**
+ * 사진 수만큼 카드를 만든다(2026-08-09). 예전에는 "5~6장" 이 프롬프트에 박혀 있어, 사진을
+ * 3장만 올려도 카드 5장이 나오고 남는 카드가 사진 없이 떴다.
+ */
+describe("카드뉴스 장수 요청", () => {
+  const vault = { brandVoice: "보이스", copyFormulas: "공식" };
+
+  it("올린 사진 수를 그대로 요청한다", () => {
+    expect(buildSystemPrompt("cardnews", vault, true, "list", 3)).toContain("정확히 3장");
+    expect(buildSystemPrompt("cardnews", vault, true, "list", 6)).toContain("정확히 6장");
+  });
+
+  it("장수를 안 주면 예전처럼 범위로 말한다 — 옛 호출부가 깨지지 않게", () => {
+    expect(buildSystemPrompt("cardnews", vault, false)).toContain("cards");
+  });
+
+  it("장수를 줘도 hook·cta 규칙은 그대로다", () => {
+    const p = buildSystemPrompt("cardnews", vault, true, "list", 2);
+    expect(p).toContain("hook");
+    expect(p).toContain("cta");
+  });
+});
