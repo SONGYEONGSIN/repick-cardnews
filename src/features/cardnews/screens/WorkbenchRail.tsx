@@ -2,19 +2,15 @@
 
 import {
   DndContext,
-  KeyboardSensor,
-  PointerSensor,
   closestCenter,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { DRAG_HANDLE_TOUCH, useSortableSensors } from "@/features/studio/useSortableSensors";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, ImageOff, Plus, Trash2 } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
@@ -159,7 +155,7 @@ function SlotRow({
             {...listeners}
             disabled={locked}
             aria-label={`${index + 1}번 사진 순서 바꾸기`}
-            className={`flex h-9 w-9 flex-none cursor-grab items-center justify-center rounded-lg text-ink-2 transition-colors duration-200 hover:bg-hair-soft hover:text-ink disabled:text-ink-disabled disabled:hover:bg-transparent active:cursor-grabbing ${FOCUS_RING} motion-reduce:transition-none`}
+            className={`flex h-9 w-9 flex-none cursor-grab items-center justify-center rounded-lg ${DRAG_HANDLE_TOUCH} text-ink-2 transition-colors duration-200 hover:bg-hair-soft hover:text-ink disabled:text-ink-disabled disabled:hover:bg-transparent active:cursor-grabbing ${FOCUS_RING} motion-reduce:transition-none`}
           >
             <GripVertical size={16} aria-hidden="true" />
           </button>
@@ -251,11 +247,7 @@ export function WorkbenchRail({
   onSwapIn: (photoId: string) => void;
   onToggleDrop: () => void;
 }) {
-  const sensors = useSensors(
-    // 4px 안쪽 움직임은 클릭으로 본다 — 안 그러면 손잡이를 누르는 손떨림만으로도 드래그가 시작된다
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const sensors = useSortableSensors();
 
   function onDragEnd(event: DragEndEvent) {
     const { active: dragged, over } = event;

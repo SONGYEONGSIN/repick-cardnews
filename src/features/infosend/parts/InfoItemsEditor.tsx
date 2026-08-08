@@ -3,14 +3,11 @@
 import type { Dispatch } from "react";
 import {
   DndContext,
-  KeyboardSensor,
-  PointerSensor,
   closestCenter,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { DRAG_HANDLE_TOUCH, useSortableSensors } from "@/features/studio/useSortableSensors";
 import { FOCUS_RING } from "@/components/ui";
 import { ITEM_INPUT, SortableItem } from "./SortableItem";
 import { ItemFields } from "./ItemFields";
@@ -28,10 +25,7 @@ import type { InfoAction, InfoState } from "../reducer";
  * 카드 옆에 남기고, 긴 목록은 세로가 넉넉한 왼쪽으로 뗐다.
  */
 export function InfoItemsEditor({ state, dispatch }: { state: InfoState; dispatch: Dispatch<InfoAction> }) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const sensors = useSortableSensors();
   const spec = state.spec;
   if (!spec) return null;
 

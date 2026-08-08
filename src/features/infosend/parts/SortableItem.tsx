@@ -2,6 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { DRAG_HANDLE_TOUCH } from "@/features/studio/useSortableSensors";
 import { GripVertical, Trash2 } from "lucide-react";
 
 /** 항목 칸의 공통 모양 — 형식별 칸이 서로 달라 보이지 않게 한 곳에서 정한다. */
@@ -43,7 +44,7 @@ export function SortableItem({
           {...attributes}
           {...listeners}
           aria-label={`${index + 1}번 항목 순서 바꾸기`}
-          className="flex h-6 w-6 flex-none cursor-grab items-center justify-center rounded text-ink-3 hover:bg-hair-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum active:cursor-grabbing"
+          className={`flex h-6 w-6 flex-none cursor-grab items-center justify-center rounded ${DRAG_HANDLE_TOUCH} text-ink-3 hover:bg-hair-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-plum active:cursor-grabbing`}
         >
           <GripVertical size={14} aria-hidden="true" />
         </button>
