@@ -79,6 +79,20 @@ export async function verifySession(
   return Number(expiresAt) > now;
 }
 
+/**
+ * 쓸 수 있는 비밀번호의 최소 길이.
+ *
+ * 이 로그인은 **해시도 시도 횟수 제한도 없다.** 서버리스는 요청이 몰리면 함수를 여러 개로
+ * 늘리므로 "초당 몇 번" 으로 막는 장치를 둘 곳도 마땅치 않다. 그래서 **길이가 유일한
+ * 방어**다 — 그 전제를 코드가 직접 확인한다. 확인하지 않으면 급할 때 짧은 값으로 바꿔 두고
+ * 아무도 모르는 상태가 된다.
+ */
+export const MIN_PASSWORD_LENGTH = 12;
+
+export function isUsablePassword(value: string | undefined): boolean {
+  return (value?.trim().length ?? 0) >= MIN_PASSWORD_LENGTH;
+}
+
 /** 로그인 쿠키 이름. 미들웨어와 로그인 API 가 같은 값을 봐야 한다. */
 export const SESSION_COOKIE = "repick_session";
 

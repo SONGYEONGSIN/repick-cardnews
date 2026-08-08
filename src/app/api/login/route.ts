@@ -1,4 +1,4 @@
-import { SESSION_COOKIE, SESSION_DAYS, safeEqual, signSession } from "@/lib/auth";
+import { MIN_PASSWORD_LENGTH, SESSION_COOKIE, SESSION_DAYS, isUsablePassword, safeEqual, signSession } from "@/lib/auth";
 
 /**
  * 비밀번호를 받아 세션 쿠키를 심는다.
@@ -14,6 +14,15 @@ export async function POST(req: Request) {
   // 설정이 없으면 잠긴다. 열어 두는 쪽으로 실패하면 배포 한 번에 계정이 열린다.
   if (!expected || !secret) {
     return Response.json({ error: "로그인 설정이 아직 안 됐어요." }, { status: 500 });
+  }
+
+  // 짧은 비밀번호는 **맞아도 들여보내지 않는다.** 이 설계는 길이에 기대고 있어서, 짧은 값을
+  // 받아 주는 순간 방어가 없는 것과 같다. 맞는 값을 넣고도 막히는 편이 낫다.
+  if (!isUsablePassword(expected)) {
+    return Response.json(
+      { error: `설정된 비밀번호가 너무 짧아요(${MIN_PASSWORD_LENGTH}자 이상이어야 해요).` },
+      { status: 500 },
+    );
   }
 
   let password = "";

@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { isPublicPath, safeEqual, signSession, verifySession } from "./auth";
+import { MIN_PASSWORD_LENGTH, isPublicPath, isUsablePassword, safeEqual, signSession, verifySession } from "./auth";
+
+describe("isUsablePassword", () => {
+  // 해시도 시도 제한도 없는 설계라 **길이가 유일한 방어**다. 그런데 그 전제를 코드가 확인하지
+  // 않으면, 급할 때 짧은 값으로 바꿔 놓고 아무도 모르는 상태가 된다.
+  it("기준 길이 미만은 거절한다", () => {
+    expect(isUsablePassword("짧은값123")).toBe(false);
+    expect(isUsablePassword("a".repeat(MIN_PASSWORD_LENGTH - 1))).toBe(false);
+  });
+
+  it("기준 길이 이상은 받는다", () => {
+    expect(isUsablePassword("a".repeat(MIN_PASSWORD_LENGTH))).toBe(true);
+    expect(isUsablePassword("고양이가창문에서졸고있다")).toBe(true);
+  });
+
+  it("없거나 공백뿐이면 거절한다", () => {
+    expect(isUsablePassword(undefined)).toBe(false);
+    expect(isUsablePassword("")).toBe(false);
+    expect(isUsablePassword(" ".repeat(MIN_PASSWORD_LENGTH + 5))).toBe(false);
+  });
+
+  it("기준은 12자다 — 낮추면 이 테스트가 먼저 깨진다", () => {
+    expect(MIN_PASSWORD_LENGTH).toBe(12);
+  });
+});
 
 describe("isPublicPath", () => {
   it("화면과 API 는 전부 막는다", () => {
