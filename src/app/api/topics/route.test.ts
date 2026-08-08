@@ -42,15 +42,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("GET /api/topics 로컬 전용 가드", () => {
-  it("집 네트워크 IP로 온 요청은 403으로 막고 한국어로 안내한다", async () => {
-    const res = await GET(makeRequest("10.0.0.7:3500"));
-    expect(res.status).toBe(403);
-    const data = await res.json();
-    expect(data.error).toContain("컴퓨터");
-  });
-});
-
 describe("GET /api/topics 설정 판정 — 유튜브 키 필수·네이버 선택", () => {
   it("유튜브 키가 없으면 400과 유튜브 키가 없다는 한국어 안내를 준다(네이버 값이 있어도)", async () => {
     process.env.NAVER_CLIENT_ID = "id";

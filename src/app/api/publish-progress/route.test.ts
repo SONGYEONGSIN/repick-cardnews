@@ -4,9 +4,8 @@ import { GET } from "@/app/api/publish-progress/route";
 import { recordPublishProgress } from "@/lib/publish-progress-store";
 
 /**
- * `isLocalHost()` 자체 판정 로직은 `@/lib/local-guard.test.ts`가 촘촘히 덮는다 — 여기서는
- * 이 라우트가 그 판정을 실제로 앞단에 붙였는지만 확인한다(`@/app/api/publish/route.test.ts`와
- * 같은 방식).
+ * 로그인 판정은 미들웨어(`src/middleware.ts`)가 하고 그 로직은 `@/lib/auth.test.ts` 가
+ * 덮는다. 여기서는 이 라우트 자신의 동작만 본다.
  */
 
 function makeRequest(host: string, token: string | null): Request {
@@ -14,16 +13,6 @@ function makeRequest(host: string, token: string | null): Request {
   if (token !== null) url.searchParams.set("token", token);
   return new Request(url, { headers: { host } });
 }
-
-describe("GET /api/publish-progress 로컬 전용 가드", () => {
-  it("집 네트워크 IP로 온 요청은 403으로 막고 한국어로 안내한다", async () => {
-    const res = await GET(makeRequest("10.0.0.7:3500", randomUUID()));
-
-    expect(res.status).toBe(403);
-    const data = await res.json();
-    expect(data.error).toContain("컴퓨터");
-  });
-});
 
 describe("GET /api/publish-progress", () => {
   it("도는 게시가 없으면 조용히(200, progress: null) 응답한다", async () => {

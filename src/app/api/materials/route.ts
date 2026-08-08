@@ -8,17 +8,13 @@
  * 후보는 언제나 유튜브에서 온다 — 네이버는 후보를 만들 수 없다(검색어트렌드·쇼핑인사이트 모두
  * 키워드를 입력으로 요구한다).
  *
- * `/api/topics` 와 같은 이유로 이 PC 브라우저에서만 부를 수 있다(`@/lib/local-guard`).
+ * `/api/publish` 와 같은 이유로 로그인한 사람만 부를 수 있다(`src/middleware.ts`).
  */
 import { checkYoutubeConfig } from "@/lib/topics-config";
-import { isLocalHost } from "@/lib/local-guard";
 import { fetchYoutubeTrendingCandidates, friendlyYoutubeError, parseCategoryIds } from "@/lib/youtube-trending";
 import { fetchYoutubeSearchMaterials, friendlyYoutubeSearchError, type MaterialItem } from "@/lib/youtube-search";
 
 export async function GET(req: Request) {
-  if (!isLocalHost(req.headers.get("host"))) {
-    return Response.json({ error: "소재 찾기는 이 컴퓨터의 브라우저에서만 할 수 있어요." }, { status: 403 });
-  }
 
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode");

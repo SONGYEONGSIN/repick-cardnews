@@ -36,12 +36,6 @@ describe("GET /api/topics-config", () => {
     expect(await (await GET(makeRequest("localhost:3500"))).json()).toMatchObject({ naverConfigured: false });
   });
 
-  it("다른 기기에서는 403 이고 안내가 한국어다", async () => {
-    const res = await GET(makeRequest("192.168.0.5:3500"));
-
-    expect(res.status).toBe(403);
-    expect(/[가-힣]/.test((await res.json()).error)).toBe(true);
-  });
 });
 
 /**

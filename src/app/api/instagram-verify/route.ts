@@ -1,5 +1,4 @@
 import { checkInstagramConnectionConfig } from "@/lib/instagram-config";
-import { isLocalHost } from "@/lib/local-guard";
 import { verifyInstagramConnection, friendlyVerifyError } from "@/lib/instagram";
 
 /**
@@ -13,17 +12,11 @@ import { verifyInstagramConnection, friendlyVerifyError } from "@/lib/instagram"
  * 쓰이므로(`/api/publish` 참고), 터널을 아직 안 켜서 공개 주소가 없어도 토큰이 맞는지 먼저
  * 확인할 수 있다.
  *
- * `/api/publish`·`/api/share`와 같은 이유로 이 PC 브라우저에서만 부를 수 있게 막는다 — 이
- * 라우트도 실제 액세스 토큰으로 인스타그램 서버를 호출하는 액션이기 때문이다. 판정 기준과
- * 한계는 `@/lib/local-guard` 참고. **토큰 값은 이 응답에도 절대 담기지 않는다.**
+ * `/api/publish`·`/api/share`와 같은 이유로 로그인한 사람만 부를 수 있다(`src/middleware.ts`)
+ * — 이 라우트도 실제 액세스 토큰으로 인스타그램 서버를 호출하는 액션이기 때문이다.
+ * **토큰 값은 이 응답에도 절대 담기지 않는다.**
  */
 export async function POST(req: Request) {
-  if (!isLocalHost(req.headers.get("host"))) {
-    return Response.json(
-      { error: "인스타그램 연결 확인은 이 컴퓨터의 브라우저에서만 할 수 있어요." },
-      { status: 403 },
-    );
-  }
 
   const connectionCheck = checkInstagramConnectionConfig(process.env);
   if (!connectionCheck.ready) {

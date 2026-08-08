@@ -1,5 +1,4 @@
 import { z } from "zod/v4";
-import { isLocalHost } from "@/lib/local-guard";
 import { readPublishProgress } from "@/lib/publish-progress-store";
 
 /**
@@ -17,12 +16,6 @@ import { readPublishProgress } from "@/lib/publish-progress-store";
 const QuerySchema = z.object({ token: z.uuid("잘못된 공유 링크입니다") });
 
 export async function GET(req: Request) {
-  if (!isLocalHost(req.headers.get("host"))) {
-    return Response.json(
-      { error: "게시 진행 상황 확인은 이 컴퓨터의 브라우저에서만 할 수 있어요." },
-      { status: 403 },
-    );
-  }
 
   const url = new URL(req.url);
   const parsed = QuerySchema.safeParse({ token: url.searchParams.get("token") });

@@ -30,14 +30,6 @@ function makeRequest(host: string): Request {
 }
 
 describe("POST /api/instagram-verify", () => {
-  it("집 네트워크 IP로 온 요청은 403으로 막는다", async () => {
-    const res = await POST(makeRequest("192.168.0.5:3500"));
-
-    expect(res.status).toBe(403);
-    const data = await res.json();
-    expect(data.error).toContain("컴퓨터");
-  });
-
   it("계정 ID·토큰이 없으면 400과 빠진 항목을 한국어로 알려준다", async () => {
     clearEnv();
     const res = await POST(makeRequest("localhost:3500"));
