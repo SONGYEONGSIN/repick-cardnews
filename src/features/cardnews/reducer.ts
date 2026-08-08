@@ -52,6 +52,8 @@ export type CardnewsState = {
   keyword: string;
   themeId: ThemeId;
   cards: CardDraft[];
+  /** 협찬·광고 표기(카드 우측 상단 [광고]). 세트 전체에 같이 적용된다. */
+  ad: boolean;
   error: string | null;
   busy: boolean;
 };
@@ -63,6 +65,7 @@ export type CardnewsAction =
   | { type: "SWAP_IN"; slotIndex: number; photoId: string }
   | { type: "SET_KEYWORD"; keyword: string }
   | { type: "SET_THEME"; themeId: ThemeId }
+  | { type: "SET_AD"; ad: boolean }
   | { type: "SET_SPEC"; spec: CardnewsSpec }
   | { type: "UPDATE_CARD"; index: number; patch: Partial<Omit<CardDraft, "id" | "photoId">> }
   | { type: "SET_STEP"; step: number }
@@ -77,6 +80,7 @@ export const initialCardnewsState: CardnewsState = {
   keyword: "",
   themeId: "mint-clean",
   cards: [],
+  ad: false,
   error: null,
   busy: false,
 };
@@ -191,6 +195,9 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
     }
     case "SET_KEYWORD":
       return { ...state, keyword: action.keyword };
+    case "SET_AD":
+      return { ...state, ad: action.ad };
+
     case "SET_THEME":
       return { ...state, themeId: action.themeId };
     case "SET_SPEC": {

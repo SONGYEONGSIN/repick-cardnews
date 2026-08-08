@@ -32,6 +32,7 @@ function state(overrides: Partial<CardnewsState> = {}): CardnewsState {
     keyword: "키워드",
     themeId: "mint-clean",
     cards: [draft()],
+    ad: false,
     error: null,
     busy: false,
     ...overrides,

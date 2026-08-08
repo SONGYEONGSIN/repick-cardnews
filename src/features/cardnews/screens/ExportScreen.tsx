@@ -252,7 +252,7 @@ export function ExportScreen({
                           "너무 작아 안 보인다"는 실사용 피드백으로 키웠다. */}
                       <span className="block origin-top-left scale-[0.25]">
                         {/* 카드뉴스는 계정 핸들 워터마크를 쓰지 않는다 — 빈 문자열이면 CardFrame이 안 그린다. */}
-                        <CardRenderer card={card} themeId={state.themeId} handle="" />
+                        <CardRenderer card={card} themeId={state.themeId} handle="" ad={state.ad} />
                       </span>
                     </span>
                   </div>

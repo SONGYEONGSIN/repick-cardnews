@@ -70,10 +70,13 @@ export function CardRenderer({
   card,
   themeId,
   handle,
+  ad = false,
 }: {
   card: RenderCard;
   themeId: ThemeId;
   handle: string;
+  /** 협찬·광고 표기(우측 상단). 세트 전체에 같이 적용된다. */
+  ad?: boolean;
 }) {
   const theme = THEMES[themeId];
   const onPhoto = card.layout === "full-bleed" && card.photoUrl !== null;
@@ -102,7 +105,7 @@ export function CardRenderer({
   const spacers: TextYSpacers = isInfographicCopy(card.copy) ? { top: 0, bottom: 0 } : textYSpacers(card.textY);
 
   return (
-    <CardFrame theme={theme} handle={handle}>
+    <CardFrame theme={theme} handle={handle} ad={ad} onPhoto={onPhoto}>
       {card.layout === "full-bleed" && (
         <FullBleedCard
           theme={theme}

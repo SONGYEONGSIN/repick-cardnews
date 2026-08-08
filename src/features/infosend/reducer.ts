@@ -23,6 +23,8 @@ export type InfoState = {
   keyword: string;
   themeId: ThemeId;
   handle: string;
+  /** 협찬·광고 표기(카드 우측 상단 [광고]). */
+  ad: boolean;
   band: number;
   /** 사용자가 SET_BAND로 직접 조정했는지. true면 항목 수가 바뀌어도 자동 재계산하지 않는다. */
   bandTouched: boolean;
@@ -40,6 +42,7 @@ export type InfoAction =
   | { type: "SET_KEYWORD"; keyword: string }
   | { type: "SET_THEME"; themeId: ThemeId }
   | { type: "SET_HANDLE"; handle: string }
+  | { type: "SET_AD"; ad: boolean }
   | { type: "SET_BAND"; band: number }
   | { type: "SET_FOCAL"; focal: Focal }
   | { type: "SET_FIT"; patch: Partial<Fit> }
@@ -64,6 +67,7 @@ export const initialInfoState: InfoState = {
   keyword: "",
   themeId: "mint-clean",
   handle: "",
+  ad: false,
   band: DEFAULT_BAND_INFO,
   bandTouched: false,
   focal: DEFAULT_FOCAL,
@@ -164,6 +168,9 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
       return { ...state, themeId: action.themeId };
     case "SET_HANDLE":
       return { ...state, handle: action.handle };
+
+    case "SET_AD":
+      return { ...state, ad: action.ad };
     case "SET_BAND":
       return { ...state, band: action.band, bandTouched: true };
     case "SET_FOCAL":

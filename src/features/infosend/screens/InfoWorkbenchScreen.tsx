@@ -304,7 +304,7 @@ export function InfoWorkbenchScreen({
                       className="origin-top-left"
                       style={{ width: CARD_W, height: CARD_H, transform: `scale(${fit.scale})` }}
                     >
-                      <CardRenderer card={card} themeId={state.themeId} handle={state.handle} />
+                      <CardRenderer card={card} themeId={state.themeId} handle={state.handle} ad={state.ad} />
                     </div>
                   </div>
                 </div>

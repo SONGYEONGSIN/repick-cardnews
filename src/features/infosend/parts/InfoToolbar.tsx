@@ -278,6 +278,14 @@ export function InfoToolbar({
                   />
                 ))}
               </Group>
+              {/* 협찬·광고를 받았으면 밝혀야 한다(표시광고법). 카드뉴스 쪽과 같은 자리·같은 문구. */}
+              <Group>
+                <Opt
+                  label="[광고] 표기"
+                  on={state.ad}
+                  onClick={() => dispatch({ type: "SET_AD", ad: !state.ad })}
+                />
+              </Group>
             </span>
           )}
         </div>

@@ -188,7 +188,7 @@ export function InfoExportScreen({
             <div className="overflow-hidden rounded-xl border border-hair bg-surface" style={{ width: 270 }} aria-hidden="true">
               <span className="block aspect-[4/5] w-full overflow-hidden bg-hair-soft">
                 <span className="block origin-top-left scale-[0.25]">
-                  <CardRenderer card={card} themeId={state.themeId} handle={state.handle} />
+                  <CardRenderer card={card} themeId={state.themeId} handle={state.handle} ad={state.ad} />
                 </span>
               </span>
             </div>

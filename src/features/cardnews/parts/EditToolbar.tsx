@@ -174,6 +174,8 @@ export function EditToolbar({
   headlineSelection,
   themeId,
   onThemeChange,
+  ad,
+  onAdChange,
 }: {
   card: CardDraft;
   target: EditTarget;
@@ -190,6 +192,9 @@ export function EditToolbar({
       보내지 않고 따로 받는다. '카드' 탭 안에서만 보여준다(위 파일 상단 주석 참고). */
   themeId: ThemeId;
   onThemeChange: (themeId: ThemeId) => void;
+  /** 협찬·광고 표기 — 세트 전체에 적용된다. */
+  ad: boolean;
+  onAdChange: (ad: boolean) => void;
 }) {
   const copy = card.copy;
   // hook·cta 에는 본문이 없다. 없는 카드에서는 본문 탭 자체를 띄우지 않는다.
@@ -432,6 +437,10 @@ export function EditToolbar({
                   swatch={<ThemeSwatch themeId={id} />}
                 />
               ))}
+            </Group>
+            {/* 협찬·광고를 받았으면 밝혀야 한다(표시광고법). 세트 전체 성격이라 테마와 같은 자리다. */}
+            <Group>
+              <Opt label="[광고] 표기" on={ad} onClick={() => onAdChange(!ad)} />
             </Group>
           </span>
         )}
