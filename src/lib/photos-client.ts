@@ -1,4 +1,5 @@
 import { compareFileNames, downscaleSize, THUMB_MAX, type Photo } from "@/lib/photos";
+import { isLikelyImage, type Skipped } from "@/lib/photo-intake";
 
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -105,12 +106,37 @@ export function entriesToFiles(items: DataTransferItemList): Promise<File[]> {
   return drainEntries(entries);
 }
 
-const IMAGE_RE = /\.(jpe?g|png|webp)$/i;
+/**
+ * 폴더에서 온 파일은 순서가 보장되지 않으므로 파일명 자연 정렬로 순서를 정한다.
+ *
+ * **한 장이 실패해도 나머지는 넣는다.** 예전에는 `Promise.all` 이라 한 장만 못 읽어도 전부
+ * 날아갔고, 그 전에 확장자 필터가 HEIC 를 **말없이** 버렸다 — 아이폰에서 5장을 고르면 4장만
+ * 들어갔다. 무엇이 왜 빠졌는지 함께 돌려줘 호출부가 사용자에게 말할 수 있게 한다.
+ */
+export async function filesToPhotos(
+  files: FileList | File[],
+): Promise<{ photos: Photo[]; skipped: Skipped[] }> {
+  const all = Array.from(files).sort((a, b) => compareFileNames(a.name, b.name));
+  const skipped: Skipped[] = [];
 
-/** 폴더에서 온 파일은 순서가 보장되지 않으므로 파일명 자연 정렬로 순서를 정한다. */
-export async function filesToPhotos(files: FileList | File[]): Promise<Photo[]> {
-  const list = Array.from(files)
-    .filter((f) => IMAGE_RE.test(f.name))
-    .sort((a, b) => compareFileNames(a.name, b.name));
-  return Promise.all(list.map(fileToPhoto));
+  const images = all.filter((f) => {
+    if (isLikelyImage(f)) return true;
+    skipped.push({ name: f.name, reason: "not-image" });
+    return false;
+  });
+
+  const results = await Promise.all(
+    images.map(async (f) => {
+      try {
+        return await fileToPhoto(f);
+      } catch {
+        // 브라우저가 못 여는 형식(데스크톱 크롬의 HEIC 등)이거나 파일이 깨졌다.
+        // 원문은 밖으로 내보내지 않는다 — 어차피 영어다.
+        skipped.push({ name: f.name, reason: "unreadable" });
+        return null;
+      }
+    }),
+  );
+
+  return { photos: results.filter((p): p is Photo => p !== null), skipped };
 }

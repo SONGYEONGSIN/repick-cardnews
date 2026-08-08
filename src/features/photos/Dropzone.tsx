@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { FolderOpen, ImageUp } from "lucide-react";
 import { Button, PLACEHOLDER_BOX } from "@/components/ui";
 import { entriesToFiles, filesToPhotos } from "@/lib/photos-client";
+import { skippedNotice } from "@/lib/photo-intake";
 import type { Photo } from "@/lib/photos";
 
 export function Dropzone({
@@ -22,12 +23,16 @@ export function Dropzone({
   async function ingest(source: FileList | File[] | Promise<File[]>) {
     setBusy(true);
     try {
-      const photos = await filesToPhotos(await source);
-      if (photos.length === 0) {
-        onError("이미지 파일(jpg·png·webp)이 없어요.");
-        return;
-      }
-      onPhotos(photos);
+      const { photos, skipped } = await filesToPhotos(await source);
+
+      // **넣은 것부터 넣는다.** 한 장이 안 읽힌다고 나머지를 버리면, 사용자는 왜 아무것도
+      // 안 들어갔는지 알 수 없다.
+      if (photos.length > 0) onPhotos(photos);
+
+      // 빠진 게 있으면 반드시 말한다 — 조용히 버리는 것이 이 화면의 오래된 결함이었다.
+      const notice = skippedNotice(photos.length, skipped);
+      if (notice) onError(notice);
+      else if (photos.length === 0) onError("이미지 파일이 없어요.");
     } catch (e) {
       onError(e instanceof Error ? e.message : "사진을 읽지 못했어요.");
     } finally {
