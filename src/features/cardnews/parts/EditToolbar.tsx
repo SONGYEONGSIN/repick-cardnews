@@ -176,6 +176,7 @@ export function EditToolbar({
   themeId,
   onThemeChange,
   ad,
+  adAppliesHere,
   onAdChange,
 }: {
   card: CardDraft;
@@ -195,6 +196,8 @@ export function EditToolbar({
   onThemeChange: (themeId: ThemeId) => void;
   /** 협찬·광고 표기 — 세트 전체에 적용된다. */
   ad: boolean;
+  /** 지금 보고 있는 카드에 그 표기가 실제로 붙는가. 안 붙으면 스위치를 숨긴다. */
+  adAppliesHere: boolean;
   onAdChange: (ad: boolean) => void;
 }) {
   const copy = card.copy;
@@ -439,10 +442,14 @@ export function EditToolbar({
                 />
               ))}
             </Group>
-            {/* 협찬·광고를 받았으면 밝혀야 한다(표시광고법). 세트 전체 성격이라 테마와 같은 자리다. */}
-            <Group>
-              <Opt label="[광고] 표기" on={ad} onClick={() => onAdChange(!ad)} />
-            </Group>
+            {/* 협찬·광고를 받았으면 밝혀야 한다(표시광고법). 세트 전체 성격이라 테마와 같은 자리다.
+                **이 카드에 표기가 안 붙으면 스위치도 숨긴다** — 첫 장은 인스타의 `1/4` 표시에
+                가려 표기를 넣지 않는데, 스위치만 보이면 켜도 아무 일이 없어 보인다. */}
+            {adAppliesHere && (
+              <Group>
+                <Opt label="[광고] 표기" on={ad} onClick={() => onAdChange(!ad)} />
+              </Group>
+            )}
           </span>
         )}
         </div>

@@ -402,6 +402,7 @@ export function WorkbenchScreen({
                   themeId={state.themeId}
                   onThemeChange={(themeId) => dispatch({ type: "SET_THEME", themeId })}
                   ad={state.ad}
+                  adAppliesHere={showAdBadge(true, active, state.cards.length)}
                   onAdChange={(ad) => dispatch({ type: "SET_AD", ad })}
                 />
                 {/* 카드 상자 + 캡션을 한 덩어리로 묶는다 — 이 안의 gap(`gap-1`)만 좁혀서 캡션이
