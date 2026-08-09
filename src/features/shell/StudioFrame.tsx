@@ -55,7 +55,8 @@ export function StudioFrame({
         <div className="flex justify-center">
           <StudioMark size={28} />
         </div>
-        <ol className="flex items-center gap-1.5">
+        {/* 로고가 가운데인데 단계가 왼쪽에 붙어 있으면 축이 어긋나 보인다. */}
+        <ol className="flex items-center justify-center gap-1.5">
           {STEPS.map((s, i) => {
             const done = i < step;
             const now = i === step;
@@ -152,7 +153,11 @@ export function StudioFrame({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-[76px] flex-none flex-wrap items-center gap-x-4 gap-y-3 border-b border-hair px-5 py-4 sm:px-8 lg:px-10">
-          <h1 className="min-w-0 flex-1 truncate text-[20px] font-black tracking-tight sm:text-[24px]">{title}</h1>
+          {/* 좁은 화면에서는 제목이 **한 줄을 통째로** 쓴다. 예전엔 버튼과 같은 줄에서
+              flex-1 로 눌려 "수원 ..." 처럼 주제가 잘렸다(폰에서 확인, 2026-08-09). */}
+          <h1 className="w-full min-w-0 truncate text-[20px] font-black tracking-tight sm:w-auto sm:flex-1 sm:text-[24px]">
+            {title}
+          </h1>
           <div className="flex flex-none flex-wrap items-center gap-2.5">{action}</div>
         </header>
 

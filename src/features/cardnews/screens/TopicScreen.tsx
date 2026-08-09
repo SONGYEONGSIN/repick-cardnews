@@ -112,7 +112,8 @@ export function TopicScreen({
             사진 올리러 가기
             <ArrowRight size={18} aria-hidden="true" />
           </SolidButton>
-          <p className="text-[14px] text-ink-2">다음 화면에서 사진을 올리고 카피를 붙여요.</p>
+          {/* 좁은 화면에서는 설명이 버튼과 같은 줄을 다투다 버튼을 밀어낸다 — 줄을 나눈다. */}
+          <p className="w-full text-[14px] text-ink-2 sm:w-auto">다음 화면에서 사진을 올리고 카피를 붙여요.</p>
         </div>
 
         {/* 첫 화면이 여기로 옮겨 오면서(허브 제거) 최근 목록도 함께 왔다 — 만들기 시작 전에

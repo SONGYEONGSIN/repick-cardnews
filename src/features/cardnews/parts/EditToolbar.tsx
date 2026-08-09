@@ -46,7 +46,8 @@ export type EditTarget = "heading" | "body" | "steps" | "photo" | "card" | "them
 export const MAX_STEPS = 5;
 
 function Group({ children }: { children: React.ReactNode }) {
-  return <span className="flex items-center rounded-lg border border-hair p-1">{children}</span>;
+  // 좁은 화면에서는 줄을 바꾼다 — 안 그러면 테마 다섯 개가 상자를 뚫고 나간다(폰에서 확인, 2026-08-09).
+  return <span className="flex flex-wrap items-center rounded-lg border border-hair p-1">{children}</span>;
 }
 
 function Opt({
