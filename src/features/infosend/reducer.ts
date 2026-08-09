@@ -25,6 +25,11 @@ export type InfoState = {
   handle: string;
   /** 협찬·광고 표기(카드 우측 상단 [광고]). */
   ad: boolean;
+  /**
+   * 참고 이미지 — **카드에 실리지 않는다.** 카피를 쓸 때 말투·구성만 참고한다.
+   * `photos` 와 따로 두는 이유가 그것이다: 섞으면 참고 이미지가 카드에 박힌다.
+   */
+  references: Photo[];
   band: number;
   /** 사용자가 SET_BAND로 직접 조정했는지. true면 항목 수가 바뀌어도 자동 재계산하지 않는다. */
   bandTouched: boolean;
@@ -43,6 +48,9 @@ export type InfoAction =
   | { type: "SET_THEME"; themeId: ThemeId }
   | { type: "SET_HANDLE"; handle: string }
   | { type: "SET_AD"; ad: boolean }
+  | { type: "ADD_REFERENCES"; photos: Photo[] }
+  | { type: "REMOVE_REFERENCE"; photoId: string }
+  | { type: "CLEAR_REFERENCES" }
   | { type: "SET_BAND"; band: number }
   | { type: "SET_FOCAL"; focal: Focal }
   | { type: "SET_FIT"; patch: Partial<Fit> }
@@ -68,6 +76,7 @@ export const initialInfoState: InfoState = {
   themeId: "mint-clean",
   handle: "",
   ad: false,
+  references: [],
   band: DEFAULT_BAND_INFO,
   bandTouched: false,
   focal: DEFAULT_FOCAL,
@@ -171,6 +180,18 @@ export function infoReducer(state: InfoState, action: InfoAction): InfoState {
 
     case "SET_AD":
       return { ...state, ad: action.ad };
+
+    case "ADD_REFERENCES": {
+      // 같은 파일을 두 번 고르면 한 번만 남긴다 — 사진 추가와 같은 규칙.
+      const known = new Set(state.references.map((p) => p.id));
+      return { ...state, references: [...state.references, ...action.photos.filter((p) => !known.has(p.id))] };
+    }
+
+    case "REMOVE_REFERENCE":
+      return { ...state, references: state.references.filter((p) => p.id !== action.photoId) };
+
+    case "CLEAR_REFERENCES":
+      return { ...state, references: [] };
     case "SET_BAND":
       return { ...state, band: action.band, bandTouched: true };
     case "SET_FOCAL":

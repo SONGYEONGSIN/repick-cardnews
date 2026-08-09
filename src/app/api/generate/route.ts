@@ -27,6 +27,21 @@ const BodySchema = z.object({
     )
     .max(6)
     .default([]),
+  /**
+   * 참고 이미지 — **카드에 실리지 않는다.** 카피를 쓸 때 말투·구성만 참고한다
+   * (`buildUserContent` 주석 참고). 사진과 같은 형식·같은 상한을 쓴다.
+   */
+  references: z
+    .array(
+      z
+        .string()
+        .regex(
+          /^data:image\/(jpeg|png|gif|webp);base64,/,
+          "참고 이미지는 jpeg·png·gif·webp 형식의 base64 dataURL이어야 합니다",
+        ),
+    )
+    .max(6)
+    .default([]),
 });
 
 export function parseBody(raw: unknown): z.infer<typeof BodySchema> {
@@ -56,7 +71,7 @@ export async function POST(req: Request) {
         body.format,
         body.type === "cardnews" && body.photos.length > 0 ? body.photos.length : undefined,
       ),
-      content: buildUserContent(body.keyword, body.photos),
+      content: buildUserContent(body.keyword, body.photos, body.references),
       jsonSchema: z.toJSONSchema(spec),
       model: MODEL,
       timeoutMs: TIMEOUT_MS,

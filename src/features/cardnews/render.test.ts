@@ -33,6 +33,7 @@ function state(overrides: Partial<CardnewsState> = {}): CardnewsState {
     themeId: "mint-clean",
     cards: [draft()],
     ad: false,
+    references: [],
     error: null,
     busy: false,
     ...overrides,

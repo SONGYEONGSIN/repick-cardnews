@@ -59,6 +59,11 @@ export type CardnewsState = {
   cards: CardDraft[];
   /** 협찬·광고 표기(카드 우측 상단 [광고]). 세트 전체에 같이 적용된다. */
   ad: boolean;
+  /**
+   * 참고 이미지 — **카드에 실리지 않는다.** 카피를 쓸 때 말투·구성만 참고한다.
+   * `photos` 와 따로 두는 이유가 그것이다: 섞으면 참고 이미지가 카드에 박힌다.
+   */
+  references: Photo[];
   error: string | null;
   busy: boolean;
 };
@@ -71,6 +76,9 @@ export type CardnewsAction =
   | { type: "SET_KEYWORD"; keyword: string }
   | { type: "SET_THEME"; themeId: ThemeId }
   | { type: "SET_AD"; ad: boolean }
+  | { type: "ADD_REFERENCES"; photos: Photo[] }
+  | { type: "REMOVE_REFERENCE"; photoId: string }
+  | { type: "CLEAR_REFERENCES" }
   | { type: "SET_SPEC"; spec: CardnewsSpec }
   | { type: "UPDATE_CARD"; index: number; patch: Partial<Omit<CardDraft, "id" | "photoId">> }
   | { type: "SET_STEP"; step: number }
@@ -86,6 +94,7 @@ export const initialCardnewsState: CardnewsState = {
   themeId: "mint-clean",
   cards: [],
   ad: false,
+  references: [],
   error: null,
   busy: false,
 };
@@ -202,6 +211,18 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
       return { ...state, keyword: action.keyword };
     case "SET_AD":
       return { ...state, ad: action.ad };
+
+    case "ADD_REFERENCES": {
+      // 같은 파일을 두 번 고르면 한 번만 남긴다 — 사진 추가와 같은 규칙.
+      const known = new Set(state.references.map((p) => p.id));
+      return { ...state, references: [...state.references, ...action.photos.filter((p) => !known.has(p.id))] };
+    }
+
+    case "REMOVE_REFERENCE":
+      return { ...state, references: state.references.filter((p) => p.id !== action.photoId) };
+
+    case "CLEAR_REFERENCES":
+      return { ...state, references: [] };
 
     case "SET_THEME":
       return { ...state, themeId: action.themeId };

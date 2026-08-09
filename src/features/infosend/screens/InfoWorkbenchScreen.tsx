@@ -10,6 +10,7 @@ import { CardRenderer } from "@/templates/CardRenderer";
 import { showAdBadge } from "@/templates/ad-badge";
 import { THEMES } from "@/templates/themes";
 import { requestSpec } from "@/features/studio/useGenerate";
+import { ReferencePicker } from "@/features/studio/ReferencePicker";
 import type { InfographicSpec } from "@/lib/schema";
 import { inKorean } from "@/features/cardnews/screens/errors";
 import { useFitScale } from "@/features/studio/useFitScale";
@@ -77,6 +78,8 @@ export function InfoWorkbenchScreen({
         keyword: state.keyword,
         // 사진은 선택이다 — 없으면 빈 배열로 보낸다(주제만 보고 쓴다).
         photos: photo ? [photo.thumbUrl] : [],
+        // 참고 이미지도 썸네일로 보낸다 — 원본이면 페이로드가 몇 배가 된다.
+        references: state.references.map((p) => p.thumbUrl),
       });
       dispatch({ type: "SET_SPEC", spec });
     } catch (e) {
@@ -246,6 +249,16 @@ export function InfoWorkbenchScreen({
                   </p>
                 )}
               </div>
+            )}
+
+            {stage !== "choose" && (
+              <ReferencePicker
+                references={state.references}
+                disabled={state.busy}
+                onAdd={(photos) => dispatch({ type: "ADD_REFERENCES", photos })}
+                onRemove={(photoId) => dispatch({ type: "REMOVE_REFERENCE", photoId })}
+                onClear={() => dispatch({ type: "CLEAR_REFERENCES" })}
+              />
             )}
 
             {stage !== "choose" && (

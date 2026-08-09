@@ -14,6 +14,8 @@ describe("parseBody", () => {
       keyword: "에어컨 전기세",
       type: "cardnews",
       photos: [],
+      // 참고 이미지 — 안 주면 빈 배열. 카드에 실리지 않고 카피를 쓸 때만 본다.
+      references: [],
       // 정보전달 형식의 기본값. 카드뉴스에서는 쓰이지 않지만 파싱 결과에는 들어온다.
       format: "list",
     });
@@ -233,5 +235,28 @@ describe("POST 형식", () => {
   it("모르는 형식은 400 이다 — 100초를 쓰기 전에 막는다", async () => {
     const res = await POST(req("이상한값"));
     expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * 참고 이미지는 카드에 실리지 않는다 — 사진과 **따로** 받는다(2026-08-09).
+ */
+describe("parseBody references", () => {
+  it("안 주면 빈 배열이다", () => {
+    expect(parseBody({ keyword: "갈비", type: "cardnews" }).references).toEqual([]);
+  });
+
+  it("dataURL 배열을 받는다", () => {
+    const png = "data:image/png;base64,AAAA";
+    expect(parseBody({ keyword: "갈비", type: "cardnews", references: [png] }).references).toEqual([png]);
+  });
+
+  it("dataURL 이 아니면 거부한다", () => {
+    expect(() => parseBody({ keyword: "갈비", type: "cardnews", references: ["그냥 글자"] })).toThrow();
+  });
+
+  it("6장을 넘으면 거부한다", () => {
+    const many = Array.from({ length: 7 }, () => "data:image/png;base64,AAAA");
+    expect(() => parseBody({ keyword: "갈비", type: "cardnews", references: many })).toThrow();
   });
 });
