@@ -10,6 +10,20 @@
  * 그때도 "몇 장이 왜 안 들어갔는지" 는 말할 수 있다.
  */
 
+/**
+ * 폴더 통째로 고를지, 앨범에서 사진을 고를지.
+ *
+ * 이 도구는 "사진 폴더를 넣으면" 이 출발점이라 데스크톱에서는 `webkitdirectory` 로 폴더를
+ * 통째 받는다. 그런데 **폰에는 그런 사진 폴더가 없다** — 그 속성이 붙어 있으면 앨범이 아니라
+ * 파일 관리자(문서 앱)가 열려서, 사진을 고를 수가 없다(사장님 보고, 2026-08-09).
+ *
+ * 기기를 이름으로 알아내지 않는다(UA 문자열은 거짓말을 한다). **입력 방식**으로 가른다 —
+ * 손가락으로 쓰는 기기면 앨범, 마우스가 있으면 폴더.
+ */
+export function shouldPickFolder(env: { coarsePointer: boolean; supportsDirectory: boolean }): boolean {
+  return env.supportsDirectory && !env.coarsePointer;
+}
+
 export type SkipReason = "not-image" | "unreadable";
 export type Skipped = { name: string; reason: SkipReason };
 

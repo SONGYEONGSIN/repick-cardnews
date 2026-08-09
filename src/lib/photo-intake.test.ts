@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLikelyImage, skippedNotice } from "./photo-intake";
+import { isLikelyImage, shouldPickFolder, skippedNotice } from "./photo-intake";
 
 describe("isLikelyImage", () => {
   it("브라우저가 이미지라고 말하면 받는다", () => {
@@ -62,5 +62,24 @@ describe("skippedNotice", () => {
   it("영문 원문이 새어 나오지 않는다", () => {
     const msg = skippedNotice(0, [{ name: "사진.heic", reason: "unreadable" }]);
     expect(msg?.replace(/사진\.heic/g, "")).not.toMatch(/[A-Za-z]{4,}/);
+  });
+});
+
+/**
+ * 폰에서 "폴더 선택" 을 누르면 **앨범이 아니라 파일 관리자**가 떴다(사장님 보고, 2026-08-09).
+ * `webkitdirectory`(폴더 통째 선택) 때문이다 — 데스크톱에서는 이 저장소의 핵심 동작이지만,
+ * 폰에는 그런 식의 사진 폴더가 없어서 문서 앱으로 새어 나간다.
+ */
+describe("shouldPickFolder", () => {
+  it("마우스가 있는 기기에서는 폴더를 고른다 — 이 도구의 원래 방식", () => {
+    expect(shouldPickFolder({ coarsePointer: false, supportsDirectory: true })).toBe(true);
+  });
+
+  it("손가락으로 쓰는 기기에서는 앨범을 연다", () => {
+    expect(shouldPickFolder({ coarsePointer: true, supportsDirectory: true })).toBe(false);
+  });
+
+  it("브라우저가 폴더 선택을 모르면 앨범을 연다", () => {
+    expect(shouldPickFolder({ coarsePointer: false, supportsDirectory: false })).toBe(false);
   });
 });

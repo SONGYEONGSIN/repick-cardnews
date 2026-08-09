@@ -168,7 +168,7 @@ export function InfoWorkbenchScreen({
             {showDrop && (
               <>
                 <Dropzone
-                  hint="폴더째 올려도 돼요. 한 장만 골라 씁니다."
+                  hint="여러 장 올려도 돼요. 한 장만 골라 씁니다."
                   onPhotos={(photos) => {
                     dispatch({ type: "ADD_PHOTOS", photos });
                     setAdding(false);

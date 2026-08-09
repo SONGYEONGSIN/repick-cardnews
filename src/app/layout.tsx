@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "콘티 — 카드 스튜디오",
+  title: "서맘 스튜디오 — 카드 만들기",
   description: "직접 작업한 사진으로 인스타 카드뉴스·정보전달 이미지를 만듭니다.",
 };
 
