@@ -25,7 +25,7 @@ npm run design:audit   # 정적 게이트 + 폭 스위프(dev 서버가 떠 있�
   패널 골격 · 폭 · 2단 · 되돌릴 수 없는 조작 · 색 · 검증. 여백이 남는 화면이 반복돼서 규칙으로
   못 박은 것이다
 - **배포를 건드리면 → `docs/deploy-setup.md`**
-  Vercel 에 올라가 있다. 예약 발행과 토큰 자동 갱신은 **아직 서버리스에서 안 돈다**
+  Vercel 에 올라가 있다. 예약은 밖에서 오는 cron 이 깨운다. 토큰 자동 갱신은 **아직 안 된다**
 - 인스타 연동을 건드리면 → `docs/instagram-setup.md`
 - 소재 찾기·트렌드를 건드리면 → `docs/trend-setup.md`
 

@@ -19,6 +19,8 @@ function draft(overrides: Partial<CardDraft> = {}): CardDraft {
     textScale: 1,
     textAlign: "left",
     highlight: "",
+    textBox: null,
+    textColor: null,
     copy: { role: "hook", heading: "헤드라인" },
     ...overrides,
   };
@@ -32,6 +34,8 @@ function state(overrides: Partial<CardnewsState> = {}): CardnewsState {
     keyword: "키워드",
     themeId: "mint-clean",
     cards: [draft()],
+    ad: false,
+    references: [],
     error: null,
     busy: false,
     ...overrides,

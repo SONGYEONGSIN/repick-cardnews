@@ -7,8 +7,10 @@ import { StudioFrame, LineButton, SectionHead, SolidButton } from "@/features/sh
 import { Dropzone } from "@/features/photos/Dropzone";
 import { PhotoGrid } from "@/features/photos/PhotoGrid";
 import { CardRenderer } from "@/templates/CardRenderer";
+import { showAdBadge } from "@/templates/ad-badge";
 import { THEMES } from "@/templates/themes";
 import { requestSpec } from "@/features/studio/useGenerate";
+import { ReferencePicker } from "@/features/studio/ReferencePicker";
 import type { InfographicSpec } from "@/lib/schema";
 import { inKorean } from "@/features/cardnews/screens/errors";
 import { useFitScale } from "@/features/studio/useFitScale";
@@ -76,6 +78,8 @@ export function InfoWorkbenchScreen({
         keyword: state.keyword,
         // 사진은 선택이다 — 없으면 빈 배열로 보낸다(주제만 보고 쓴다).
         photos: photo ? [photo.thumbUrl] : [],
+        // 참고 이미지도 썸네일로 보낸다 — 원본이면 페이로드가 몇 배가 된다.
+        references: state.references.map((p) => p.thumbUrl),
       });
       dispatch({ type: "SET_SPEC", spec });
     } catch (e) {
@@ -167,7 +171,7 @@ export function InfoWorkbenchScreen({
             {showDrop && (
               <>
                 <Dropzone
-                  hint="폴더째 올려도 돼요. 한 장만 골라 씁니다."
+                  hint="여러 장 올려도 돼요. 한 장만 골라 씁니다."
                   onPhotos={(photos) => {
                     dispatch({ type: "ADD_PHOTOS", photos });
                     setAdding(false);
@@ -248,6 +252,16 @@ export function InfoWorkbenchScreen({
             )}
 
             {stage !== "choose" && (
+              <ReferencePicker
+                references={state.references}
+                disabled={state.busy}
+                onAdd={(photos) => dispatch({ type: "ADD_REFERENCES", photos })}
+                onRemove={(photoId) => dispatch({ type: "REMOVE_REFERENCE", photoId })}
+                onClear={() => dispatch({ type: "CLEAR_REFERENCES" })}
+              />
+            )}
+
+            {stage !== "choose" && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
                 <SolidButton
                   disabled={state.busy || !canGenerate(stage) || state.keyword.trim().length === 0}
@@ -304,7 +318,7 @@ export function InfoWorkbenchScreen({
                       className="origin-top-left"
                       style={{ width: CARD_W, height: CARD_H, transform: `scale(${fit.scale})` }}
                     >
-                      <CardRenderer card={card} themeId={state.themeId} handle={state.handle} />
+                      <CardRenderer card={card} themeId={state.themeId} handle={state.handle} ad={showAdBadge(state.ad, 0, 1)} />
                     </div>
                   </div>
                 </div>

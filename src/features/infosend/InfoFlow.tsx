@@ -71,7 +71,7 @@ export function InfoFlow({ initialKeyword = "" }: { initialKeyword?: string }) {
       )}
 
       {card && (
-        <CaptureStage cards={[card]} themeId={state.themeId} handle={state.handle} registerRef={registerRef} />
+        <CaptureStage cards={[card]} themeId={state.themeId} handle={state.handle} ad={state.ad} registerRef={registerRef} />
       )}
     </>
   );

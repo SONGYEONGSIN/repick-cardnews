@@ -8,6 +8,8 @@ import { Dropzone } from "@/features/photos/Dropzone";
 import { requestSpec } from "@/features/studio/useGenerate";
 import type { CardnewsSpec } from "@/lib/schema";
 import { CardCanvas } from "../parts/CardCanvas";
+import { ReferencePicker } from "@/features/studio/ReferencePicker";
+import { showAdBadge } from "@/templates/ad-badge";
 import { EditToolbar, type EditTarget } from "../parts/EditToolbar";
 import { WorkbenchRail, type RailItem } from "./WorkbenchRail";
 import { inKorean } from "./errors";
@@ -170,6 +172,8 @@ export function WorkbenchScreen({
         keyword: state.keyword,
         // 보내는 것은 thumbUrl 이다 — dataUrl 은 원본(PNG 캡처용)이라 페이로드가 몇 배가 된다.
         photos: slots.map((p) => p.thumbUrl),
+        // 참고 이미지도 썸네일로 보낸다 — 원본이면 페이로드가 몇 배가 된다.
+        references: state.references.map((p) => p.thumbUrl),
       });
       dispatch({ type: "SET_SPEC", spec });
       // 카드가 통째로 바뀌었다. 고르기와 같은 이유로 편집 대상과 고른 글자를 되돌린다.
@@ -351,6 +355,14 @@ export function WorkbenchScreen({
             )}
           </section>
 
+          <ReferencePicker
+            references={state.references}
+            disabled={state.busy}
+            onAdd={(photos) => dispatch({ type: "ADD_REFERENCES", photos })}
+            onRemove={(photoId) => dispatch({ type: "REMOVE_REFERENCE", photoId })}
+            onClear={() => dispatch({ type: "CLEAR_REFERENCES" })}
+          />
+
           <GenerateRow
             busy={state.busy}
             disabled={!canGenerate}
@@ -400,6 +412,9 @@ export function WorkbenchScreen({
                   headlineSelection={headlineSelection}
                   themeId={state.themeId}
                   onThemeChange={(themeId) => dispatch({ type: "SET_THEME", themeId })}
+                  ad={state.ad}
+                  adAppliesHere={showAdBadge(true, active, state.cards.length)}
+                  onAdChange={(ad) => dispatch({ type: "SET_AD", ad })}
                 />
                 {/* 카드 상자 + 캡션을 한 덩어리로 묶는다 — 이 안의 gap(`gap-1`)만 좁혀서 캡션이
                     카드 바로 아래 붙게 하고, section 의 `gap-2`(위 SectionHead·EditToolbar 사이)
@@ -417,6 +432,9 @@ export function WorkbenchScreen({
                       photo={photo}
                       target={target}
                       themeId={state.themeId}
+                      // 출력(`CaptureStage`)과 **같은 판정**을 쓴다 — 편집 화면과 저장 결과가
+                      // 어긋나면 안 된다.
+                      ad={showAdBadge(state.ad, active, state.cards.length)}
                       focusToken={focusToken}
                       onSelect={setTarget}
                       onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { CardRenderer, type RenderCard } from "@/templates/CardRenderer";
+import { showAdBadge } from "@/templates/ad-badge";
 import type { ThemeId } from "@/templates/themes";
 
 /**
@@ -14,11 +15,15 @@ export function CaptureStage({
   cards,
   themeId,
   handle,
+  ad,
   registerRef,
 }: {
   cards: readonly RenderCard[];
   themeId: ThemeId;
   handle: string;
+  /** 협찬·광고 표기. **미리보기와 반드시 같은 값**이어야 한다 — 화면엔 있고 올라간
+   * 사진엔 없으면 표기를 안 한 것이 된다. */
+  ad: boolean;
   registerRef: (index: number, node: HTMLDivElement | null) => void;
 }) {
   return (
@@ -30,7 +35,7 @@ export function CaptureStage({
             registerRef(i, node);
           }}
         >
-          <CardRenderer card={card} themeId={themeId} handle={handle} />
+          <CardRenderer card={card} themeId={themeId} handle={handle} ad={showAdBadge(ad, i, cards.length)} />
         </div>
       ))}
     </div>

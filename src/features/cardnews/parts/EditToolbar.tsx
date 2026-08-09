@@ -2,6 +2,7 @@
 
 import { Image as ImageIcon } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
+import { BOX_PRESETS, DEFAULT_TEXT_BOX, clampOpacity, readabilityWarning } from "@/lib/text-box";
 import { CARD_LAYOUTS, LAYOUT_LABELS } from "@/lib/layout-assign";
 import {
   isBlankText,
@@ -46,7 +47,8 @@ export type EditTarget = "heading" | "body" | "steps" | "photo" | "card" | "them
 export const MAX_STEPS = 5;
 
 function Group({ children }: { children: React.ReactNode }) {
-  return <span className="flex items-center rounded-lg border border-hair p-1">{children}</span>;
+  // 좁은 화면에서는 줄을 바꾼다 — 안 그러면 테마 다섯 개가 상자를 뚫고 나간다(폰에서 확인, 2026-08-09).
+  return <span className="flex flex-wrap items-center rounded-lg border border-hair p-1">{children}</span>;
 }
 
 function Opt({
@@ -174,6 +176,9 @@ export function EditToolbar({
   headlineSelection,
   themeId,
   onThemeChange,
+  ad,
+  adAppliesHere,
+  onAdChange,
 }: {
   card: CardDraft;
   target: EditTarget;
@@ -190,6 +195,11 @@ export function EditToolbar({
       보내지 않고 따로 받는다. '카드' 탭 안에서만 보여준다(위 파일 상단 주석 참고). */
   themeId: ThemeId;
   onThemeChange: (themeId: ThemeId) => void;
+  /** 협찬·광고 표기 — 세트 전체에 적용된다. */
+  ad: boolean;
+  /** 지금 보고 있는 카드에 그 표기가 실제로 붙는가. 안 붙으면 스위치를 숨긴다. */
+  adAppliesHere: boolean;
+  onAdChange: (ad: boolean) => void;
 }) {
   const copy = card.copy;
   // hook·cta 에는 본문이 없다. 없는 카드에서는 본문 탭 자체를 띄우지 않는다.
@@ -197,18 +207,22 @@ export function EditToolbar({
   // 해법 카드에만 있는 순서 목록. 스키마 상한이 5개다(`CardnewsSpec` 의 SolutionCard).
   const steps = "steps" in copy ? (copy.steps ?? []) : undefined;
   const hasPhoto = card.layout !== "text-only";
+  // 상자를 켰을 때만 본다 — 상자가 없으면 사진 위 글이라 색만으로 판단할 수 없다.
+  const boxWarning = card.textBox
+    ? readabilityWarning(card.textColor ?? "#111111", card.textBox.color, card.textBox.opacity)
+    : null;
 
   const picks: { id: EditTarget; label: string; show: boolean }[] = [
+    // **테마가 맨 앞이다.** 적용 범위가 세트 전체라, 카드 하나씩 손보기 전에 먼저 정하는
+    // 순서가 자연스럽다. 예전엔 '카드' 탭 안에 있었는데 카드 설정으로 읽혀 탭을 나눴고,
+    // 그때는 맨 뒤에 뒀다 — 쓰다 보니 제일 먼저 만지는 것이라 앞으로 옮겼다(2026-08-09).
+    { id: "theme", label: "테마", show: true },
     { id: "heading", label: "헤드라인", show: true },
     { id: "body", label: "본문", show: body !== undefined },
     // 순서 목록은 해법 카드에만 있다. 없는 카드에서는 탭 자체를 띄우지 않는다(본문과 같은 규칙).
     { id: "steps", label: "순서", show: steps !== undefined },
     { id: "photo", label: "사진", show: hasPhoto },
     { id: "card", label: "카드", show: true },
-    // 테마만 적용 범위가 다르다(카드 하나가 아니라 다섯 장 전체). 예전엔 '카드' 탭 안에
-    // 두었는데, **카드 하나짜리 탭 안에 있으니 오히려 카드 설정으로 읽혔다.** 탭을 나누고
-    // 라벨에 범위를 적어 구분한다.
-    { id: "theme", label: "테마", show: true },
   ];
   const tabs = picks.filter((p) => p.show);
 
@@ -414,6 +428,74 @@ export function EditToolbar({
               </Group>
             </span>
 
+            {/* 글자 색과 글 뒤 상자. **막지 않고 말해 준다** — 자유롭게 고르게 한 이상
+                안 읽히는 조합도 사람이 판단한다(`@/lib/text-box` 의 readabilityWarning). */}
+            <span className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[14px] text-ink-2">글자 색</span>
+              <Group>
+                <Opt label="테마 색" on={card.textColor === null} onClick={() => onPatch({ textColor: null })} />
+                <label className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-[14px] ${FOCUS_RING}`}>
+                  직접 고르기
+                  <input
+                    type="color"
+                    aria-label="글자 색 고르기"
+                    value={card.textColor ?? "#111111"}
+                    onChange={(e) => onPatch({ textColor: e.target.value })}
+                    className="h-6 w-8 cursor-pointer rounded border border-hair bg-surface"
+                  />
+                </label>
+              </Group>
+            </span>
+
+            <span className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[14px] text-ink-2">글 뒤 상자</span>
+              <Group>
+                <Opt label="없음" on={card.textBox === null} onClick={() => onPatch({ textBox: null })} />
+                {BOX_PRESETS.map((p) => (
+                  <Opt
+                    key={p.color}
+                    label={p.label}
+                    on={card.textBox?.color === p.color}
+                    onClick={() => onPatch({ textBox: { color: p.color, opacity: card.textBox?.opacity ?? DEFAULT_TEXT_BOX.opacity } })}
+                  />
+                ))}
+                <label className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-[14px] ${FOCUS_RING}`}>
+                  직접
+                  <input
+                    type="color"
+                    aria-label="상자 색 고르기"
+                    value={card.textBox?.color ?? DEFAULT_TEXT_BOX.color}
+                    onChange={(e) =>
+                      onPatch({ textBox: { color: e.target.value, opacity: card.textBox?.opacity ?? DEFAULT_TEXT_BOX.opacity } })
+                    }
+                    className="h-6 w-8 cursor-pointer rounded border border-hair bg-surface"
+                  />
+                </label>
+              </Group>
+              {card.textBox && (
+                <label className="flex items-center gap-2 text-[14px] text-ink-2">
+                  진하기
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={Math.round(card.textBox.opacity * 100)}
+                    aria-label="상자 진하기"
+                    onChange={(e) =>
+                      onPatch({ textBox: { color: card.textBox!.color, opacity: clampOpacity(Number(e.target.value) / 100) } })
+                    }
+                    className={`h-1 w-[104px] flex-none accent-ink ${FOCUS_RING}`}
+                  />
+                  <span className="tabular-nums">{Math.round(card.textBox.opacity * 100)}%</span>
+                </label>
+              )}
+            </span>
+
+            {boxWarning && (
+              <p role="status" className="text-[13px] font-semibold text-danger">
+                {boxWarning}
+              </p>
+            )}
           </>
         )}
 
@@ -433,6 +515,14 @@ export function EditToolbar({
                 />
               ))}
             </Group>
+            {/* 협찬·광고를 받았으면 밝혀야 한다(표시광고법). 세트 전체 성격이라 테마와 같은 자리다.
+                **이 카드에 표기가 안 붙으면 스위치도 숨긴다** — 첫 장은 인스타의 `1/4` 표시에
+                가려 표기를 넣지 않는데, 스위치만 보이면 켜도 아무 일이 없어 보인다. */}
+            {adAppliesHere && (
+              <Group>
+                <Opt label="[광고] 표기" on={ad} onClick={() => onAdChange(!ad)} />
+              </Group>
+            )}
           </span>
         )}
         </div>

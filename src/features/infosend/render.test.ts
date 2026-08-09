@@ -28,6 +28,8 @@ function state(overrides: Partial<InfoState> = {}): InfoState {
     photos: [photo("p1")],
     selectedPhotoId: "p1",
     keyword: "에어컨 전기세",
+    ad: false,
+    references: [],
     themeId: "mint-clean",
     handle: "",
     band: 0.35,

@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
-import { Logo, StudioMark } from "@/components/brand/Mark";
+import { Logo } from "@/components/brand/Mark";
 
 /**
  * D2 무채색 캔버스 — 공통 프레임.
@@ -53,9 +53,11 @@ export function StudioFrame({
       {/* 모바일 — 사이드바를 세울 폭이 없다. 같은 정보를 가로로 압축해 상단에 둔다. */}
       <div className="flex flex-col gap-2.5 border-b border-hair px-5 py-3 lg:hidden">
         <div className="flex justify-center">
-          <StudioMark size={28} />
+          {/* 기호만 두면 폰에서는 이름이 어디에도 안 보인다 — 데스크톱 사이드바처럼 락업을 쓴다. */}
+          <Logo />
         </div>
-        <ol className="flex items-center gap-1.5">
+        {/* 로고가 가운데인데 단계가 왼쪽에 붙어 있으면 축이 어긋나 보인다. */}
+        <ol className="flex items-center justify-center gap-1.5">
           {STEPS.map((s, i) => {
             const done = i < step;
             const now = i === step;
@@ -152,7 +154,11 @@ export function StudioFrame({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-[76px] flex-none flex-wrap items-center gap-x-4 gap-y-3 border-b border-hair px-5 py-4 sm:px-8 lg:px-10">
-          <h1 className="min-w-0 flex-1 truncate text-[20px] font-black tracking-tight sm:text-[24px]">{title}</h1>
+          {/* 좁은 화면에서는 제목이 **한 줄을 통째로** 쓴다. 예전엔 버튼과 같은 줄에서
+              flex-1 로 눌려 "수원 ..." 처럼 주제가 잘렸다(폰에서 확인, 2026-08-09). */}
+          <h1 className="w-full min-w-0 truncate text-[20px] font-black tracking-tight sm:w-auto sm:flex-1 sm:text-[24px]">
+            {title}
+          </h1>
           <div className="flex flex-none flex-wrap items-center gap-2.5">{action}</div>
         </header>
 

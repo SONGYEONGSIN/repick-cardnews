@@ -29,7 +29,8 @@ const TABS: readonly { id: Target; label: string }[] = [
 ];
 
 function Group({ children }: { children: React.ReactNode }) {
-  return <span className="flex items-center rounded-lg border border-hair p-1">{children}</span>;
+  // 좁은 화면에서는 줄을 바꾼다 — 카드뉴스 툴바와 같은 이유·같은 규칙.
+  return <span className="flex flex-wrap items-center rounded-lg border border-hair p-1">{children}</span>;
 }
 
 function Opt({
@@ -277,6 +278,14 @@ export function InfoToolbar({
                     swatch={<ThemeSwatch themeId={id} />}
                   />
                 ))}
+              </Group>
+              {/* 협찬·광고를 받았으면 밝혀야 한다(표시광고법). 카드뉴스 쪽과 같은 자리·같은 문구. */}
+              <Group>
+                <Opt
+                  label="[광고] 표기"
+                  on={state.ad}
+                  onClick={() => dispatch({ type: "SET_AD", ad: !state.ad })}
+                />
               </Group>
             </span>
           )}

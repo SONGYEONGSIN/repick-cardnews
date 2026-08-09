@@ -7,6 +7,8 @@ export async function requestSpec<T>(args: {
   photos: string[];
   /** 정보전달 형식. 서버가 이걸로 생성 규칙을 고르고, 모델이 빠뜨리면 채운다. */
   format?: InfoFormat;
+  /** 참고 이미지 — 카드에 실리지 않는다. 말투·구성만 참고한다(`@/lib/prompt`). */
+  references?: string[];
 }): Promise<T> {
   const res = await fetch("/api/generate", {
     method: "POST",

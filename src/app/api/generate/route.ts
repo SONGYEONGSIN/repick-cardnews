@@ -27,6 +27,21 @@ const BodySchema = z.object({
     )
     .max(6)
     .default([]),
+  /**
+   * 참고 이미지 — **카드에 실리지 않는다.** 카피를 쓸 때 말투·구성만 참고한다
+   * (`buildUserContent` 주석 참고). 사진과 같은 형식·같은 상한을 쓴다.
+   */
+  references: z
+    .array(
+      z
+        .string()
+        .regex(
+          /^data:image\/(jpeg|png|gif|webp);base64,/,
+          "참고 이미지는 jpeg·png·gif·webp 형식의 base64 dataURL이어야 합니다",
+        ),
+    )
+    .max(6)
+    .default([]),
 });
 
 export function parseBody(raw: unknown): z.infer<typeof BodySchema> {
@@ -47,8 +62,16 @@ export async function POST(req: Request) {
   try {
     const vault = await readVault();
     const raw = await runClaudeCli({
-      system: buildSystemPrompt(body.type, vault, body.photos.length > 0, body.format),
-      content: buildUserContent(body.keyword, body.photos),
+      // 카드뉴스는 **올린 사진 수만큼** 카드를 만든다 — 남는 카드가 사진 없이 뜨지 않게.
+      // 정보전달은 1장이라 장수 개념이 없다.
+      system: buildSystemPrompt(
+        body.type,
+        vault,
+        body.photos.length > 0,
+        body.format,
+        body.type === "cardnews" && body.photos.length > 0 ? body.photos.length : undefined,
+      ),
+      content: buildUserContent(body.keyword, body.photos, body.references),
       jsonSchema: z.toJSONSchema(spec),
       model: MODEL,
       timeoutMs: TIMEOUT_MS,

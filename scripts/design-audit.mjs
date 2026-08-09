@@ -113,6 +113,28 @@ for (const route of ROUTES) {
     const slack = width - scrollWidth;
     const pass = slack >= 0;
     results.push({ gate: "sweep", route, pass, detail: `${width}px → scrollWidth ${scrollWidth} (여유 ${slack})` });
+
+    // **페이지가 안 넘쳐도 안쪽 상자는 넘칠 수 있다.** 부모가 잘라 내면 문서 폭은 그대로라
+    // 위 검사가 조용히 통과한다 — 폰에서 테마 다섯 개가 상자를 뚫고 나간 것을 사람이 먼저
+    // 발견했다(2026-08-09). 좁은 폭에서만 본다: 넓은 화면에서는 잘 들어간다.
+    if (width <= 430) {
+      const spills = await page.evaluate(() => {
+        const out = [];
+        for (const el of document.querySelectorAll("body *")) {
+          const over = el.scrollWidth - el.clientWidth;
+          if (over <= 1 || el.clientWidth === 0) continue;
+          // 스스로 가로 스크롤하겠다고 밝힌 것은 의도다.
+          const ox = getComputedStyle(el).overflowX;
+          if (ox === "auto" || ox === "scroll") continue;
+          out.push(`${el.tagName.toLowerCase()}.${(el.className || "").toString().split(" ")[0]}(+${over}px)`);
+        }
+        return out.slice(0, 3);
+      });
+      results.push({
+        gate: "sweep", route, pass: spills.length === 0,
+        detail: `${width}px → 상자를 넘는 요소 ${spills.length}개${spills.length ? `: ${spills.join(", ")}` : ""}`,
+      });
+    }
     await page.close();
   }
 }

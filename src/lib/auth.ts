@@ -17,7 +17,10 @@
  * 그 경로는 추측할 수 없는 토큰이 지킨다.
  */
 const PUBLIC_EXACT = new Set(["/login", "/api/login", "/favicon.ico"]);
-const PUBLIC_PREFIXES = ["/s/", "/_next/"];
+// `/api/cron/` — 밖에서 부르는 cron 서비스는 로그인할 수 없다. **대신 `CRON_SECRET` 이
+// 유일한 문지기다**(`@/lib/cron-auth`). 여기를 열면서 그 검사를 빠뜨리면 주소를 아는 누구나
+// 게시를 돌릴 수 있다.
+const PUBLIC_PREFIXES = ["/s/", "/_next/", "/api/cron/"];
 
 export function isPublicPath(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true;

@@ -60,13 +60,22 @@ export function buildSystemPrompt(
   vault: { brandVoice: string; copyFormulas: string },
   hasPhotos: boolean,
   format: InfoFormat = "list",
+  /**
+   * 카드뉴스에서 만들 카드 수 — **올린 사진 수와 같다.** 안 주면 예전처럼 범위로 시킨다.
+   *
+   * 예전에는 "5~6장" 이 문장에 박혀 있어 사진을 3장만 올려도 카드가 5장 나왔고, 남는 카드가
+   * 사진 없이 떴다. 사진 수를 그대로 시키면 그 어긋남이 없다.
+   */
+  cardCount?: number,
 ): string {
   // 스키마는 items 3~6 을 허용하지만 5개 이상은 사진 밴드를 최소로 줄여도 카드에 안 들어간다.
   // 생성 단계에서 3~4개를 요청해 평소엔 큰 글자가 나오게 하고, 사용자가 직접 늘렸을 때만 축소된다.
   const rule =
     type === "informationsend"
       ? `산출물 유형은 informationsend(1장 인포그래픽), 형식은 ${format}. title, 선택 subtitle, 선택 tip 과 함께 ${FORMAT_RULES[format]}`
-      : "산출물 유형은 cardnews(5~6장 설득 시퀀스). cards 배열을 생성하라. 첫 카드는 반드시 role=hook, 마지막은 반드시 role=cta. 중간은 problem/evidence/solution 흐름.";
+      : `산출물 유형은 cardnews(설득 시퀀스). cards 배열을 ${
+          cardCount === undefined ? "5~6장" : `정확히 ${cardCount}장`
+        } 생성하라. 첫 카드는 반드시 role=hook, 마지막은 반드시 role=cta. 중간은 problem/evidence/solution 흐름.`;
 
   const lines = [
     "당신은 RE:픽의 인스타그램 콘텐츠 카피라이터입니다.",
@@ -90,20 +99,43 @@ export function buildSystemPrompt(
   return lines.join("\n");
 }
 
-export function buildUserContent(keyword: string, photos: readonly string[]): ContentBlock[] {
-  const blocks: ContentBlock[] = photos.map((dataUrl) => {
-    const { mediaType, base64 } = parseDataUrl(dataUrl);
-    if (!isImageMediaType(mediaType)) {
-      throw new Error(`지원하지 않는 이미지 형식입니다: ${mediaType}`);
-    }
-    return { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } };
-  });
+function imageBlock(dataUrl: string): ContentBlock {
+  const { mediaType, base64 } = parseDataUrl(dataUrl);
+  if (!isImageMediaType(mediaType)) {
+    throw new Error(`지원하지 않는 이미지 형식입니다: ${mediaType}`);
+  }
+  return { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } };
+}
 
-  const text =
+/**
+ * 모델에게 보낼 사용자 메시지.
+ *
+ * **참고 이미지는 카드 사진과 다른 것이다.** 카드에 실리지 않고 카피를 쓸 때만 본다. 그래서
+ * 두 가지를 지킨다:
+ *
+ * 1. **참고를 뒤에 붙인다** — 카드 사진이 1번부터 차례로 와야 "N번째 사진이 N번째 카드"라는
+ *    약속이 지켜진다. 참고를 앞에 끼우면 그 번호가 통째로 밀린다.
+ * 2. **글로 구분해 준다** — 안 그러면 참고 이미지를 카드 사진으로 여기고 그 내용으로 카피를
+ *    쓴다. 그리고 **베끼지 말라고 못 박는다**: 참고는 톤과 구성만 가져오는 것이다.
+ */
+export function buildUserContent(
+  keyword: string,
+  photos: readonly string[],
+  references: readonly string[] = [],
+): ContentBlock[] {
+  const blocks: ContentBlock[] = [...photos.map(imageBlock), ...references.map(imageBlock)];
+
+  const photoLine =
     photos.length > 0
-      ? `키워드: "${keyword}"\n첨부한 사진 ${photos.length}장은 순서대로 1번부터 ${photos.length}번입니다.\n위 키워드와 사진으로 콘텐츠 카피를 생성하세요.`
-      : `키워드: "${keyword}"\n위 키워드로 콘텐츠 카피를 생성하세요.`;
+      ? `첨부한 사진 ${photos.length}장은 순서대로 1번부터 ${photos.length}번입니다.\n`
+      : "";
+  const referenceLine =
+    references.length > 0
+      ? `그 뒤에 붙인 ${references.length}장은 **참고용**입니다 — 카드에 쓰이는 사진이 아닙니다. ` +
+        `말투와 길이·구성만 참고하고 **내용을 그대로 쓰지 마세요**(베끼지 마세요). 내용은 위 사진과 키워드에서 가져옵니다.\n`
+      : "";
+  const tail = photos.length > 0 ? "위 키워드와 사진으로" : "위 키워드로";
 
-  blocks.push({ type: "text", text });
+  blocks.push({ type: "text", text: `키워드: "${keyword}"\n${photoLine}${referenceLine}${tail} 콘텐츠 카피를 생성하세요.` });
   return blocks;
 }

@@ -45,11 +45,22 @@ describe("ADD_PHOTOS", () => {
 // canLeaveOrder 는 canLeaveWorkbench 내부에서만 쓰는 비-export 함수라 공개 게이트로 검증한다.
 // 카드는 고정으로 채워 두어 사진 장수 경계만 갈린다.
 describe("canLeaveWorkbench 의 사진 장수 경계(canLeaveOrder)", () => {
-  it("5장 미만이면 못 넘어간다", () => {
-    expect(canLeaveWorkbench({ ...withPhotos(4), cards: [CARD] })).toBe(false);
+  // 카드 수가 사진 수를 따라가므로 5장을 요구하지 않는다(2026-08-09). 두 장은 있어야
+  // 한다 — 첫 장이 hook, 마지막이 cta 라 한 장으로는 시퀀스가 안 된다.
+  it("한 장이면 못 넘어간다", () => {
+    expect(canLeaveWorkbench({ ...withPhotos(1), cards: [CARD] })).toBe(false);
   });
-  it("5장이면 넘어간다", () => {
-    expect(canLeaveWorkbench({ ...withPhotos(5), cards: [CARD] })).toBe(true);
+  it("두 장이면 넘어간다", () => {
+    expect(canLeaveWorkbench({ ...withPhotos(2), cards: [CARD] })).toBe(true);
+  });
+  it("네 장도 넘어간다 — 예전에는 5장 미만이라 막혔다", () => {
+    expect(canLeaveWorkbench({ ...withPhotos(4), cards: [CARD] })).toBe(true);
+  });
+  // 7장을 올려도 ADD_PHOTOS 가 슬롯을 정원까지만 채우므로(위 describe) 여기선 통과가 맞다.
+  // 상한을 넘는 상태는 슬롯을 직접 조작해야 만들어진다.
+  it("슬롯이 정원을 넘으면 못 넘어간다", () => {
+    const over = { ...withPhotos(6), order: ["p1", "p2", "p3", "p4", "p5", "p6", "p7"], cards: [CARD] };
+    expect(canLeaveWorkbench(over)).toBe(false);
   });
 });
 
@@ -361,6 +372,8 @@ const CARD: CardDraft = {
   textScale: 1,
   textAlign: "left",
   highlight: "",
+  textBox: null,
+  textColor: null,
   copy: { role: "hook", heading: "후크" },
 };
 

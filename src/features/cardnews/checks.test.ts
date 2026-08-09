@@ -15,6 +15,8 @@ function card(over: Partial<CardDraft> & { copy: CardDraft["copy"] }): CardDraft
     textScale: 1,
     textAlign: "left",
     highlight: "",
+    textBox: null,
+    textColor: null,
     ...over,
   };
 }

@@ -124,3 +124,71 @@ describe("형식별 생성 규칙", () => {
     expect(buildSystemPrompt("cardnews", vault, false, "compare")).toContain("cardnews");
   });
 });
+
+/**
+ * 사진 수만큼 카드를 만든다(2026-08-09). 예전에는 "5~6장" 이 프롬프트에 박혀 있어, 사진을
+ * 3장만 올려도 카드 5장이 나오고 남는 카드가 사진 없이 떴다.
+ */
+describe("카드뉴스 장수 요청", () => {
+  const vault = { brandVoice: "보이스", copyFormulas: "공식" };
+
+  it("올린 사진 수를 그대로 요청한다", () => {
+    expect(buildSystemPrompt("cardnews", vault, true, "list", 3)).toContain("정확히 3장");
+    expect(buildSystemPrompt("cardnews", vault, true, "list", 6)).toContain("정확히 6장");
+  });
+
+  it("장수를 안 주면 예전처럼 범위로 말한다 — 옛 호출부가 깨지지 않게", () => {
+    expect(buildSystemPrompt("cardnews", vault, false)).toContain("cards");
+  });
+
+  it("장수를 줘도 hook·cta 규칙은 그대로다", () => {
+    const p = buildSystemPrompt("cardnews", vault, true, "list", 2);
+    expect(p).toContain("hook");
+    expect(p).toContain("cta");
+  });
+});
+
+/**
+ * 참고 이미지(2026-08-09). 카드에 실리는 사진과 **다른 것**이다 — 카피를 쓸 때만 보고,
+ * 톤과 구성만 참고한다. 섞이면 참고 이미지가 카드에 박히거나, 참고 내용을 그대로 베낀다.
+ */
+describe("buildUserContent 의 참고 이미지", () => {
+  const png = "data:image/png;base64,AAAA";
+  const jpg = "data:image/jpeg;base64,BBBB";
+
+  it("참고가 없으면 예전과 똑같다", () => {
+    const before = buildUserContent("갈비", [png]);
+    const after = buildUserContent("갈비", [png], []);
+    expect(after).toEqual(before);
+  });
+
+  it("참고 이미지를 함께 보낸다", () => {
+    const blocks = buildUserContent("갈비", [png], [jpg]);
+    const images = blocks.filter((b) => b.type === "image");
+    expect(images).toHaveLength(2);
+  });
+
+  // 어느 것이 카드 사진이고 어느 것이 참고인지 모델이 알아야 한다. 안 그러면 참고 이미지를
+  // 1번 카드 사진으로 여기고 그 내용으로 카피를 쓴다.
+  it("카드 사진과 참고를 글로 구분해 준다", () => {
+    const text = buildUserContent("갈비", [png, png], [jpg]).find((b) => b.type === "text");
+    const body = text && "text" in text ? text.text : "";
+    expect(body).toContain("참고");
+    expect(body).toContain("2장");
+    expect(body).toContain("1장");
+  });
+
+  it("베끼지 말라고 못 박는다 — 톤과 구성만 참고한다", () => {
+    const text = buildUserContent("갈비", [png], [jpg]).find((b) => b.type === "text");
+    const body = text && "text" in text ? text.text : "";
+    expect(body).toMatch(/베끼|그대로 쓰지/);
+  });
+
+  it("참고 이미지가 카드 사진보다 뒤에 붙는다 — 사진 순서(1번..N번)가 밀리지 않게", () => {
+    const blocks = buildUserContent("갈비", [png], [jpg]);
+    const kinds = blocks.map((b) => b.type);
+    expect(kinds).toEqual(["image", "image", "text"]);
+    const second = blocks[1];
+    expect(second.type === "image" && second.source.media_type).toBe("image/jpeg");
+  });
+});

@@ -1,35 +1,57 @@
-import { describe, it, expect } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { HEARTBEAT_STALE_MS, readHeartbeat, schedulerHealth, writeHeartbeat } from "@/lib/scheduler-health";
 
 /**
  * 예약이 안 올라가는데 화면은 '대기 중'만 보여 줬다(2026-08-05: 44분이 지나도 그대로).
- * 스케줄러는 서버 기동 훅이 켜는데, 그 훅이 실패하면 **아무 데도 흔적이 남지 않는다** —
- * 켜졌는지 아닌지를 알 길이 없었다. 그래서 뛸 때마다 맥박을 남긴다.
+ * 켜졌는지 아닌지를 알 길이 없었기 때문이다. 그래서 뛸 때마다 맥박을 남긴다.
+ *
+ * Blob 은 네트워크다 — 이 테스트는 `environment: "node"` 에서 돌고 바깥을 타면 안 되므로
+ * 저장소와 내려받기를 흉내만 낸다. **무엇을 저장하느냐가 아니라 무엇을 판단하느냐**를 본다.
  */
+let stored: string | null = null;
+
+vi.mock("@vercel/blob", () => ({
+  put: vi.fn(async (_path: string, body: string) => {
+    stored = body;
+    return { url: "https://blob.example/scheduled/heartbeat.json" };
+  }),
+  list: vi.fn(async () => ({
+    blobs:
+      stored === null
+        ? []
+        : [{ pathname: "scheduled/heartbeat.json", url: "https://blob.example/scheduled/heartbeat.json" }],
+  })),
+}));
+
+beforeEach(() => {
+  stored = null;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => JSON.parse(stored ?? "null"),
+    })),
+  );
+});
+
 describe("맥박 기록", () => {
-  let root: string;
-
-  it("쓴 값을 그대로 읽는다", () => {
-    root = mkdtempSync(path.join(tmpdir(), "hb-"));
-    writeHeartbeat(1_700_000_000_000, root);
-    expect(readHeartbeat(root)).toBe(1_700_000_000_000);
-    rmSync(root, { recursive: true, force: true });
+  it("쓴 값을 그대로 읽는다", async () => {
+    await writeHeartbeat(1_700_000_000_000);
+    expect(await readHeartbeat()).toBe(1_700_000_000_000);
   });
 
-  it("파일이 없으면 null 이다 — 한 번도 안 뛰었다", () => {
-    root = mkdtempSync(path.join(tmpdir(), "hb-"));
-    expect(readHeartbeat(root)).toBeNull();
-    rmSync(root, { recursive: true, force: true });
+  it("한 번도 안 뛰었으면 null 이다", async () => {
+    expect(await readHeartbeat()).toBeNull();
   });
 
-  it("깨진 파일도 null 이다 — 읽다 죽지 않는다", () => {
-    root = mkdtempSync(path.join(tmpdir(), "hb-"));
-    writeFileSync(path.join(root, "heartbeat.json"), "{망가진", "utf8");
-    expect(readHeartbeat(root)).toBeNull();
-    rmSync(root, { recursive: true, force: true });
+  it("깨진 값도 null 이다 — 읽다 죽지 않는다", async () => {
+    stored = "{망가진";
+    expect(await readHeartbeat()).toBeNull();
+  });
+
+  it("숫자가 아닌 값도 null 이다", async () => {
+    stored = JSON.stringify({ lastTickAt: "어제" });
+    expect(await readHeartbeat()).toBeNull();
   });
 });
 

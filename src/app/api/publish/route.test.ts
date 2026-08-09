@@ -1,12 +1,8 @@
 import { describe, it, expect, afterEach, vi, beforeEach } from "vitest";
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { POST } from "@/app/api/publish/route";
 import { saveShare } from "@/lib/share-blob";
 import { readPublishProgress } from "@/lib/publish-progress-store";
-import { readQueue, scheduleRoot } from "@/lib/schedule-queue";
 
 // Blob 은 네트워크다 — 이 테스트는 node 환경에서 돌고 바깥을 타면 안 된다. 토큰별로 넣은
 // 만큼의 주소를 돌려주는 최소 흉내만 낸다. share-blob 자신의 판단은 `share-blob.test.ts`.
@@ -20,6 +16,14 @@ vi.mock("@/lib/share-blob", () => ({
   loadShare: vi.fn(async (token: string) => blobs.get(token) ?? null),
   deleteShare: vi.fn(async (token: string) => {
     blobs.delete(token);
+  }),
+}));
+
+// 장부(업로드 기록)도 같은 Blob 저장소에 남는다.
+const ledger: { status: string; keyword: string; imageUrls: string[] }[] = [];
+vi.mock("@/lib/schedule-store", () => ({
+  putItem: vi.fn(async (item: { status: string; keyword: string; imageUrls: string[] }) => {
+    ledger.push(item);
   }),
 }));
 
@@ -310,15 +314,8 @@ describe("POST /api/publish 장수에 따른 갈림", () => {
  * 흔적이 없어 "올라갔나?" 를 인스타에 가서 봐야 했다. 예약과 **같은 장부**에 남긴다.
  */
 describe("POST 업로드 기록", () => {
-  // 실제 예약 큐를 건드리지 않는다 — 테스트가 사용자의 기록을 읽거나 더럽히면 안 된다.
-  let logRoot: string;
   beforeEach(() => {
-    logRoot = mkdtempSync(path.join(tmpdir(), "pub-log-"));
-    process.env.REPICK_SCHEDULE_ROOT = logRoot;
-  });
-  afterEach(() => {
-    rmSync(logRoot, { recursive: true, force: true });
-    delete process.env.REPICK_SCHEDULE_ROOT;
+    ledger.length = 0;
   });
   it("성공하면 장부에 published 로 남는다", async () => {
     setFullEnv();
@@ -329,11 +326,10 @@ describe("POST 업로드 기록", () => {
     const res = await POST(makeRequest("localhost:3500", { token, caption: "본문", hashtags: ["살림"] }));
 
     expect(res.status).toBe(200);
-    const rows = readQueue(scheduleRoot());
-    const last = rows[rows.length - 1];
+    const last = ledger[ledger.length - 1];
     expect(last.status).toBe("published");
     expect(last.keyword).toBe("수원 갈비");
-    expect(last.imageCount).toBe(2);
+    expect(last.imageUrls).toHaveLength(2);
   });
 
   it("실패하면 남기지 않는다 — 안 올라간 것을 올렸다고 적지 않는다", async () => {
@@ -342,12 +338,12 @@ describe("POST 업로드 기록", () => {
       "fetch",
       vi.fn(async () => ({ ok: false, status: 400, json: async () => ({ error: { message: "Invalid" } }) })),
     );
-    const before = readQueue(scheduleRoot()).length;
+    const before = ledger.length;
     const token = randomUUID();
     await saveShare(token, [Buffer.from("a"), Buffer.from("b")], { keyword: "실패분", issuedAt: Date.now() });
 
     await POST(makeRequest("localhost:3500", { token, caption: "", hashtags: [] }));
 
-    expect(readQueue(scheduleRoot()).length).toBe(before);
+    expect(ledger.length).toBe(before);
   });
 });

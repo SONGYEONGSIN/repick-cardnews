@@ -13,8 +13,14 @@ import {
   type TextAlign,
 } from "@/templates/layout-utils";
 import type { ThemeId } from "@/templates/themes";
+import type { TextBox } from "@/lib/text-box";
 
-export const CARDNEWS_MIN = 5;
+/**
+ * 만들 수 있는 최소 사진 수. **카드 수는 사진 수를 따라간다**(2026-08-09) — 예전에는 5장을
+ * 요구해서, 사진이 3장이면 아예 만들 수 없었다. 하한이 2인 이유는 스키마와 같다: 첫 장이
+ * hook, 마지막이 cta 여야 시퀀스가 성립한다.
+ */
+export const CARDNEWS_MIN = 2;
 export const CARDNEWS_MAX = 6;
 
 export type CardDraft = {
@@ -41,6 +47,13 @@ export type CardDraft = {
    * splitHighlight(heading, highlight)가 매 렌더마다 이 값으로 [앞·강조·뒤]를 다시 찾는다.
    */
   highlight: string;
+  /**
+   * 글 뒤에 까는 상자. `null` 이면 안 그린다. 사진 위 글이 안 읽힐 때 쓴다 —
+   * 사진 전체를 어둡게 하는 `scrim` 과 달리 **글이 있는 자리만** 덮는다.
+   */
+  textBox: TextBox | null;
+  /** 글자 색. `null` 이면 테마가 정한 색을 그대로 쓴다. */
+  textColor: string | null;
   copy: CardnewsCard;
 };
 
@@ -52,6 +65,13 @@ export type CardnewsState = {
   keyword: string;
   themeId: ThemeId;
   cards: CardDraft[];
+  /** 협찬·광고 표기(카드 우측 상단 [광고]). 세트 전체에 같이 적용된다. */
+  ad: boolean;
+  /**
+   * 참고 이미지 — **카드에 실리지 않는다.** 카피를 쓸 때 말투·구성만 참고한다.
+   * `photos` 와 따로 두는 이유가 그것이다: 섞으면 참고 이미지가 카드에 박힌다.
+   */
+  references: Photo[];
   error: string | null;
   busy: boolean;
 };
@@ -63,6 +83,10 @@ export type CardnewsAction =
   | { type: "SWAP_IN"; slotIndex: number; photoId: string }
   | { type: "SET_KEYWORD"; keyword: string }
   | { type: "SET_THEME"; themeId: ThemeId }
+  | { type: "SET_AD"; ad: boolean }
+  | { type: "ADD_REFERENCES"; photos: Photo[] }
+  | { type: "REMOVE_REFERENCE"; photoId: string }
+  | { type: "CLEAR_REFERENCES" }
   | { type: "SET_SPEC"; spec: CardnewsSpec }
   | { type: "UPDATE_CARD"; index: number; patch: Partial<Omit<CardDraft, "id" | "photoId">> }
   | { type: "SET_STEP"; step: number }
@@ -77,6 +101,8 @@ export const initialCardnewsState: CardnewsState = {
   keyword: "",
   themeId: "mint-clean",
   cards: [],
+  ad: false,
+  references: [],
   error: null,
   busy: false,
 };
@@ -191,6 +217,21 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
     }
     case "SET_KEYWORD":
       return { ...state, keyword: action.keyword };
+    case "SET_AD":
+      return { ...state, ad: action.ad };
+
+    case "ADD_REFERENCES": {
+      // 같은 파일을 두 번 고르면 한 번만 남긴다 — 사진 추가와 같은 규칙.
+      const known = new Set(state.references.map((p) => p.id));
+      return { ...state, references: [...state.references, ...action.photos.filter((p) => !known.has(p.id))] };
+    }
+
+    case "REMOVE_REFERENCE":
+      return { ...state, references: state.references.filter((p) => p.id !== action.photoId) };
+
+    case "CLEAR_REFERENCES":
+      return { ...state, references: [] };
+
     case "SET_THEME":
       return { ...state, themeId: action.themeId };
     case "SET_SPEC": {
@@ -208,6 +249,9 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
         textScale: DEFAULT_TEXT_SCALE,
         textAlign: textAlignFor(copy),
         highlight: DEFAULT_HIGHLIGHT,
+        // 처음엔 상자도 색 지정도 없다 — 테마가 정한 대로 그린다.
+        textBox: null,
+        textColor: null,
         copy,
       }));
       return { ...state, cards, error: null };

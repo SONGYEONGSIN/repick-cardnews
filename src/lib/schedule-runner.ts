@@ -9,24 +9,24 @@ import {
   type PublishStageProgress,
 } from "./instagram";
 import { publishContextLine, publishFailureDetail } from "./publish-failure-log";
-import { saveShare } from "./share-blob";
 import { clearPublishProgress, recordPublishProgress } from "./publish-progress-store";
-import { createShareToken } from "./share-token";
-import { loadImages, scheduleRoot, type ScheduleItem } from "./schedule-queue";
+import type { ScheduledItem } from "./schedule-store";
 
 /**
  * 예약 항목 하나를 실제로 게시하는 절차.
  *
  * 순서를 지킨다 — 각 단계가 앞 단계의 결과에 기댄다:
  *
- * 1. 디스크 이미지 확인 (예약할 때 고정한 것)
+ * 1. 장수 확인 (예약할 때 고정한 이미지 주소)
  * 2. 인스타 설정 확인
- * 3. **공유 토큰을 새로 발급해 Blob 에 올린다** — 예약 시점 토큰은 30분이면 만료된다
- * 4. 게시
+ * 3. 게시
  *
- * 예전에는 사이에 두 단계가 더 있었다 — `PUBLIC_BASE_URL` 을 다시 읽고, 그 주소가 진짜
- * 닿는지 확인하는 것. 인스타그램이 **우리 서버**로 이미지를 가지러 왔기 때문이다. 이제는
- * Blob 주소에서 직접 가져가므로 둘 다 필요 없다.
+ * **예전에는 네 단계가 더 있었다.** 디스크에서 이미지를 읽고, 공유 토큰을 새로 발급하고,
+ * 다시 올리고, `PUBLIC_BASE_URL` 이 진짜 닿는지 확인하는 것. 전부 "인스타그램이 **우리
+ * 서버**로 가지러 온다" 는 전제에서 나온 단계였다.
+ *
+ * 지금은 예약할 때 Blob 에 한 번 올려 두고 그 주소를 항목이 들고 있다. 주소가 영구적이라
+ * 다시 올릴 이유가 없고, 인스타그램이 Blob 에서 직접 가져가므로 우리 주소도 필요 없다.
  *
  * 실패는 **언제나 한국어 문구**로 돌려준다. 토큰·원문이 섞이면 안 된다 — 이 문구는 큐 파일에
  * 남고 화면에 그대로 나간다.
@@ -36,20 +36,18 @@ export type RunResult = { ok: true; mediaId: string } | { ok: false; message: st
 
 export type RunDeps = {
   now: number;
-  root?: string;
   publish?: typeof publishCarousel;
   publishSingle?: typeof publishSingleImage;
 };
 
-export async function runScheduledItem(item: ScheduleItem, deps: RunDeps): Promise<RunResult> {
-  const root = deps.root ?? scheduleRoot();
+export async function runScheduledItem(item: ScheduledItem, deps: RunDeps): Promise<RunResult> {
   const publish = deps.publish ?? publishCarousel;
   const publishSingle = deps.publishSingle ?? publishSingleImage;
 
-  const images = loadImages(item.id, root);
+  const imageUrls = item.imageUrls;
   // 손으로 올릴 때와 **같은 갈림**을 탄다(`publishKindFor`) — 한쪽만 1장을 받으면
   // 손으로는 되는데 예약하면 실패한다.
-  const kind = publishKindFor(images.length);
+  const kind = publishKindFor(imageUrls.length);
   if (!kind) {
     return {
       ok: false,
@@ -61,15 +59,6 @@ export async function runScheduledItem(item: ScheduleItem, deps: RunDeps): Promi
   if (!configCheck.ready) {
     return { ok: false, message: `인스타그램 설정이 없어요: ${configCheck.missing.join(", ")}` };
   }
-
-  // 예약 시점 토큰은 이미 만료됐다. 새로 발급해 Blob 에 올린다.
-  //
-  // **인스타그램은 Blob 주소에서 직접 가져간다.** 예전에는 우리 서버의 `/s/...` 를 줬기
-  // 때문에, 올릴 시각에 서버가 살아 있고 인터넷에서 닿아야 했다 — 그래서 그 앞에 "공개
-  // 주소가 진짜 닿는가" 를 미리 확인하는 단계가 있었다. Blob 은 늘 닿으므로 그 확인이
-  // 통째로 필요 없어졌다.
-  const token = createShareToken();
-  const imageUrls = await saveShare(token, images, { keyword: item.keyword, issuedAt: deps.now });
 
   // 도는 동안 어디까지 갔는지 **항목 id 로** 남긴다 — 목록(`/api/schedule`)이 그걸 읽어
   // 보여 준다. 끝나면(성공이든 실패든) 반드시 지운다 — 남기면 끝난 예약이 아직 도는 것처럼
@@ -91,7 +80,7 @@ export async function runScheduledItem(item: ScheduleItem, deps: RunDeps): Promi
       "[예약 게시 실패]",
       publishFailureDetail(e, [configCheck.config.accessToken]),
       "|",
-      publishContextLine({ imageUrl: imageUrls[0], captionLength: item.caption.length, imageCount: images.length }),
+      publishContextLine({ imageUrl: imageUrls[0], captionLength: item.caption.length, imageCount: imageUrls.length }),
     );
     return { ok: false, message: friendlyPublishError(e) };
   } finally {
