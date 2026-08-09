@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
-import { Logo, StudioMark } from "@/components/brand/Mark";
+import { Logo } from "@/components/brand/Mark";
 
 /**
  * D2 무채색 캔버스 — 공통 프레임.
@@ -53,7 +53,8 @@ export function StudioFrame({
       {/* 모바일 — 사이드바를 세울 폭이 없다. 같은 정보를 가로로 압축해 상단에 둔다. */}
       <div className="flex flex-col gap-2.5 border-b border-hair px-5 py-3 lg:hidden">
         <div className="flex justify-center">
-          <StudioMark size={28} />
+          {/* 기호만 두면 폰에서는 이름이 어디에도 안 보인다 — 데스크톱 사이드바처럼 락업을 쓴다. */}
+          <Logo />
         </div>
         {/* 로고가 가운데인데 단계가 왼쪽에 붙어 있으면 축이 어긋나 보인다. */}
         <ol className="flex items-center justify-center gap-1.5">

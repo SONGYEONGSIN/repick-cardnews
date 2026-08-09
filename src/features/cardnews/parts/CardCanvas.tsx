@@ -15,6 +15,7 @@ import {
   type Focal,
   type TextScaleStep,
 } from "@/templates/layout-utils";
+import { AD_BADGE_TEXT, adBadgeColor } from "@/templates/ad-badge";
 import { THEMES, type ThemeId } from "@/templates/themes";
 import type { CardDraft } from "../reducer";
 import type { EditTarget } from "./EditToolbar";
@@ -359,6 +360,7 @@ export function CardCanvas({
   photo,
   target,
   themeId,
+  ad,
   focusToken,
   onSelect,
   onPatch,
@@ -368,6 +370,8 @@ export function CardCanvas({
   photo: Photo | undefined;
   target: EditTarget;
   themeId: ThemeId;
+  /** 협찬·광고 표기 — 이 카드에 그릴지(`showAdBadge` 가 이미 판정한 결과). */
+  ad: boolean;
   /**
    * 툴바의 "추가" 버튼을 누를 때마다 하나씩 늘어나는 신호. 값 자체엔 의미가 없다 — 이미 빈
    * 값이라 `onPatch` 만으로는 아무 변화가 없는데(EditToolbar 상단 주석: 눌러도 아무 일도
@@ -675,6 +679,21 @@ export function CardCanvas({
       )}
 
       {card.layout === "text-only" && textLayer()}
+
+      {/* **출력과 같은 자리·같은 판정**으로 그린다(`@/templates/ad-badge`). 편집 화면에 안
+          그리면 스위치를 켜도 눈앞에서 아무 일이 안 일어나 "안 되는 것" 으로 읽힌다 —
+          실제로 그렇게 보고받았다(2026-08-09). 이 저장소는 화면과 저장 결과가 어긋나면
+          안 된다는 것을 규칙으로 두고 있다. */}
+      {ad && (
+        <div
+          // 인라인 style 8/13 — 표기 색만. 글꼴은 다른 곳과 같이 `--card-display-font` 를
+          // 유틸로 읽는다(이 화면들은 인라인 fontFamily 를 금지한다 — `design-gate.test.ts`).
+          style={{ color: adBadgeColor(theme, onPhoto) }}
+          className="pointer-events-none absolute right-[4%] top-[2.4%] text-[13px] font-[family-name:var(--card-display-font)] opacity-90 sm:text-[17px]"
+        >
+          {AD_BADGE_TEXT}
+        </div>
+      )}
     </div>
   );
 }

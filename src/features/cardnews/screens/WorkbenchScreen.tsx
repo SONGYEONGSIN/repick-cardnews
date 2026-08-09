@@ -8,6 +8,7 @@ import { Dropzone } from "@/features/photos/Dropzone";
 import { requestSpec } from "@/features/studio/useGenerate";
 import type { CardnewsSpec } from "@/lib/schema";
 import { CardCanvas } from "../parts/CardCanvas";
+import { showAdBadge } from "@/templates/ad-badge";
 import { EditToolbar, type EditTarget } from "../parts/EditToolbar";
 import { WorkbenchRail, type RailItem } from "./WorkbenchRail";
 import { inKorean } from "./errors";
@@ -419,6 +420,9 @@ export function WorkbenchScreen({
                       photo={photo}
                       target={target}
                       themeId={state.themeId}
+                      // 출력(`CaptureStage`)과 **같은 판정**을 쓴다 — 편집 화면과 저장 결과가
+                      // 어긋나면 안 된다.
+                      ad={showAdBadge(state.ad, active, state.cards.length)}
                       focusToken={focusToken}
                       onSelect={setTarget}
                       onPatch={(patch) => dispatch({ type: "UPDATE_CARD", index: active, patch })}
