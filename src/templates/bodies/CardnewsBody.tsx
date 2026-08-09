@@ -19,6 +19,7 @@ export function CardnewsBody({
   textScale,
   textAlign,
   highlight,
+  textColor = null,
 }: {
   card: CardnewsCard;
   theme: Theme;
@@ -34,8 +35,10 @@ export function CardnewsBody({
   textAlign: TextAlign;
   /** 헤드라인에서 형광으로 강조할 문자열. 빈 문자열이면 강조 없음 — splitHighlight 참고. */
   highlight: string;
+  /** 사용자가 고른 글자 색. `null` 이면 테마가 정한 색을 쓴다. */
+  textColor?: string | null;
 }) {
-  const fg = onPhoto ? t.onPhoto : t.fg;
+  const fg = textColor ?? (onPhoto ? t.onPhoto : t.fg);
   // cta 알약(아래 action 배지)에서만 쓰인다 — 역할 배지(RoleTag)는 지웠다
   const tagBg = onPhoto ? t.onPhoto : t.accent;
   const tagFg = onPhoto ? "#111111" : t.bg;

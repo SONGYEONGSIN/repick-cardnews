@@ -19,6 +19,8 @@ function draft(overrides: Partial<CardDraft> = {}): CardDraft {
     textScale: 1,
     textAlign: "left",
     highlight: "",
+    textBox: null,
+    textColor: null,
     copy: { role: "hook", heading: "헤드라인" },
     ...overrides,
   };

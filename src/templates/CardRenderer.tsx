@@ -9,6 +9,7 @@ import { StepsBody } from "@/templates/bodies/StepsBody";
 import { StatBody } from "@/templates/bodies/StatBody";
 import { CheckBody } from "@/templates/bodies/CheckBody";
 import { CardnewsBody } from "@/templates/bodies/CardnewsBody";
+import { boxBackground } from "@/lib/text-box";
 import { FullBleedCard } from "@/templates/layouts/FullBleedCard";
 import { SplitPhotoCard } from "@/templates/layouts/SplitPhotoCard";
 import { TextOnlyCard } from "@/templates/layouts/TextOnlyCard";
@@ -36,6 +37,10 @@ export type RenderCard = {
    * 않는다). 위치가 아니라 글자 자체 — layout-utils의 splitHighlight 참고. 빈 문자열이면 강조 없음.
    */
   highlight: string;
+  /** 글 뒤 상자(CardnewsBody 전용). `null` 이면 안 그린다. */
+  textBox?: { color: string; opacity: number } | null;
+  /** 글자 색(CardnewsBody 전용). `null` 이면 테마 색을 쓴다. */
+  textColor?: string | null;
   /** "1 / 5" 형태. 빈 문자열이면 렌더하지 않는다 */
   badge: string;
   /**
@@ -64,6 +69,21 @@ function infoBodyFor(
     case "check":
       return <CheckBody spec={spec} {...common} compact={spec.items.length >= 6} />;
   }
+}
+
+/**
+ * 글 덩어리를 상자로 두른다. 상자가 없으면 그대로 돌려준다 — 빈 `div` 를 끼우면 레이아웃이
+ * 미세하게 달라져 "상자를 껐는데 글 위치가 바뀐다" 가 된다.
+ *
+ * `display: inline-block` 이 아니라 블록으로 둔다: 글 폭 전체를 덮어야 여러 줄이 고르게
+ * 읽힌다(참고 사진들이 그 모양이었다).
+ */
+function boxedBody(body: React.ReactNode, box: { color: string; opacity: number } | null): React.ReactNode {
+  const background = box ? boxBackground(box.color, box.opacity) : null;
+  if (!background) return body;
+  return (
+    <div style={{ background, borderRadius: 14, padding: "18px 22px" }}>{body}</div>
+  );
 }
 
 export function CardRenderer({
@@ -96,8 +116,12 @@ export function CardRenderer({
       textScale={card.textScale}
       textAlign={card.textAlign}
       highlight={card.highlight}
+      textColor={card.textColor ?? null}
     />
   );
+  // 글 뒤 상자는 **본문을 감싸서** 그린다 — 세 레이아웃(full-bleed·split·text-only) 어디서든
+  // 같은 결과가 나오도록 여기 한 곳에서만 두른다.
+  const boxed = boxedBody(body, card.textBox ?? null);
   // InfographicBody는 아이템 목록에 스스로 flex:1을 걸어 남는 공간을 요구한다 — 스페이서가
   // 그 공간을 나눠 가지면 자연 높이를 전제하는 스페이서 모델이 깨진다. 0/0은 "여기서는
   // 스페이서가 자리를 요구하지 않는다"는 뜻이라, InfographicBody 는 지금처럼 남는 공간을 전부
@@ -116,7 +140,7 @@ export function CardRenderer({
           spacers={spacers}
           badge={card.badge}
         >
-          {body}
+          {boxed}
         </FullBleedCard>
       )}
       {card.layout === "split" && (
@@ -134,12 +158,12 @@ export function CardRenderer({
           }
           fit={card.fit}
         >
-          {body}
+          {boxed}
         </SplitPhotoCard>
       )}
       {card.layout === "text-only" && (
         <TextOnlyCard spacers={spacers} badge={card.badge} accent={theme.accent}>
-          {body}
+          {boxed}
         </TextOnlyCard>
       )}
     </CardFrame>

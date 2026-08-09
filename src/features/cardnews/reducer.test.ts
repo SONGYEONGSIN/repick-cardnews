@@ -372,6 +372,8 @@ const CARD: CardDraft = {
   textScale: 1,
   textAlign: "left",
   highlight: "",
+  textBox: null,
+  textColor: null,
   copy: { role: "hook", heading: "후크" },
 };
 

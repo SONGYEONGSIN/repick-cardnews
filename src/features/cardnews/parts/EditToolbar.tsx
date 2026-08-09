@@ -2,6 +2,7 @@
 
 import { Image as ImageIcon } from "lucide-react";
 import { FOCUS_RING } from "@/components/ui";
+import { BOX_PRESETS, DEFAULT_TEXT_BOX, clampOpacity, readabilityWarning } from "@/lib/text-box";
 import { CARD_LAYOUTS, LAYOUT_LABELS } from "@/lib/layout-assign";
 import {
   isBlankText,
@@ -206,6 +207,10 @@ export function EditToolbar({
   // 해법 카드에만 있는 순서 목록. 스키마 상한이 5개다(`CardnewsSpec` 의 SolutionCard).
   const steps = "steps" in copy ? (copy.steps ?? []) : undefined;
   const hasPhoto = card.layout !== "text-only";
+  // 상자를 켰을 때만 본다 — 상자가 없으면 사진 위 글이라 색만으로 판단할 수 없다.
+  const boxWarning = card.textBox
+    ? readabilityWarning(card.textColor ?? "#111111", card.textBox.color, card.textBox.opacity)
+    : null;
 
   const picks: { id: EditTarget; label: string; show: boolean }[] = [
     // **테마가 맨 앞이다.** 적용 범위가 세트 전체라, 카드 하나씩 손보기 전에 먼저 정하는
@@ -423,6 +428,74 @@ export function EditToolbar({
               </Group>
             </span>
 
+            {/* 글자 색과 글 뒤 상자. **막지 않고 말해 준다** — 자유롭게 고르게 한 이상
+                안 읽히는 조합도 사람이 판단한다(`@/lib/text-box` 의 readabilityWarning). */}
+            <span className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[14px] text-ink-2">글자 색</span>
+              <Group>
+                <Opt label="테마 색" on={card.textColor === null} onClick={() => onPatch({ textColor: null })} />
+                <label className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-[14px] ${FOCUS_RING}`}>
+                  직접 고르기
+                  <input
+                    type="color"
+                    aria-label="글자 색 고르기"
+                    value={card.textColor ?? "#111111"}
+                    onChange={(e) => onPatch({ textColor: e.target.value })}
+                    className="h-6 w-8 cursor-pointer rounded border border-hair bg-surface"
+                  />
+                </label>
+              </Group>
+            </span>
+
+            <span className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[14px] text-ink-2">글 뒤 상자</span>
+              <Group>
+                <Opt label="없음" on={card.textBox === null} onClick={() => onPatch({ textBox: null })} />
+                {BOX_PRESETS.map((p) => (
+                  <Opt
+                    key={p.color}
+                    label={p.label}
+                    on={card.textBox?.color === p.color}
+                    onClick={() => onPatch({ textBox: { color: p.color, opacity: card.textBox?.opacity ?? DEFAULT_TEXT_BOX.opacity } })}
+                  />
+                ))}
+                <label className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-[14px] ${FOCUS_RING}`}>
+                  직접
+                  <input
+                    type="color"
+                    aria-label="상자 색 고르기"
+                    value={card.textBox?.color ?? DEFAULT_TEXT_BOX.color}
+                    onChange={(e) =>
+                      onPatch({ textBox: { color: e.target.value, opacity: card.textBox?.opacity ?? DEFAULT_TEXT_BOX.opacity } })
+                    }
+                    className="h-6 w-8 cursor-pointer rounded border border-hair bg-surface"
+                  />
+                </label>
+              </Group>
+              {card.textBox && (
+                <label className="flex items-center gap-2 text-[14px] text-ink-2">
+                  진하기
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={Math.round(card.textBox.opacity * 100)}
+                    aria-label="상자 진하기"
+                    onChange={(e) =>
+                      onPatch({ textBox: { color: card.textBox!.color, opacity: clampOpacity(Number(e.target.value) / 100) } })
+                    }
+                    className={`h-1 w-[104px] flex-none accent-ink ${FOCUS_RING}`}
+                  />
+                  <span className="tabular-nums">{Math.round(card.textBox.opacity * 100)}%</span>
+                </label>
+              )}
+            </span>
+
+            {boxWarning && (
+              <p role="status" className="text-[13px] font-semibold text-danger">
+                {boxWarning}
+              </p>
+            )}
           </>
         )}
 

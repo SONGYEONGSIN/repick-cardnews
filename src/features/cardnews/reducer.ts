@@ -13,6 +13,7 @@ import {
   type TextAlign,
 } from "@/templates/layout-utils";
 import type { ThemeId } from "@/templates/themes";
+import type { TextBox } from "@/lib/text-box";
 
 /**
  * 만들 수 있는 최소 사진 수. **카드 수는 사진 수를 따라간다**(2026-08-09) — 예전에는 5장을
@@ -46,6 +47,13 @@ export type CardDraft = {
    * splitHighlight(heading, highlight)가 매 렌더마다 이 값으로 [앞·강조·뒤]를 다시 찾는다.
    */
   highlight: string;
+  /**
+   * 글 뒤에 까는 상자. `null` 이면 안 그린다. 사진 위 글이 안 읽힐 때 쓴다 —
+   * 사진 전체를 어둡게 하는 `scrim` 과 달리 **글이 있는 자리만** 덮는다.
+   */
+  textBox: TextBox | null;
+  /** 글자 색. `null` 이면 테마가 정한 색을 그대로 쓴다. */
+  textColor: string | null;
   copy: CardnewsCard;
 };
 
@@ -241,6 +249,9 @@ export function cardnewsReducer(state: CardnewsState, action: CardnewsAction): C
         textScale: DEFAULT_TEXT_SCALE,
         textAlign: textAlignFor(copy),
         highlight: DEFAULT_HIGHLIGHT,
+        // 처음엔 상자도 색 지정도 없다 — 테마가 정한 대로 그린다.
+        textBox: null,
+        textColor: null,
         copy,
       }));
       return { ...state, cards, error: null };

@@ -16,6 +16,7 @@ import {
   type TextScaleStep,
 } from "@/templates/layout-utils";
 import { AD_BADGE_TEXT, adBadgeColor } from "@/templates/ad-badge";
+import { boxBackground } from "@/lib/text-box";
 import { THEMES, type ThemeId } from "@/templates/themes";
 import type { CardDraft } from "../reducer";
 import type { EditTarget } from "./EditToolbar";
@@ -432,8 +433,10 @@ export function CardCanvas({
   // full-bleed 만 글이 가림막 위에 놓인다. 출력 템플릿의 `onPhoto` 와 같은 반전을 쓴다 —
   // 어두운 가림막 + 밝은 글. 반대로 두면 글 배경을 낮췄을 때 검정 글이 사진에 묻힌다.
   const onPhoto = card.layout === "full-bleed";
-  // 헤드라인·본문이 같이 쓰는 글 색. CardnewsBody 의 `fg = onPhoto ? t.onPhoto : t.fg` 와 같다.
-  const fg = onPhoto ? theme.onPhoto : theme.fg;
+  // 헤드라인·본문이 같이 쓰는 글 색. CardnewsBody 와 같은 규칙 — 사용자가 고른 색이 이긴다.
+  const fg = card.textColor ?? (onPhoto ? theme.onPhoto : theme.fg);
+  // 출력과 같은 함수로 만든다. 두 벌로 두면 화면과 저장 결과가 어긋난다.
+  const textBoxBg = card.textBox ? boxBackground(card.textBox.color, card.textBox.opacity) : null;
   // 글자 크기 단계 — card.textScale(배수)을 textScaleStepOf 로 역산해 어느 클래스 세트를 쓸지 고른다.
   const scaleStep = textScaleStepOf(card.textScale);
   // 정렬 — CardnewsBody 가 헤드라인·본문·cta 알약·핸들에 같은 값을 곱씹는 것과 같다(card.textAlign).
@@ -554,7 +557,14 @@ export function CardCanvas({
       )}
       {/* 인라인 style 5/13 — 위 여백이 가져갈 몫(card.textY). 나머지 세 속성은 클래스로 둔다 */}
       <div ref={topSpacerRef} style={{ flexGrow: spacers.top }} className="min-h-0 shrink-0 basis-0" />
-      <div ref={blockRef} className="relative flex flex-col gap-3">
+      {/* 인라인 style 12/13 — 글 뒤 상자(사용자가 고른 색·불투명도). 출력(`CardRenderer` 의
+          boxedBody)과 **같은 함수**로 만든 값이라 화면과 저장 결과가 같다. 상자가 없으면
+          배경도 안쪽 여백도 주지 않는다 — 껐는데 글 위치가 바뀌면 안 된다. */}
+      <div
+        ref={blockRef}
+        style={textBoxBg ? { background: textBoxBg } : undefined}
+        className={`relative flex flex-col gap-3 ${textBoxBg ? "rounded-xl px-4 py-3" : ""}`}
+      >
         <EditableText
           // 값을 key 에 넣어 카피가 밖에서 바뀌면(다시 만들기 등) 새로 마운트한다 —
           // contentEditable 은 값이 DOM 에 남아 갱신되지 않는다. 편집 중에는 value 가 그대로라
